@@ -1,0 +1,12 @@
+MD007: false # MD007: Unordered list indentation
+MD010: false # MD010: No hard Tabs
+MD013: false # MD013: Line length
+MD024: false # MD024: Multiple headers with the same content
+MD028: false # MD028: Blank line inside blockquote
+MD033: false # MD033: Inline HTML
+MD036: false # MD036: Emphasis used instead of heading
+MD040: false # MD040: Fenced code blocks should have a language
+MD041: false # MD041: First line should be top-level heading
+MD055: false # MD055: Table pipe style
+MD056: false # MD056: Table column count (false positives on separator rows)
+MD060: false # MD060: Consider starting bulleted lists at the beginning of the line

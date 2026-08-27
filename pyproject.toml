@@ -1,0 +1,113 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "obst"
+version = "0.1.0"
+description = "Open binary container for chunked data and reversible pipelines"
+license = "MPL-2.0"
+requires-python = ">=3.14"
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis>=6.165",
+    "isort>=5.13",
+    "mypy>=1.14",
+    "pyright>=1.1.411",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-timeout>=2.3",
+    "ruff>=0.9",
+    "setuptools>=77",
+]
+
+[project.scripts]
+obst = "obst.cli.main:main"
+
+[project.urls]
+Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/docs/README.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["obst*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "plugins/defaults/tests"]
+pythonpath = ["src", "plugins/defaults/src", "."]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["src", "plugins/defaults/src", "plugins/defaults/tests", "tests"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "UP", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+py_version = 314
+src_paths = ["src", "plugins/defaults/src", "tests", "plugins/defaults/tests"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+mypy_path = ["src", "plugins/defaults/src", "examples/plugin_adaptive_zlib/src"]
+files = [
+    "src/obst",
+    "plugins/defaults/src",
+    "plugins/defaults/tests",
+    "tests",
+    "scripts",
+    "examples/api_walkthrough.py",
+    "examples/plugin_adaptive_zlib/compare_samples.py",
+    "examples/plugin_adaptive_zlib/src",
+]
+exclude = ["obst_lab"]
+
+[tool.pyright]
+include = [
+    "src",
+    "plugins/defaults/src",
+    "plugins/defaults/tests",
+    "tests",
+    "scripts",
+    "examples/api_walkthrough.py",
+    "examples/plugin_adaptive_zlib/compare_samples.py",
+    "examples/plugin_adaptive_zlib/src",
+]
+exclude = [
+    "obst_lab",
+    "build",
+    "dist",
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    ".venv",
+]
+extraPaths = [
+    "src",
+    "plugins/defaults/src",
+    "examples/plugin_adaptive_zlib/src",
+]
+pythonVersion = "3.14"
+typeCheckingMode = "strict"
+
+[tool.coverage.run]
+source = ["obst", "obst_defaults"]
+omit = ["*/tests/*", "*/venv/*", "*/.venv/*", "*/site-packages/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError",
+]

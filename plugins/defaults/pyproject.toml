@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "obst-defaults"
+version = "0.1.0"
+description = "Explicitly activated first-party tooling for OBST"
+license = "MPL-2.0"
+requires-python = ">=3.14"
+dependencies = ["obst==0.1.0"]
+
+[project.urls]
+Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/docs/extensions/README.md"
+
+[project.entry-points."obst.extensions"]
+obst-defaults = "obst_defaults.bundle:obst_extensions"
+
+[project.entry-points."obst.conformance"]
+obst-defaults = "obst_defaults.conformance:obst_conformance"
+
+[project.entry-points."obst.commands"]
+obst-defaults = "obst_defaults.commands:obst_commands"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["obst_defaults*"]

@@ -1,0 +1,248 @@
+{
+	"encoding": "ASCII hexadecimal; whitespace is insignificant",
+	"format": "0.1-apple",
+	"schema_version": 1,
+	"vectors": [
+		{
+			"category": "golden",
+			"expected": {
+				"result": "accept",
+				"streams": [
+					{
+						"id": 0,
+						"logical_hex": "68656c6c6f",
+						"logical_sha256": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+						"logical_size": 5
+					}
+				]
+			},
+			"features": [
+				"raw",
+				"terminal-commit"
+			],
+			"id": "minimal-raw",
+			"path": "containers/0.1-apple/golden/minimal-raw.hex",
+			"required_extensions": [
+				"obst.raw@1"
+			],
+			"sha256": "6953b8cc17de40c104e358b064419fb4858d3f32160e3e6e7369c87cda40a593"
+		},
+		{
+			"category": "valid",
+			"expected": {
+				"result": "accept",
+				"streams": [
+					{
+						"id": 0,
+						"logical_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f4f4253544f4253544f4253544f4253544f4253544f4253544f4253544f425354",
+						"logical_sha256": "1d5c2454d1ee73b908ceb207e6daa4d4e96b4eb35a605a401d0179bccf1252a2",
+						"logical_size": 128
+					}
+				]
+			},
+			"features": [
+				"delta8",
+				"zlib",
+				"multi-stage",
+				"multiple-chunks"
+			],
+			"id": "delta8-zlib-multichunk",
+			"path": "containers/0.1-apple/valid/delta8-zlib-multichunk.hex",
+			"required_extensions": [
+				"obst.delta8@1",
+				"obst.zlib@1"
+			],
+			"sha256": "a8b27ce8a404bebbffdbb81922eda455a1ad10645783428aeef40468337a969f"
+		},
+		{
+			"category": "valid",
+			"expected": {
+				"result": "accept",
+				"streams": [
+					{
+						"id": 0,
+						"logical_hex": "",
+						"logical_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+						"logical_size": 0
+					}
+				]
+			},
+			"features": [
+				"empty-stream",
+				"zero-chunks"
+			],
+			"id": "empty-stream",
+			"path": "containers/0.1-apple/valid/empty-stream.hex",
+			"required_extensions": [],
+			"sha256": "7ecfdc390d3d3b4a0436eb266ff524791838ff56fab66e6a36082058d9f48eda"
+		},
+		{
+			"category": "valid",
+			"expected": {
+				"result": "accept",
+				"streams": [
+					{
+						"id": 0,
+						"logical_hex": "41424344",
+						"logical_sha256": "e12e115acf4552b2568b55e93cbd39394c4ef81c82447fafc997882a02d23677",
+						"logical_size": 4
+					},
+					{
+						"id": 1,
+						"logical_hex": "313233343536",
+						"logical_sha256": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+						"logical_size": 6
+					}
+				]
+			},
+			"features": [
+				"multiple-streams",
+				"interleaved",
+				"recipe-switch"
+			],
+			"id": "multi-stream-interleaved",
+			"path": "containers/0.1-apple/valid/multi-stream-interleaved.hex",
+			"required_extensions": [
+				"obst.delta8@1",
+				"obst.raw@1"
+			],
+			"sha256": "36cae8370ddb7f70a5defc10d90c1ccb4773d51958624f6c63604c24a30321e7"
+		},
+		{
+			"category": "valid",
+			"expected": {
+				"result": "accept",
+				"streams": [
+					{
+						"id": 0,
+						"logical_hex": "6b6e6f776e",
+						"logical_sha256": "7117fff2d0fd294462b3c802b7cb8753579f23f3946b99cf55f38e873f013f10",
+						"logical_size": 5
+					}
+				]
+			},
+			"features": [
+				"unknown-stage",
+				"unused-recipe"
+			],
+			"id": "unused-unknown-stage",
+			"path": "containers/0.1-apple/valid/unused-unknown-stage.hex",
+			"required_extensions": [
+				"obst.raw@1"
+			],
+			"sha256": "967af0013b19f32393628eb612283b7e9cd1599e7bdbdd60ca6591822395f360"
+		},
+		{
+			"category": "invalid",
+			"expected": {
+				"classification": "invalid_structure",
+				"result": "reject",
+				"rule": "docs/format.md#container-header"
+			},
+			"features": [
+				"container-header",
+				"magic"
+			],
+			"id": "container-magic",
+			"path": "containers/0.1-apple/invalid/container-magic.hex",
+			"required_extensions": [],
+			"sha256": "c210b8f11866c6d71cb39203a5ccc512227bf8f20ddb1dc595925b8ff3e9d751"
+		},
+		{
+			"category": "invalid",
+			"expected": {
+				"classification": "truncated",
+				"result": "reject",
+				"rule": "docs/format.md#terminal-commit"
+			},
+			"features": [
+				"terminal-commit",
+				"truncation"
+			],
+			"id": "missing-terminal-commit",
+			"path": "containers/0.1-apple/invalid/missing-terminal-commit.hex",
+			"required_extensions": [],
+			"sha256": "79ba7bdcb68bfee165806bef14775cb191cc68013df5f69c6d01b5bd42df663e"
+		},
+		{
+			"category": "invalid",
+			"expected": {
+				"classification": "invalid_structure",
+				"result": "reject",
+				"rule": "docs/format.md#terminal-commit"
+			},
+			"features": [
+				"terminal-commit",
+				"trailing-data"
+			],
+			"id": "trailing-data",
+			"path": "containers/0.1-apple/invalid/trailing-data.hex",
+			"required_extensions": [],
+			"sha256": "f59afdf255ede2327f577b4de7a060273386b39c098ad4e0c5ccc5cbbfc99c27"
+		},
+		{
+			"category": "invalid",
+			"expected": {
+				"classification": "corrupt",
+				"result": "reject",
+				"rule": "docs/format.md#chunk-records"
+			},
+			"features": [
+				"chunk",
+				"payload-crc"
+			],
+			"id": "payload-crc",
+			"path": "containers/0.1-apple/invalid/payload-crc.hex",
+			"required_extensions": [],
+			"sha256": "ee6758bb34a42cfe6fb6e5a52644f4c9dd1332d8724edc7e5923725c0bf87f3c"
+		},
+		{
+			"category": "invalid",
+			"expected": {
+				"classification": "invalid_structure",
+				"result": "reject",
+				"rule": "docs/format.md#terminal-commit"
+			},
+			"features": [
+				"terminal-commit",
+				"chunk-count"
+			],
+			"id": "terminal-chunk-count",
+			"path": "containers/0.1-apple/invalid/terminal-chunk-count.hex",
+			"required_extensions": [],
+			"sha256": "d3b6aa75a8681de53d94dd1cf368c197335970a9441f575015417edf81636d2b"
+		},
+		{
+			"category": "invalid",
+			"expected": {
+				"classification": "invalid_structure",
+				"result": "reject",
+				"rule": "docs/format.md#chunk-sequence-and-interleaving"
+			},
+			"features": [
+				"chunk",
+				"sequence"
+			],
+			"id": "first-sequence",
+			"path": "containers/0.1-apple/invalid/first-sequence.hex",
+			"required_extensions": [],
+			"sha256": "4674f7b721496f23c859aee410fa3c2b93339f5ede37ff6be594cc30a6750b7c"
+		},
+		{
+			"category": "invalid",
+			"expected": {
+				"classification": "unsupported_version",
+				"result": "reject",
+				"rule": "docs/format.md#version-identity"
+			},
+			"features": [
+				"container-header",
+				"version"
+			],
+			"id": "unsupported-version",
+			"path": "containers/0.1-apple/invalid/unsupported-version.hex",
+			"required_extensions": [],
+			"sha256": "902449d1f23447b6f4c85a77d7f42bcb88be99b050a4fb45844e08c9da999657"
+		}
+	]
+}

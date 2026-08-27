@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "obst-example-adaptive-zlib"
+version = "0.1.0"
+description = "Adaptive third-party zlib Stage plugin for OBST"
+license = "MPL-2.0"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = ["obst"]
+
+[project.urls]
+Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/examples/plugin_adaptive_zlib/README.md"
+
+[project.entry-points."obst.extensions"]
+adaptive-zlib = "obst_example_adaptive_zlib:obst_extensions"
+
+[project.entry-points."obst.conformance"]
+adaptive-zlib = "obst_example_adaptive_zlib:obst_conformance"
+
+[project.entry-points."obst.commands"]
+adaptive-zlib = "obst_example_adaptive_zlib:obst_commands"
+
+[tool.setuptools.packages.find]
+where = ["src"]

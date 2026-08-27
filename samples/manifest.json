@@ -1,0 +1,136 @@
+{
+    "schema_version": 1,
+    "generated_by": "scripts/build_samples.py",
+    "image_license": {
+        "name": "Unsplash License",
+        "url": "https://unsplash.com/license",
+        "note": "Applies to the source images, not the OBST project code."
+    },
+    "container_defaults": {
+        "format": "0.1-apple",
+        "stream_type": "obst.file@1",
+        "recipe": "obst.zlib@1",
+        "zlib_level": 9,
+        "logical_chunk_size": 65536
+    },
+    "nested_archive": {
+        "path": "all-fruit.obst",
+        "size": 3561954,
+        "sha256": "d1dd54d10b01f2ce20e3da9c7b48b0c4d8ff444b27d72d08a328e71d593a33db",
+        "members": [
+            "apple.obst",
+            "pineapple.obst",
+            "fruit-bowl.obst"
+        ]
+    },
+    "images": [
+        {
+            "path": "images/an_vision-gDPaDDy6_WE-unsplash.jpg",
+            "size": 370221,
+            "sha256": "5f1da67da16ad1a9a48cf97598826847d3c2420747d53f4ceb73b4ae0baa9492",
+            "title": "Red apple fruit",
+            "photographer": "an_vision",
+            "photo_id": "gDPaDDy6_WE",
+            "source_url": "https://unsplash.com/photos/red-apple-fruit-gDPaDDy6_WE",
+            "container": {
+                "path": "apple.obst",
+                "size": 266855,
+                "sha256": "500eea9fc9365564079236955137eae9dc68309ee6ed820fda7e0ba7b51f5aa3",
+                "chunk_count": 6
+            }
+        },
+        {
+            "path": "images/fernando-andrade-nAOZCYcLND8-unsplash.jpg",
+            "size": 860430,
+            "sha256": "052951b52e2122ef7c5625477ea9fd4a493512dff9a62afd6dd1ce79dce64202",
+            "title": "Ripe pineapple fruit",
+            "photographer": "Fernando Andrade",
+            "photo_id": "nAOZCYcLND8",
+            "source_url": "https://unsplash.com/photos/ripe-pineapple-fruit-nAOZCYcLND8",
+            "container": {
+                "path": "pineapple.obst",
+                "size": 837603,
+                "sha256": "658652f87cd58581916fed6a0822b01ed4b9123d8d17ebc413b5dca8bcd62f1f",
+                "chunk_count": 14
+            }
+        },
+        {
+            "path": "images/jo-sonn-zeFy-oCUhV8-unsplash.jpg",
+            "size": 2490073,
+            "sha256": "f12c52a4669c791ab6f9b36d5ec66cff6a60695826e33fed1b45df42477a32ca",
+            "title": "Assorted fruits",
+            "photographer": "Jo Sonn",
+            "photo_id": "zeFy-oCUhV8",
+            "source_url": "https://unsplash.com/photos/assorted-fruits-zeFy-oCUhV8",
+            "container": {
+                "path": "fruit-bowl.obst",
+                "size": 2452377,
+                "sha256": "69fc3ecc4cabd82b2bf5ef257f155b3b15f7fb235368048f160d7a8d804d44ae",
+                "chunk_count": 38
+            }
+        },
+        {
+            "path": "images/mockup-graphics-13PBliWTDng-unsplash.jpg",
+            "size": 1400087,
+            "sha256": "ef481ba887a7efbd010c234d75d597a8a5b0cc02072db0f5528ab41b6ca39588",
+            "title": "Sliced watermelon on white background",
+            "photographer": "Mockup Graphics",
+            "photo_id": "13PBliWTDng",
+            "source_url": "https://unsplash.com/photos/sliced-watermelon-on-white-background-13PBliWTDng"
+        },
+        {
+            "path": "images/mockup-graphics-haSJEJYzl5A-unsplash.jpg",
+            "size": 768363,
+            "sha256": "69c1a4c2ff9e1d08d9c2e665680e4cc606757b745678b01af85c58ce374124d6",
+            "title": "Pear with yellow and red skin",
+            "photographer": "Mockup Graphics",
+            "photo_id": "haSJEJYzl5A",
+            "source_url": "https://unsplash.com/photos/pear-with-yellow-and-red-skin-haSJEJYzl5A"
+        },
+        {
+            "path": "images/mockup-graphics-jHcKq383ibg-unsplash.jpg",
+            "size": 603083,
+            "sha256": "83b1437cc7d322b32a984546ae54ec4a79a0306f137f212f3cf5b0d7554e6963",
+            "title": "Red raspberry on white background",
+            "photographer": "Mockup Graphics",
+            "photo_id": "jHcKq383ibg",
+            "source_url": "https://unsplash.com/photos/red-raspberry-on-white-background-jHcKq383ibg"
+        },
+        {
+            "path": "images/mockup-graphics-Kl3467edwsE-unsplash.jpg",
+            "size": 856085,
+            "sha256": "42e78b900d23db4dcc8847f53ce6989bb63a0003466444e27351be0b351390ed",
+            "title": "Yellow banana on white background",
+            "photographer": "Mockup Graphics",
+            "photo_id": "Kl3467edwsE",
+            "source_url": "https://unsplash.com/photos/yellow-banana-on-white-background-Kl3467edwsE"
+        },
+        {
+            "path": "images/mockup-graphics-XiWQbLEhFyo-unsplash.jpg",
+            "size": 740055,
+            "sha256": "a51c236a245ea2567c545f1933cf3f72f44ecb5d99bc43db9bdc6ca6f11d3a7c",
+            "title": "Whole red pomegranate on white",
+            "photographer": "Mockup Graphics",
+            "photo_id": "XiWQbLEhFyo",
+            "source_url": "https://unsplash.com/photos/whole-red-pomegranate-on-white-XiWQbLEhFyo"
+        },
+        {
+            "path": "images/quaritsch-photography-lZ8onQ1wuY8-unsplash.jpg",
+            "size": 481208,
+            "sha256": "e826533fc53f03e569ab791dd7e8f8310531af563da28fad1566da51f4afab53",
+            "title": "Two cherries on white surface",
+            "photographer": "Quaritsch Photography",
+            "photo_id": "lZ8onQ1wuY8",
+            "source_url": "https://unsplash.com/photos/two-cherries-on-white-surface-lZ8onQ1wuY8"
+        },
+        {
+            "path": "images/tijana-drndarski-ta0b_NDxi6k-unsplash.jpg",
+            "size": 1932881,
+            "sha256": "b998ad2ee761e8840350f6226018942e99691c7d51fcb1bec71887f59ce843fd",
+            "title": "Black and red round fruit",
+            "photographer": "Tijana Drndarski",
+            "photo_id": "ta0b_NDxi6k",
+            "source_url": "https://unsplash.com/photos/black-and-red-round-fruit-ta0b_NDxi6k"
+        }
+    ]
+}
