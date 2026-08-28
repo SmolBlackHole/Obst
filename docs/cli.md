@@ -151,9 +151,9 @@ factory and registry path as every third-party package. Each explicit
 registry for that command only. It does not expose that plugin's own command
 contributions. Container bytes never select, enable or load plugins.
 
-These commands have schema-versioned JSON output. Plugin catalog schema `4`
+These commands have schema-versioned JSON output. Plugin catalog schema `5`
 reports all 3 contribution entry-point groups plus inert records with install,
-enabled and default state, distribution metadata and factory provenance. Plugin
+enabled state, distribution metadata and factory provenance. Plugin
 conformance report schema `2` reports each case ID, kind, optional Extension
 ID, pass state and failure text. The static suite catalog itself uses schema
 `1`. Cataloging never imports plugin code.

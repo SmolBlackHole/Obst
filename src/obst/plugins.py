@@ -88,7 +88,6 @@ class PluginStatus:
     name: str
     installed: bool
     enabled: bool
-    default: bool
     distribution_name: str | None = None
     distribution_version: str | None = None
     summary: str | None = None
@@ -162,24 +161,18 @@ class PluginManager:
         *,
         installed: dict[str, _InstalledPlugin],
         state_path: Path,
-        default_enabled: frozenset[str],
     ) -> None:
         self._installed = installed
         self._state_path = state_path
-        self._default_enabled = default_enabled
-        self._enabled = _read_enabled_plugins(state_path, default_enabled)
+        self._enabled = _read_enabled_plugins(state_path)
 
     @classmethod
     def discover(
         cls,
         *,
         state_path: Path | None = None,
-        default_enabled: Iterable[str] = (),
     ) -> PluginManager:
         """Discover plugin metadata without importing plugin code."""
-        defaults = frozenset(default_enabled)
-        for name in defaults:
-            _validate_plugin_name(name)
         entry_points = tuple(metadata.entry_points())
         extension_entries = _index_entry_points(
             entry_points,
@@ -226,7 +219,6 @@ class PluginManager:
         return cls(
             installed=installed,
             state_path=state_path or default_plugin_state_path(),
-            default_enabled=defaults,
         )
 
     @property
@@ -355,7 +347,6 @@ class PluginManager:
                 name=name,
                 installed=False,
                 enabled=name in self._enabled,
-                default=name in self._default_enabled,
             )
         conformance_entry = plugin.conformance_entry_point
         extension_entry = plugin.extension_entry_point
@@ -364,7 +355,6 @@ class PluginManager:
             name=name,
             installed=True,
             enabled=name in self._enabled,
-            default=name in self._default_enabled,
             distribution_name=plugin.distribution_name,
             distribution_version=plugin.distribution_version,
             summary=plugin.summary,
@@ -576,12 +566,11 @@ def _validate_plugin_name(name: object) -> None:
 
 def _read_enabled_plugins(
     state_path: Path,
-    default_enabled: frozenset[str],
 ) -> frozenset[str]:
     try:
         loaded: object = json.loads(state_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        return default_enabled
+        return frozenset()
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise PluginStateError(
             state_path,

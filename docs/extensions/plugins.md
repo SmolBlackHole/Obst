@@ -252,9 +252,8 @@ commands = manager.commands()
 manager.disable("example")
 ```
 
-An absent state file uses the defaults explicitly supplied by an embedding
-host. The generic CLI supplies none. The first change writes the complete
-effective enabled set as versioned JSON. `OBST_CONFIG_HOME` overrides the
+An absent state file means that no plugin is enabled. The first change writes
+the complete enabled set as versioned JSON. `OBST_CONFIG_HOME` overrides the
 configuration directory; otherwise the manager uses the normal Windows
 roaming or XDG configuration location. Corrupt state raises `PluginStateError`
 and is never reset silently.

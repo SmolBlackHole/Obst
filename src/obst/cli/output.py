@@ -34,7 +34,7 @@ from obst.plugins import (
 )
 
 INSPECTION_JSON_SCHEMA_VERSION = 6
-PLUGIN_CATALOG_JSON_SCHEMA_VERSION = 4
+PLUGIN_CATALOG_JSON_SCHEMA_VERSION = 5
 PLUGIN_CONFORMANCE_JSON_SCHEMA_VERSION = 2
 EXTENSION_INVENTORY_JSON_SCHEMA_VERSION = 3
 
@@ -84,10 +84,6 @@ def render_plugin_catalog_human(
         )
         print(
             _human_field(style, "Enabled", _styled_yes_no(style, plugin.enabled)),
-            file=output,
-        )
-        print(
-            _human_field(style, "Default", _styled_yes_no(style, plugin.default)),
             file=output,
         )
         if plugin.installed:
@@ -159,7 +155,6 @@ def render_plugin_catalog_json(
                 "name": plugin.name,
                 "installed": plugin.installed,
                 "enabled": plugin.enabled,
-                "default": plugin.default,
                 "distribution_name": plugin.distribution_name,
                 "distribution_version": plugin.distribution_version,
                 "summary": plugin.summary,

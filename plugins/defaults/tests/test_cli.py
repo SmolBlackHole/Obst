@@ -798,11 +798,11 @@ def test_plugins_command_lists_entry_points_without_loading_them(
         "extensions": EXTENSION_ENTRY_POINT_GROUP,
         "conformance": CONFORMANCE_ENTRY_POINT_GROUP,
     }
+    assert document["schema_version"] == 5
     plugins = {item["name"]: item for item in document["plugins"]}
     assert plugins["example"] == {
         "conformance_reference": f"{__name__}:cli_conformance_factory",
         "command_reference": None,
-        "default": False,
         "distribution_name": "example",
         "distribution_version": "1.0",
         "documentation_url": None,
@@ -814,14 +814,13 @@ def test_plugins_command_lists_entry_points_without_loading_them(
     }
     assert plugins["obst-defaults"]["installed"] is False
     assert plugins["obst-defaults"]["enabled"] is True
-    assert plugins["obst-defaults"]["default"] is False
 
     assert main(["plugins", "list"]) == EXIT_SUCCESS
     human = capsys.readouterr().out
     assert "Metadata only; plugin code was not loaded" in human
     assert "Installed       yes" in human
     assert "Enabled         no" in human
-    assert "Default         no" in human
+    assert "Default         " not in human
     assert "Extensions      module.that.must.not.load:factory" in human
 
 

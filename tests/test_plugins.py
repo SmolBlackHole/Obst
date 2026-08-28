@@ -156,7 +156,6 @@ def _discover(
     extensions: tuple[metadata.EntryPoint, ...] = (),
     commands: tuple[metadata.EntryPoint, ...] = (),
     conformance: tuple[metadata.EntryPoint, ...] = (),
-    default_enabled: tuple[str, ...] = (),
     auto_conformance: bool = True,
 ) -> PluginManager:
     if auto_conformance and extensions and not conformance:
@@ -191,10 +190,7 @@ def _discover(
         return entries[group]
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
-    return PluginManager.discover(
-        state_path=tmp_path / "plugins.json",
-        default_enabled=default_enabled,
-    )
+    return PluginManager.discover(state_path=tmp_path / "plugins.json")
 
 
 def test_discovery_is_inert_and_sorted(
@@ -381,8 +377,8 @@ def test_command_contract_is_captured_once_and_validates_exit_values(
                 COMMAND_ENTRY_POINT_GROUP,
             ),
         ),
-        default_enabled=("mutable",),
     )
+    manager.enable("mutable")
     command = manager.commands()[0]
     _MUTABLE_COMMAND.name = "changed-after-capture"
     _MUTABLE_COMMAND.summary = "changed after capture"
@@ -390,9 +386,9 @@ def test_command_contract_is_captured_once_and_validates_exit_values(
     assert command.name == "captured-command"
     assert command.summary == "captured summary"
 
-    invalid = _discover(
+    invalid_manager = _discover(
         monkeypatch,
-        tmp_path,
+        tmp_path / "invalid-exit",
         commands=(
             _entry_point(
                 "invalid-exit",
@@ -400,8 +396,9 @@ def test_command_contract_is_captured_once_and_validates_exit_values(
                 COMMAND_ENTRY_POINT_GROUP,
             ),
         ),
-        default_enabled=("invalid-exit",),
-    ).commands()[0]
+    )
+    invalid_manager.enable("invalid-exit")
+    invalid = invalid_manager.commands()[0]
     with pytest.raises(PluginLoadError, match=r"exact integer in 0\.\.255"):
         invalid.run(argparse.Namespace(), CliContext.__new__(CliContext))
 
@@ -420,8 +417,8 @@ def test_command_attribute_failures_use_the_plugin_error_boundary(
                 COMMAND_ENTRY_POINT_GROUP,
             ),
         ),
-        default_enabled=("raising",),
     )
+    manager.enable("raising")
 
     with pytest.raises(PluginLoadError, match="name getter exploded"):
         manager.commands()
@@ -534,7 +531,7 @@ def test_discovery_rejects_distinct_owners_with_equal_declared_identity(
         PluginManager.discover(state_path=tmp_path / "state.json")
 
 
-def test_activation_state_overrides_defaults_without_loading_code(
+def test_activation_requires_explicit_persisted_state_without_loading_code(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -554,14 +551,12 @@ def test_activation_state_overrides_defaults_without_loading_code(
         monkeypatch,
         tmp_path,
         extensions=entries,
-        default_enabled=("obst",),
     )
 
     assert {item.name: item.enabled for item in manager.catalog()} == {
         "example": False,
-        "obst": True,
+        "obst": False,
     }
-    manager.disable("obst")
     manager.enable("example")
 
     document = json.loads(manager.state_path.read_text(encoding="utf-8"))
@@ -570,7 +565,6 @@ def test_activation_state_overrides_defaults_without_loading_code(
         monkeypatch,
         tmp_path,
         extensions=entries,
-        default_enabled=("obst",),
     )
     assert {item.name: item.enabled for item in rediscovered.catalog()} == {
         "example": True,

@@ -23,7 +23,6 @@ def _empty_manager(tmp_path: Path) -> PluginManager:
     return PluginManager(
         installed={},
         state_path=tmp_path / "plugins.json",
-        default_enabled=frozenset(),
     )
 
 
