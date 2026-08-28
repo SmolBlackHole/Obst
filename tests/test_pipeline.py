@@ -7,6 +7,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from obst.core import (
+    ChunkEncoder,
     ExtensionContractError,
     ExtensionDescriptor,
     ExtensionRegistry,
@@ -629,8 +630,14 @@ def test_wrong_provider_signature_fails_with_extension_context() -> None:
     assert isinstance(error.value.__cause__, TypeError)
 
 
-@pytest.mark.parametrize("direction", ["encode", "decode"])
-def test_core_rechecks_provider_output_ceiling(direction: str) -> None:
+@pytest.mark.parametrize(
+    ("direction", "expected_ceiling"),
+    [("encode", 2), ("decode", 1)],
+)
+def test_core_rechecks_provider_output_ceiling(
+    direction: str,
+    expected_ceiling: int,
+) -> None:
     class OversizedStage(_IdentityStage):
         def encode(
             self,
@@ -654,7 +661,10 @@ def test_core_rechecks_provider_output_ceiling(direction: str) -> None:
     recipe = Recipe(0, (StageSpec(_XOR_ID),))
     limits = ResourceLimits(max_intermediate_bytes=2)
 
-    with pytest.raises(ExtensionContractError, match="above its 2-byte output ceiling"):
+    with pytest.raises(
+        ExtensionContractError,
+        match=rf"above its {expected_ceiling}-byte output ceiling",
+    ):
         if direction == "encode":
             encode_recipe(b"x", recipe, registry, limits=limits)
         else:
@@ -665,6 +675,57 @@ def test_core_rechecks_provider_output_ceiling(direction: str) -> None:
                 expected_size=1,
                 limits=limits,
             )
+
+
+@pytest.mark.parametrize("direction", ["encode", "decode"])
+def test_final_stage_receives_tighter_endpoint_ceiling(direction: str) -> None:
+    received: list[int | None] = []
+
+    class RecordingStage(_IdentityStage):
+        def encode(
+            self,
+            data: bytes,
+            /,
+            *,
+            max_output_size: int | None,
+        ) -> bytes:
+            received.append(max_output_size)
+            return data
+
+        def decode(
+            self,
+            data: bytes,
+            /,
+            *,
+            max_output_size: int | None,
+        ) -> bytes:
+            received.append(max_output_size)
+            return data
+
+    registry = ExtensionRegistry((RecordingStage(),))
+    recipe = Recipe(0, (StageSpec(_XOR_ID),))
+    limits = ResourceLimits(
+        max_encoded_chunk_bytes=1,
+        max_intermediate_bytes=7,
+    )
+
+    if direction == "encode":
+        ChunkEncoder(registry, limits=limits).encode(
+            b"x",
+            stream_id=0,
+            sequence=0,
+            recipe=recipe,
+        )
+    else:
+        decode_recipe(
+            b"x",
+            recipe,
+            registry,
+            expected_size=1,
+            limits=limits,
+        )
+
+    assert received == [1]
 
 
 def test_provider_output_helper_preserves_structured_resource_limit() -> None:

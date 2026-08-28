@@ -82,9 +82,17 @@ class RecipeEncoder:
         for recipe, provider_specs in resolved:
             self._bindings[recipe] = _bind_resolved_encoder_recipe(provider_specs)
 
-    def encode(self, data: bytes, recipe: Recipe, /) -> bytes:
+    def encode(
+        self,
+        data: bytes,
+        recipe: Recipe,
+        /,
+        *,
+        max_output_size: int | None = None,
+    ) -> bytes:
         """Encode one bounded logical chunk using a cached recipe binding."""
         _require_exact_bytes("recipe input", data)
+        _require_optional_output_size(max_output_size)
         _precheck_recipe_operation(
             self._budget,
             input_size=len(data),
@@ -96,7 +104,12 @@ class RecipeEncoder:
         if bindings is None:
             self.preflight((recipe,))
             bindings = self._bindings[recipe]
-        return _execute_encoder_recipe(data, bindings, self._budget)
+        return _execute_encoder_recipe(
+            data,
+            bindings,
+            self._budget,
+            max_output_size=max_output_size,
+        )
 
 
 class RecipeDecoder:
@@ -148,6 +161,8 @@ def _execute_encoder_recipe(
     data: bytes,
     bindings: tuple[_EncoderBinding, ...],
     budget: ResourceBudget,
+    *,
+    max_output_size: int | None,
 ) -> bytes:
     _require_exact_bytes("recipe input", data)
     budget.consume_logical_bytes(
@@ -162,7 +177,13 @@ def _execute_encoder_recipe(
         phase="recipe_encode",
     )
     result = data
-    for binding in bindings:
+    for index, binding in enumerate(bindings):
+        stage_output_size = budget.limits.max_intermediate_bytes
+        if index == len(bindings) - 1:
+            stage_output_size = _minimum_output_size(
+                stage_output_size,
+                max_output_size,
+            )
         budget.consume_stage_execution(
             scope=binding.stage_id,
             phase="recipe_encode",
@@ -172,13 +193,13 @@ def _execute_encoder_recipe(
             "encode",
             binding.operation,
             result,
-            max_output_size=budget.limits.max_intermediate_bytes,
+            max_output_size=stage_output_size,
         )
         _validate_provider_output(
             result,
             stage_id=binding.stage_id,
             direction="encode",
-            max_output_size=budget.limits.max_intermediate_bytes,
+            max_output_size=stage_output_size,
         )
     return result
 
@@ -203,7 +224,13 @@ def _execute_decoder_recipe(
         phase="recipe_decode",
     )
     result = data
-    for binding in bindings:
+    for index, binding in enumerate(bindings):
+        stage_output_size = budget.limits.max_intermediate_bytes
+        if index == len(bindings) - 1:
+            stage_output_size = _minimum_output_size(
+                stage_output_size,
+                expected_size,
+            )
         budget.consume_stage_execution(
             scope=binding.stage_id,
             phase="recipe_decode",
@@ -213,13 +240,13 @@ def _execute_decoder_recipe(
             "decode",
             binding.operation,
             result,
-            max_output_size=budget.limits.max_intermediate_bytes,
+            max_output_size=stage_output_size,
         )
         _validate_provider_output(
             result,
             stage_id=binding.stage_id,
             direction="decode",
-            max_output_size=budget.limits.max_intermediate_bytes,
+            max_output_size=stage_output_size,
         )
     if len(result) != expected_size:
         raise PipelineError(
@@ -533,6 +560,26 @@ def _require_expected_size(expected_size: object) -> None:
         raise TypeError("expected_size must be an integer")
     if expected_size < 0:
         raise ValueError("expected_size must be non-negative")
+
+
+def _require_optional_output_size(max_output_size: object) -> None:
+    if max_output_size is None:
+        return
+    if type(max_output_size) is not int:
+        raise TypeError("max_output_size must be an integer or None")
+    if max_output_size < 0:
+        raise ValueError("max_output_size must be non-negative")
+
+
+def _minimum_output_size(
+    first: int | None,
+    second: int | None,
+) -> int | None:
+    if first is None:
+        return second
+    if second is None:
+        return first
+    return min(first, second)
 
 
 def _require_exact_bytes(name: str, value: object) -> None:

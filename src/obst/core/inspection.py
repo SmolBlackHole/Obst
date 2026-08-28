@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -319,7 +319,8 @@ def _interpret_stream_metadata(
     return _invoke_interpreter(
         stream.stream_type,
         "metadata interpreter",
-        interpreter.interpret_metadata,
+        interpreter,
+        "interpret_metadata",
         stream.metadata,
     )
 
@@ -337,7 +338,8 @@ def _interpret_stage_parameters(
     return _invoke_interpreter(
         stage.stage_id,
         "parameter interpreter",
-        interpreter.interpret_parameters,
+        interpreter,
+        "interpret_parameters",
         stage.parameters,
     )
 
@@ -345,10 +347,14 @@ def _interpret_stage_parameters(
 def _invoke_interpreter(
     extension_id: str,
     capability: str,
-    operation: Callable[[bytes], InspectionInterpretation],
+    provider: object,
+    operation_name: str,
     data: bytes,
 ) -> InspectionInterpretation:
     try:
+        operation = getattr(provider, operation_name)
+        if not callable(operation):
+            raise TypeError(f"{operation_name} must remain callable")
         result = operation(data)
     except Exception as exc:
         raise ExtensionContractError(

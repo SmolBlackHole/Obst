@@ -36,8 +36,11 @@ assert "obst_defaults" not in sys.modules
 
 runtime = manager.runtime(("obst-defaults",))
 assert runtime.plugin_names == ("obst-defaults",)
-assert {command.name for command in runtime.commands} == {"pack", "unpack"}
 assert runtime.registry.can_encode("obst.raw@1")
+assert manager.commands() == ()
+
+manager.enable("obst-defaults")
+assert {command.name for command in manager.commands()} == {"pack", "unpack"}
 """
 _RUNTIME_ONLY_PROBE = """
 from importlib.metadata import PackageNotFoundError, metadata, version

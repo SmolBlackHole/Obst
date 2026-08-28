@@ -9,6 +9,7 @@ import zlib as stdlib_zlib
 from importlib import metadata
 from io import BytesIO
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -132,19 +133,24 @@ def test_example_plugin_entry_point_loads_and_round_trips(
         group=COMMAND_ENTRY_POINT_GROUP,
     )
 
+    owner = next(iter(metadata.distributions()))
+    for entry in (extension_entry, conformance_entry, command_entry):
+        cast(Any, entry)._for(owner)
+    all_entries = (command_entry, extension_entry, conformance_entry)
+
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
-        return {
-            COMMAND_ENTRY_POINT_GROUP: (command_entry,),
-            EXTENSION_ENTRY_POINT_GROUP: (extension_entry,),
-            CONFORMANCE_ENTRY_POINT_GROUP: (conformance_entry,),
-        }[params["group"]]
+        group = params.get("group")
+        return tuple(
+            entry for entry in all_entries if group is None or entry.group == group
+        )
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
     manager = PluginManager.discover(state_path=tmp_path / "plugins.json")
+    manager.enable("adaptive-zlib")
 
-    runtime = manager.runtime(("adaptive-zlib",))
+    runtime = manager.runtime()
     registry = runtime.registry
-    assert tuple(command.name for command in runtime.commands) == ("adaptive-pack",)
+    assert tuple(command.name for command in manager.commands()) == ("adaptive-pack",)
     stage_id = "org.example/adaptive-zlib@1"
     parameters = b"\x09\x07\x00"
     recipe = Recipe(0, (StageSpec(stage_id, parameters),))
@@ -260,9 +266,19 @@ def test_example_plugin_command_composes_another_plugins_stage(
         COMMAND_ENTRY_POINT_GROUP: (adaptive_command, defaults_command),
         CONFORMANCE_ENTRY_POINT_GROUP: (),
     }
+    owner = next(iter(metadata.distributions()))
+    for entry in (
+        *entries[EXTENSION_ENTRY_POINT_GROUP],
+        *entries[COMMAND_ENTRY_POINT_GROUP],
+    ):
+        cast(Any, entry)._for(owner)
+    all_entries = tuple(entry for group in entries.values() for entry in group)
 
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
-        return entries[params["group"]]
+        group = params.get("group")
+        return tuple(
+            entry for entry in all_entries if group is None or entry.group == group
+        )
 
     monkeypatch.setattr(
         metadata,
@@ -271,7 +287,7 @@ def test_example_plugin_command_composes_another_plugins_stage(
     )
     monkeypatch.setattr(sys, "path", [str(PLUGIN_SOURCE), *sys.path])
     manager = PluginManager.discover(state_path=tmp_path / "plugins.json")
-    assert manager.runtime().commands == ()
+    assert manager.commands() == ()
     manager.enable("adaptive-zlib")
     monkeypatch.setattr("obst.cli.main._plugin_manager", lambda: manager)
     from obst.cli.main import main
@@ -333,7 +349,8 @@ def test_example_plugin_round_trips_existing_obst_sample(
     )
 
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
-        if params["group"] == EXTENSION_ENTRY_POINT_GROUP:
+        group = params.get("group")
+        if group is None or group == EXTENSION_ENTRY_POINT_GROUP:
             return (extension_entry,)
         return ()
 

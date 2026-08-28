@@ -7,13 +7,14 @@ import struct
 import subprocess
 import sys
 import zlib
+from email.message import Message
 from importlib import metadata
 from pathlib import Path
-from typing import Self
+from typing import Any, Self, cast
 
 import pytest
 
-from obst.cli import CliContext
+from obst.cli import CliCommandError, CliContext
 from obst.cli.commands import (
     EXIT_INVALID_CONTAINER,
     EXIT_IO,
@@ -35,9 +36,11 @@ from obst.core import (
     Manifest,
     Recipe,
     ResourceLimitError,
+    ResourceLimits,
     StageExtension,
     StageSpec,
     Stream,
+    TruncatedContainerError,
     encode_chunk_once,
     format_version,
     require_no_parameters,
@@ -49,17 +52,57 @@ from obst.plugins import (
     CONFORMANCE_ENTRY_POINT_GROUP,
     EXTENSION_ENTRY_POINT_GROUP,
 )
+from obst_defaults.carriers import CarrierError
+from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
 from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import (
     ZlibDictionaryExtension,
     ZlibDictionaryParameters,
     ZlibExtension,
 )
-from obst_defaults.commands import EXIT_ARCHIVE, EXIT_CARRIER
+from obst_defaults.commands import (
+    _has_windows_origin_mark,  # pyright: ignore[reportPrivateUsage]
+)
+from obst_defaults.commands import _unpack_path  # pyright: ignore[reportPrivateUsage]
+from obst_defaults.commands import (
+    EXIT_ARCHIVE,
+    EXIT_CARRIER,
+)
+from obst_defaults.files import FileExtension
 
 _FIRST_PARTY_PLUGIN_NAME = "obst-defaults"
 _FIRST_PARTY_PLUGIN_TARGET = "obst_defaults.bundle:obst_extensions"
 _FIRST_PARTY_COMMAND_TARGET = "obst_defaults.commands:obst_commands"
+
+
+class _StubDistribution:
+    def __init__(self, name: str) -> None:
+        package_metadata = Message()
+        package_metadata["Name"] = name
+        package_metadata["Version"] = "1.0"
+        self.name = name
+        self.version = "1.0"
+        self.metadata = cast(metadata.PackageMetadata, package_metadata)
+
+
+class _FailingCloseReaderSession:
+    def open(self) -> io.BytesIO:
+        return io.BytesIO()
+
+    def close(self) -> None:
+        raise CarrierError("reader close failed")
+
+
+class _ReaderOnlyFilesystemExtension:
+    extension_id = "obst.filesystem@1"
+    descriptor = FilesystemCarrierExtension.descriptor
+    kind = ExtensionKind.CARRIER
+
+    def __init__(self, session: _FailingCloseReaderSession) -> None:
+        self._session = session
+
+    def bind_reader(self, request: object, /) -> _FailingCloseReaderSession:
+        return self._session
 
 
 def _first_party_plugin() -> metadata.EntryPoint:
@@ -98,9 +141,23 @@ def _install_plugin_entries(
         COMMAND_ENTRY_POINT_GROUP: command_entries,
         CONFORMANCE_ENTRY_POINT_GROUP: conformance,
     }
+    all_entries = extensions + command_entries + conformance
+    entries_by_name: dict[str, list[metadata.EntryPoint]] = {}
+    for entry in all_entries:
+        entries_by_name.setdefault(entry.name, []).append(entry)
+    for name, owned_entries in entries_by_name.items():
+        if len(owned_entries) > 1 and all(
+            entry.dist is None for entry in owned_entries
+        ):
+            owner = _StubDistribution(name)
+            for entry in owned_entries:
+                cast(Any, entry)._for(owner)
 
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
-        return entries[params["group"]]
+        group = params.get("group")
+        if group is None:
+            return all_entries
+        return entries[group]
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
 
@@ -337,6 +394,26 @@ def test_pack_and_unpack_commands_preserve_selected_filenames(
     assert unpacked.err == ""
 
 
+def test_unpack_accepts_nonempty_directory_without_member_collisions(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "apple.txt"
+    source.write_text("red", encoding="utf-8")
+    archive = tmp_path / "fruit.obst"
+    assert main(["pack", str(source), "-o", str(archive)]) == EXIT_SUCCESS
+    capsys.readouterr()
+    output = tmp_path / "output"
+    output.mkdir()
+    unrelated = output / "keep.txt"
+    unrelated.write_text("keep", encoding="utf-8")
+
+    assert main(["unpack", str(archive), "-o", str(output)]) == EXIT_SUCCESS
+
+    assert unrelated.read_text(encoding="utf-8") == "keep"
+    assert (output / source.name).read_text(encoding="utf-8") == "red"
+
+
 def test_unpack_warns_when_windows_origin_is_not_propagated(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -363,6 +440,37 @@ def test_unpack_warns_when_windows_origin_is_not_propagated(
     assert "input has Windows Mark of the Web" in captured.err
 
 
+def test_unpack_preserves_container_failure_when_reader_close_also_fails(
+    tmp_path: Path,
+) -> None:
+    session = _FailingCloseReaderSession()
+    registry = ExtensionRegistry(
+        (
+            _ReaderOnlyFilesystemExtension(session),
+            FileExtension(),
+        )
+    )
+    context = CliContext(
+        registry=registry,
+        plugin_names=("test",),
+        stdin=io.BytesIO(),
+        stdout=io.StringIO(),
+        stderr=io.StringIO(),
+        limits=ResourceLimits(),
+    )
+
+    with pytest.raises(TruncatedContainerError) as error:
+        _unpack_path(
+            context,
+            input_path=str(tmp_path / "empty.obst"),
+            output_directory=str(tmp_path / "output"),
+        )
+
+    assert error.value.__notes__ == [
+        f"failed to close input carrier {tmp_path / 'empty.obst'}: reader close failed"
+    ]
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="NTFS alternate data stream")
 def test_windows_origin_detection_reads_zone_identifier(
     tmp_path: Path,
@@ -385,6 +493,21 @@ def test_windows_origin_detection_reads_zone_identifier(
         main(["unpack", str(container), "-o", str(tmp_path / "output")]) == EXIT_SUCCESS
     )
     assert "input has Windows Mark of the Web" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("failure", (FileNotFoundError("missing"), OSError("denied")))
+def test_windows_origin_detection_is_conservative_on_probe_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: OSError,
+) -> None:
+    def fail_open(path: Path, mode: str = "r", *args: object, **kwargs: object) -> None:
+        raise failure
+
+    monkeypatch.setattr("obst_defaults.commands.sys.platform", "win32")
+    monkeypatch.setattr(Path, "open", fail_open)
+
+    assert not _has_windows_origin_mark(tmp_path / "download.obst")
 
 
 def test_pack_and_unpack_commands_pluralize_single_file_and_chunk(
@@ -704,6 +827,75 @@ def test_enabled_command_only_plugin_contributes_a_cli_command(
     captured = capsys.readouterr()
     assert captured.out == "dynamic\n"
     assert captured.err == ""
+
+
+@pytest.mark.parametrize("exit_code", (True, -1, 256))
+def test_cli_command_error_requires_a_portable_exact_exit_code(
+    exit_code: object,
+) -> None:
+    with pytest.raises(ValueError, match=r"exact integer in 0\.\.255"):
+        CliCommandError("plugin_error", exit_code, RuntimeError("failure"))  # type: ignore[arg-type]
+
+
+def test_plugin_command_uses_one_captured_factory_result_with_one_shot_extensions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    global _counting_command_factory_calls
+    _counting_command_factory_calls = 0
+    config_home = tmp_path / "config"
+    config_home.mkdir(exist_ok=True)
+    (config_home / "plugins.json").write_text(
+        '{"enabled": ["snapshot"], "schema_version": 1}\n',
+        encoding="utf-8",
+    )
+    command = metadata.EntryPoint(
+        name="snapshot",
+        value=f"{__name__}:counting_cli_command_factory",
+        group=COMMAND_ENTRY_POINT_GROUP,
+    )
+    extension = metadata.EntryPoint(
+        name="extra",
+        value=f"{__name__}:cli_extension_factory",
+        group=EXTENSION_ENTRY_POINT_GROUP,
+    )
+    _install_plugin_entries(monkeypatch, (extension,), commands=(command,))
+
+    assert (
+        main(["snapshot-command", "--plugin", "extra", "--value", "same"])
+        == EXIT_SUCCESS
+    )
+
+    assert _counting_command_factory_calls == 1
+    assert capsys.readouterr().out == "same\n"
+
+
+def test_generic_version_and_builtin_help_do_not_load_plugin_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_home = tmp_path / "config"
+    config_home.mkdir(exist_ok=True)
+    (config_home / "plugins.json").write_text(
+        '{"enabled": ["broken"], "schema_version": 1}\n',
+        encoding="utf-8",
+    )
+    command = metadata.EntryPoint(
+        name="broken",
+        value=f"{__name__}:exploding_cli_command_factory",
+        group=COMMAND_ENTRY_POINT_GROUP,
+    )
+    _install_plugin_entries(monkeypatch, (), commands=(command,))
+
+    with pytest.raises(SystemExit) as version:
+        main(["--version"])
+    assert version.value.code == EXIT_SUCCESS
+    assert "obst format" in capsys.readouterr().out
+
+    assert main(["help", "inspect"]) == EXIT_SUCCESS
+    assert "usage: obst inspect" in capsys.readouterr().out
 
 
 def test_extensions_command_reports_builtin_capability_inventory(
@@ -1094,3 +1286,28 @@ class _CliExampleCommand:
 
 def cli_command_factory() -> tuple[_CliExampleCommand, ...]:
     return (_CliExampleCommand(),)
+
+
+_counting_command_factory_calls = 0
+
+
+class _CountingCliCommand:
+    name = "snapshot-command"
+    summary = "verify one immutable command snapshot"
+
+    def configure_parser(self, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--value", required=True)
+
+    def run(self, args: argparse.Namespace, context: CliContext) -> int:
+        context.stdout.write(f"{args.value}\n")
+        return EXIT_SUCCESS
+
+
+def counting_cli_command_factory() -> tuple[_CountingCliCommand, ...]:
+    global _counting_command_factory_calls
+    _counting_command_factory_calls += 1
+    return (_CountingCliCommand(),)
+
+
+def exploding_cli_command_factory() -> tuple[_CliExampleCommand, ...]:
+    raise RuntimeError("command factory must remain callback-free")

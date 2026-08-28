@@ -144,9 +144,12 @@ with archiver.open_sources(
 File contents remain lazy, but path resolution does not. The packager reads
 each source from the exact handle opened when the context was entered; it never
 reopens the pathname. Leaving the context closes every handle, including after
-packaging failure. This binds identity, not a frozen snapshot: another process
-that can write through the same file object may still change bytes while OBST
-reads it.
+packaging failure. One close failure never prevents the remaining handles from
+being closed. An active packaging error stays primary and receives cleanup
+failures as notes; after a successful body, the first close failure is raised
+and later failures become notes. This binds identity, not a frozen snapshot:
+another process that can write through the same file object may still change
+bytes while OBST reads it.
 
 The default chunk size is 64 KiB; an explicit chunk size must be a positive
 integer. Each source declares the selected size as its maximum logical chunk
@@ -235,6 +238,7 @@ final member:
 | ----------------------------------------- | --------------------------------------------------------------- |
 | metadata name `../outside.bin`            | `FileProfileError`; the profile does not accept the metadata    |
 | metadata contains `U+202E`                | `FileProfileError`; the first-party profile rejects the control |
+| local name contains a surrogate code point | `FileProfileError`; it cannot become canonical UTF-8 metadata   |
 | stream has no active file materializer    | `FileArchiveError` before the output directory is created       |
 | members `Fruit.txt` and `fruit.TXT`       | `FileArchiveError`; portable comparison finds a duplicate       |
 | source is a symlink or reparse point      | `FileProfileError`; no source handle is exposed                 |

@@ -69,6 +69,12 @@ explicit policy.
 | Logical bytes processed    | `max_total_logical_bytes`       |    16 GiB |
 | Stage executions           | `max_stage_executions`          | 1,048,576 |
 
+`max_container_bytes` counts bytes in the committed OBST representation. After
+a valid terminal commit, a reader may request one additional byte solely to
+distinguish clean endpoint exhaustion from invalid trailing data. That boundary
+probe is not part of `ContainerReader.bytes_consumed` and is not charged as a
+container byte.
+
 Every non-`None` value must be an exact, non-negative `int`. Booleans are not
 accepted as integers for this contract.
 

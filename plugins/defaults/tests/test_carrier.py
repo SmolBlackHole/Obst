@@ -478,6 +478,25 @@ def test_filesystem_carrier_refuses_overwrite_without_touching_target(
     assert list(tmp_path.glob(f".{target.name}.*.tmp")) == []
 
 
+def test_filesystem_carrier_explicit_overwrite_replaces_complete_target(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "existing.obst"
+    target.write_bytes(b"old")
+    carrier = FilesystemPublisherSession(
+        FilesystemPublishRequest(target, overwrite=True)
+    )
+    writer = carrier.open()
+    assert writer.write(b"complete replacement") == len(b"complete replacement")
+
+    receipt = carrier.commit()
+
+    assert receipt.reference == target
+    assert receipt.cleanup_issues == ()
+    assert target.read_bytes() == b"complete replacement"
+    assert list(tmp_path.glob(f".{target.name}.*.tmp")) == []
+
+
 def test_filesystem_open_failure_is_terminal_even_without_publish_helper(
     tmp_path: Path,
 ) -> None:

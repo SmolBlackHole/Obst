@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from scripts.documentation_graph import discover_markdown_pages
 
 from obst.core import ExtensionDescriptor
 from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
@@ -23,11 +24,17 @@ from obst_defaults.packagers import FixedPackagerExtension
 from obst_defaults.transforms.delta8 import Delta8Extension
 
 ROOT = Path(__file__).parents[1]
-DOCUMENTATION_PAGES = tuple(sorted((ROOT / "docs").rglob("*.md")))
-PUBLIC_DOCUMENTS = (
-    ROOT / "README.md",
-    ROOT / "ROADMAP.md",
-    *(path for path in (ROOT / "docs").rglob("*.md") if "history" not in path.parts),
+DISCOVERED_MARKDOWN = tuple(
+    ROOT / relative_path for relative_path in discover_markdown_pages(ROOT)
+)
+DOCUMENTATION_PAGES = tuple(
+    path for path in DISCOVERED_MARKDOWN if path.is_relative_to(ROOT / "docs")
+)
+PUBLIC_DOCUMENTS = tuple(
+    path
+    for path in DISCOVERED_MARKDOWN
+    if path in {ROOT / "README.md", ROOT / "ROADMAP.md"}
+    or path.is_relative_to(ROOT / "docs")
 )
 FIRST_PARTY_DESCRIPTORS = (
     RawExtension.descriptor,
@@ -270,6 +277,15 @@ def test_every_markdown_page_is_reachable_from_root_readme() -> None:
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "obst_lab/README.md" not in completed.stdout
+
+
+def test_public_document_discovery_excludes_private_working_trees() -> None:
+    private_roots = (ROOT / "docs" / "audits", ROOT / "docs" / "history")
+    assert all(
+        not document.is_relative_to(private_root)
+        for document in PUBLIC_DOCUMENTS
+        for private_root in private_roots
+    )
 
 
 @pytest.mark.parametrize(

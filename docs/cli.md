@@ -56,6 +56,10 @@ the host builds its command tree only from already enabled plugins. See
 [Extension packages and plugin discovery](extensions/plugins.md) for the
 factory contract and trust boundary.
 
+Generic version output and help for native commands do not load contributed
+command factories. Help for a contributed command necessarily loads the
+persistently enabled command contribution that defines its parser.
+
 ## Install and identify the format
 
 From a checkout, install the runtime and ask the CLI which wire-format

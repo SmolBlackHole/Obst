@@ -29,6 +29,7 @@ from obst_defaults.carriers.filesystem import (
     FilesystemPublishRequest,
     FilesystemReadRequest,
 )
+from obst_defaults.cleanup import close_all
 from obst_defaults.codecs.zlib import ZlibParameters
 from obst_defaults.files import FileArchiveError, FileArchiver, FileProfileError
 from obst_defaults.output import (
@@ -117,7 +118,10 @@ class UnpackCommand:
             "--output",
             required=True,
             metavar="OUTPUT_DIRECTORY",
-            help="new or empty directory that receives the extracted files",
+            help=(
+                "new or existing directory; existing member targets are never "
+                "overwritten"
+            ),
         )
 
     def run(self, args: argparse.Namespace, context: CliContext) -> int:
@@ -256,11 +260,18 @@ def _unpack_path(
     windows_origin_not_propagated = _has_windows_origin_mark(source_path)
     carrier = reader_provider.bind_reader(FilesystemReadRequest(source_path))
     source = carrier.open()
+    primary_error: BaseException | None = None
     try:
         reader = ContainerReader(source, limits=context.limits)
         result = file_archiver.extract(reader, Path(output_directory))
+    except BaseException as error:
+        primary_error = error
+        raise
     finally:
-        carrier.close()
+        close_all(
+            ((f"input carrier {source_path}", carrier),),
+            primary_error=primary_error,
+        )
     write_unpack_result(
         result,
         stdout=context.stdout,

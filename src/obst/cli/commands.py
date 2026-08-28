@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from typing import Protocol, TextIO
+from typing import Protocol, TextIO, cast
 
 from obst.core.errors import ObstError
 from obst.core.io import BinaryReader
@@ -26,6 +26,12 @@ class CliCommandError(ObstError):
     """A contributed command mapped a domain failure to the CLI contract."""
 
     def __init__(self, kind: str, exit_code: int, cause: BaseException) -> None:
+        if type(kind) is not str or not kind:
+            raise TypeError("kind must be a non-empty exact string")
+        if type(exit_code) is not int or not 0 <= exit_code <= 255:
+            raise ValueError("exit_code must be an exact integer in 0..255")
+        if not isinstance(cast(object, cause), BaseException):
+            raise TypeError("cause must be an exception")
         self.kind = kind
         self.exit_code = exit_code
         self.cause = cause
@@ -47,8 +53,15 @@ class CliContext:
 class CliCommand(Protocol):
     """One command contributed by an explicitly activated plugin."""
 
-    name: str
-    summary: str
+    @property
+    def name(self) -> str:
+        """Return the stable command name captured by the host."""
+        ...
+
+    @property
+    def summary(self) -> str:
+        """Return the stable one-line summary captured by the host."""
+        ...
 
     def configure_parser(self, parser: argparse.ArgumentParser) -> None:
         """Declare this command's arguments on its host-owned parser."""

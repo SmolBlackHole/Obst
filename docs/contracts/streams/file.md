@@ -65,7 +65,7 @@ cases whose properties changed between versions.
 > [!NOTE]
 > **Future semantics:** A pinned Unicode data version does not exist for
 > `obst.file@1`. Defining that dependency is tracked in the
-> [roadmap](../../../ROADMAP.md#extension-api).
+> [roadmap](../../../ROADMAP.md#now-pre-public-stabilization).
 
 Filename collision comparison uses Unicode case folding after NFC
 normalization. Two colliding names do not form a conforming file collection,
@@ -77,7 +77,7 @@ one pure file container as the collection.
 > [!NOTE]
 > **Future semantics:** A container-wide portable collision scope does not
 > exist for `obst.file@1`. Defining that scope is tracked in the
-> [roadmap](../../../ROADMAP.md#extension-api).
+> [roadmap](../../../ROADMAP.md#now-pre-public-stabilization).
 
 ## Recipes and chunks
 

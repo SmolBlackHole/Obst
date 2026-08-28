@@ -236,6 +236,13 @@ authoritative owner: implemented behavior to the relevant guide or contract,
 unfinished work to the roadmap, and verified guarantees to tests. The public
 repository keeps the result, not the desk on which it was discovered.
 
+The public roadmap is direction, not a completion ledger or detailed design
+document. Keep one current milestone, one next milestone and a short list of
+later directions. Detailed acceptance criteria live in a private plan only
+while that work is active. When work finishes, remove it from the roadmap and
+update the authoritative implementation, tests and documentation instead of
+keeping checked-off items.
+
 ## Keep examples honest
 
 - Run commands against the checked-in CLI.

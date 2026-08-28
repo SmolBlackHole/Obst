@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
-from typing import cast
+from types import SimpleNamespace
+from typing import BinaryIO, cast
 
 import pytest
 
@@ -55,6 +57,19 @@ class _MaterializerOnlyFileProfile:
         prefix, name = metadata.decode().split(":", 1)
         assert prefix == "source"
         return FileMaterialization(name)
+
+
+class _CloseFailingInput:
+    def __init__(self, name: str, closed: list[str]) -> None:
+        self._name = name
+        self._closed = closed
+
+    def read(self, size: int = -1) -> bytes:
+        return b""
+
+    def close(self) -> None:
+        self._closed.append(self._name)
+        raise OSError(f"close failed: {self._name}")
 
 
 def test_file_extension_owns_both_directional_file_capabilities() -> None:
@@ -189,6 +204,71 @@ def test_file_archiver_uses_the_callers_profile_and_recipe_policy(
         assert tuple(source.iter_chunks()) == (b"pay", b"loa", b"d")
 
 
+def test_file_source_cleanup_preserves_body_error_and_attempts_every_close(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = (tmp_path / "first.bin", tmp_path / "second.bin")
+    closed: list[str] = []
+    opened = iter(
+        (
+            _CloseFailingInput("first", closed),
+            _CloseFailingInput("second", closed),
+        )
+    )
+
+    def open_input(profile_id: str, path: Path) -> BinaryIO:
+        return cast(BinaryIO, next(opened))
+
+    monkeypatch.setattr("obst_defaults.files.adapter._open_regular_file", open_input)
+    archiver = _archiver(_SourceOnlyFileProfile())
+
+    with pytest.raises(RuntimeError, match="body failed") as error:
+        with archiver.open_sources(
+            paths,
+            source_profile_id=_CUSTOM_FILE_ID,
+            recipe=_raw_recipe(),
+        ):
+            raise RuntimeError("body failed")
+
+    assert closed == ["second", "first"]
+    assert len(error.value.__notes__) == 2
+    assert all("failed to close input file" in note for note in error.value.__notes__)
+
+
+def test_file_source_cleanup_reports_first_close_failure_after_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = (tmp_path / "first.bin", tmp_path / "second.bin")
+    closed: list[str] = []
+    opened = iter(
+        (
+            _CloseFailingInput("first", closed),
+            _CloseFailingInput("second", closed),
+        )
+    )
+
+    def open_input(profile_id: str, path: Path) -> BinaryIO:
+        return cast(BinaryIO, next(opened))
+
+    monkeypatch.setattr("obst_defaults.files.adapter._open_regular_file", open_input)
+    archiver = _archiver(_SourceOnlyFileProfile())
+
+    with pytest.raises(OSError, match="close failed: second") as error:
+        with archiver.open_sources(
+            paths,
+            source_profile_id=_CUSTOM_FILE_ID,
+            recipe=_raw_recipe(),
+        ):
+            pass
+
+    assert closed == ["second", "first"]
+    assert error.value.__notes__ == [
+        f"failed to close input file {paths[0]}: close failed: first"
+    ]
+
+
 def test_file_archiver_reports_a_missing_source_capability(tmp_path: Path) -> None:
     path = tmp_path / "payload.bin"
     path.write_bytes(b"payload")
@@ -216,6 +296,56 @@ def test_file_source_rejects_a_non_bytes_provider_result(tmp_path: Path) -> None
     archiver = _archiver(BrokenSource())
 
     with pytest.raises(ExtensionContractError, match="must return exact bytes"):
+        with archiver.open_sources(
+            (path,),
+            source_profile_id=_CUSTOM_FILE_ID,
+            recipe=_raw_recipe(),
+        ):
+            pass
+
+
+def test_file_source_rejects_symbolic_links(tmp_path: Path) -> None:
+    target = tmp_path / "target.bin"
+    target.write_bytes(b"payload")
+    link = tmp_path / "link.bin"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("temporary filesystem does not permit symbolic links")
+    archiver = _archiver(_SourceOnlyFileProfile())
+
+    with pytest.raises(FileProfileError, match="symbolic links"):
+        with archiver.open_sources(
+            (link,),
+            source_profile_id=_CUSTOM_FILE_ID,
+            recipe=_raw_recipe(),
+        ):
+            pass
+
+
+def test_file_source_rejects_identity_change_during_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "payload.bin"
+    path.write_bytes(b"payload")
+    original_fstat = os.fstat
+
+    def changed_fstat(file_descriptor: int) -> os.stat_result:
+        status = original_fstat(file_descriptor)
+        return cast(
+            os.stat_result,
+            SimpleNamespace(
+                st_mode=status.st_mode,
+                st_dev=status.st_dev + 1,
+                st_ino=status.st_ino,
+            ),
+        )
+
+    monkeypatch.setattr("obst_defaults.files.adapter.os.fstat", changed_fstat)
+    archiver = _archiver(_SourceOnlyFileProfile())
+
+    with pytest.raises(FileProfileError, match="changed while opening"):
         with archiver.open_sources(
             (path,),
             source_profile_id=_CUSTOM_FILE_ID,
@@ -283,6 +413,11 @@ def test_file_extension_rejects_noncanonical_metadata() -> None:
         extension.plan_file(b"\xff")
     with pytest.raises(FileProfileError, match="normalized as NFC"):
         extension.plan_file("A\u0308pfel.txt".encode())
+
+
+def test_file_extension_rejects_a_surrogateescaped_local_name() -> None:
+    with pytest.raises(FileProfileError, match="not valid UTF-8"):
+        FileExtension().encode_file_name("bad\udcff.bin")
 
 
 @pytest.mark.parametrize(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -12,7 +13,7 @@ from importlib import metadata
 from pathlib import Path
 from typing import cast
 
-from obst.cli.commands import CliCommand
+from obst.cli.commands import CliCommand, CliContext
 from obst.conformance import (
     PluginConformanceReport,
     StageConformanceCase,
@@ -93,7 +94,42 @@ class PluginRuntime:
 
     plugin_names: tuple[str, ...]
     registry: ExtensionRegistry
-    commands: tuple[CliCommand, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _CapturedCliCommand:
+    plugin_name: str
+    name: str
+    summary: str
+    _configure_parser: Callable[[argparse.ArgumentParser], None]
+    _run: Callable[[argparse.Namespace, CliContext], object]
+
+    def configure_parser(self, parser: argparse.ArgumentParser) -> None:
+        try:
+            self._configure_parser(parser)
+        except Exception as exc:
+            raise PluginLoadError(
+                self.plugin_name,
+                f"command {self.name} configure_parser raised "
+                f"{type(exc).__name__}: {exc}",
+            ) from exc
+
+    def run(self, args: argparse.Namespace, context: CliContext) -> int:
+        try:
+            result = self._run(args, context)
+        except ObstError:
+            raise
+        except Exception as exc:
+            raise PluginLoadError(
+                self.plugin_name,
+                f"command {self.name} run raised {type(exc).__name__}: {exc}",
+            ) from exc
+        if type(result) is not int or not 0 <= result <= 255:
+            raise PluginLoadError(
+                self.plugin_name,
+                f"command {self.name} must return an exact integer in 0..255",
+            )
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,9 +170,19 @@ class PluginManager:
         defaults = frozenset(default_enabled)
         for name in defaults:
             _validate_plugin_name(name)
-        extension_entries = _index_entry_points(EXTENSION_ENTRY_POINT_GROUP)
-        command_entries = _index_entry_points(COMMAND_ENTRY_POINT_GROUP)
-        conformance_entries = _index_entry_points(CONFORMANCE_ENTRY_POINT_GROUP)
+        entry_points = tuple(metadata.entry_points())
+        extension_entries = _index_entry_points(
+            entry_points,
+            EXTENSION_ENTRY_POINT_GROUP,
+        )
+        command_entries = _index_entry_points(
+            entry_points,
+            COMMAND_ENTRY_POINT_GROUP,
+        )
+        conformance_entries = _index_entry_points(
+            entry_points,
+            CONFORMANCE_ENTRY_POINT_GROUP,
+        )
         installed: dict[str, _InstalledPlugin] = {}
         names = (
             extension_entries.keys()
@@ -211,7 +257,7 @@ class PluginManager:
         return self._status(name)
 
     def runtime(self, additional: Iterable[str] = ()) -> PluginRuntime:
-        """Load enabled plugins plus explicit one-shot additions."""
+        """Load extension capabilities from enabled and one-shot plugins."""
         selected = list(sorted(self._enabled))
         seen = set(selected)
         for name in additional:
@@ -221,20 +267,9 @@ class PluginManager:
             seen.add(name)
             selected.append(name)
         extensions: list[Extension] = []
-        commands: list[CliCommand] = []
-        command_owners: dict[str, str] = {}
         for name in selected:
             plugin = self._require_installed(name)
             extensions.extend(self._load_extensions(plugin))
-            for command in self._load_commands(plugin):
-                owner = command_owners.get(command.name)
-                if owner is not None:
-                    raise PluginLoadError(
-                        name,
-                        f"command {command.name} is already provided by plugin {owner}",
-                    )
-                command_owners[command.name] = name
-                commands.append(command)
         try:
             registry = ExtensionRegistry(tuple(extensions))
         except ExtensionError as exc:
@@ -246,8 +281,24 @@ class PluginManager:
         return PluginRuntime(
             tuple(selected),
             registry,
-            tuple(sorted(commands, key=lambda command: command.name)),
         )
+
+    def commands(self) -> tuple[CliCommand, ...]:
+        """Load and capture commands from persistently enabled plugins."""
+        commands: list[CliCommand] = []
+        command_owners: dict[str, str] = {}
+        for name in sorted(self._enabled):
+            plugin = self._require_installed(name)
+            for command in self._load_commands(plugin):
+                owner = command_owners.get(command.name)
+                if owner is not None:
+                    raise PluginLoadError(
+                        name,
+                        f"command {command.name} is already provided by plugin {owner}",
+                    )
+                command_owners[command.name] = name
+                commands.append(command)
+        return tuple(sorted(commands, key=lambda command: command.name))
 
     def test(self, name: str) -> PluginConformanceReport:
         """Run one plugin's explicitly published portable conformance cases."""
@@ -334,10 +385,16 @@ class PluginManager:
         )
         commands: list[CliCommand] = []
         for value in values:
-            name = getattr(value, "name", None)
-            summary = getattr(value, "summary", None)
-            configure_parser = getattr(value, "configure_parser", None)
-            run = getattr(value, "run", None)
+            try:
+                name = getattr(value, "name", None)
+                summary = getattr(value, "summary", None)
+                configure_parser = getattr(value, "configure_parser", None)
+                run = getattr(value, "run", None)
+            except Exception as exc:
+                raise PluginLoadError(
+                    plugin.name,
+                    f"command contract access raised {type(exc).__name__}: {exc}",
+                ) from exc
             if (
                 type(name) is not str
                 or _PLUGIN_NAME_PATTERN.fullmatch(name) is None
@@ -351,7 +408,21 @@ class PluginManager:
                     "command factory values must provide canonical name, non-empty "
                     "summary and callable configure_parser and run methods",
                 )
-            commands.append(cast(CliCommand, value))
+            commands.append(
+                _CapturedCliCommand(
+                    plugin_name=plugin.name,
+                    name=name,
+                    summary=summary,
+                    _configure_parser=cast(
+                        Callable[[argparse.ArgumentParser], None],
+                        configure_parser,
+                    ),
+                    _run=cast(
+                        Callable[[argparse.Namespace, CliContext], object],
+                        run,
+                    ),
+                )
+            )
         return tuple(commands)
 
 
@@ -369,9 +440,14 @@ def default_plugin_state_path() -> Path:
     return base / "obst" / "plugins.json"
 
 
-def _index_entry_points(group: str) -> dict[str, metadata.EntryPoint]:
+def _index_entry_points(
+    entry_points: tuple[metadata.EntryPoint, ...],
+    group: str,
+) -> dict[str, metadata.EntryPoint]:
     indexed: dict[str, metadata.EntryPoint] = {}
-    for entry_point in metadata.entry_points(group=group):
+    for entry_point in entry_points:
+        if entry_point.group != group:
+            continue
         _validate_plugin_name(entry_point.name)
         if entry_point.name in indexed:
             raise PluginDiscoveryError(
@@ -389,19 +465,13 @@ def _require_same_distribution(
     if len(entries) < 2:
         return
     distributions = tuple(entry.dist for entry in entries)
-    if all(distribution is None for distribution in distributions):
-        return
     if any(distribution is None for distribution in distributions):
         raise PluginDiscoveryError(
             name,
             "plugin contributions have ambiguous distribution ownership",
         )
-    identities = {
-        (distribution.name, distribution.version)
-        for distribution in distributions
-        if distribution is not None
-    }
-    if len(identities) != 1:
+    owner = distributions[0]
+    if any(distribution is not owner for distribution in distributions[1:]):
         raise PluginDiscoveryError(
             name,
             "plugin contributions come from different distributions",
@@ -484,7 +554,10 @@ def _read_enabled_plugins(
             state_path,
             "document must contain exactly schema_version and enabled",
         )
-    if document["schema_version"] != PLUGIN_STATE_SCHEMA_VERSION:
+    if (
+        type(document["schema_version"]) is not int
+        or document["schema_version"] != PLUGIN_STATE_SCHEMA_VERSION
+    ):
         raise PluginStateError(state_path, "unsupported plugin-state schema version")
     loaded_enabled = document["enabled"]
     if type(loaded_enabled) is not list:

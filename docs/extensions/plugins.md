@@ -146,8 +146,11 @@ def obst_commands() -> tuple[CliCommand, ...]:
 `CliContext` supplies the already composed immutable registry, selected plugin
 names, standard endpoints and resource policy. It contains no first-party IDs
 or implementation objects. The generic host owns `inspect`, `help`, `plugins`,
-`extensions` and version output; contributed command factories execute only
-when their plugin is explicitly selected for a runtime.
+`extensions` and version output. Contributed command factories execute only
+for persistently enabled plugins when their parser is needed. The host captures
+the validated name, summary and bound callbacks once; the same immutable
+snapshot configures and executes the command. A command must return an exact
+integer in `0..255`.
 
 `HumanOutputStyle.for_stream()` gives contributed commands the same TTY-aware
 color policy as host and first-party output. It remains plain for redirected
@@ -220,7 +223,7 @@ manager.enable("example")
 
 runtime = manager.runtime()
 registry = runtime.registry
-commands = runtime.commands
+commands = manager.commands()
 
 manager.disable("example")
 ```
@@ -233,13 +236,16 @@ roaming or XDG configuration location. Corrupt state raises `PluginStateError`
 and is never reset silently.
 
 `enable()` and `disable()` update only that file. They do not import code.
-`runtime()` imports the selected Extension and command factories, validates
-their tuple results and builds one immutable registry for the caller's
-operation. It returns a
-`PluginRuntime` containing the selected names, that registry and the selected
-commands. Adapter code uses the registry's captured contributions when it
-needs optional protocols; raw Extension identities are not exposed as a
-second runtime view. There is no process-global registry.
+`runtime()` imports Extension factories for the persistently enabled set plus
+explicit one-shot additions, validates their tuple results and builds one
+immutable registry for the caller's operation. It returns a `PluginRuntime`
+containing the selected names and that registry. `commands()` separately loads
+and captures commands from the persistently enabled set only. This separation
+lets `--plugin NAME` add capabilities without executing a command factory whose
+parser cannot appear in that invocation. Adapter code uses the registry's
+captured contributions when it needs optional protocols; raw Extension
+identities are not exposed as a second runtime view. There is no process-global
+registry.
 
 One-shot additions do not alter persistent state:
 
@@ -291,10 +297,13 @@ commands and JSON projections.
 
 ## Conflicts and dependencies
 
-Duplicate plugin contributions are rejected during discovery. Invalid
-factories and imports raise `PluginLoadError`. Duplicate command names across
-the selected plugins, or a command name reserved by the generic host, fail
-before command execution. One Extension ID may be contributed by several
+Duplicate plugin contributions are rejected during discovery. Contributions
+joined under one plugin name must come from the same physical distribution
+record; equal self-declared project names and versions are not enough. Invalid
+factories, imports, command contracts, callbacks and exit values raise
+`PluginLoadError`. Duplicate command names across the enabled plugins, or a
+command name reserved by the generic host, fail before command execution. One
+Extension ID may be contributed by several
 objects only when their kind and descriptor agree and each capability has one
 provider at most. Conflicting identities or duplicate providers are rejected
 when the manager composes the ordinary registry. Stage execution, parameter

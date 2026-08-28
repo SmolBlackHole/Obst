@@ -160,5 +160,5 @@ offer a writer rather than pretending it can roll them back.
 Credentials, transactions, keys, retries, durability and cleanup belong to
 the adapter. The core sees only a bounded `BinaryReader` or `BinaryWriter`.
 Range reads and selective remote extraction remain separate
-[roadmap](../../ROADMAP.md#carrier-and-packager-boundary) concerns because they
+[roadmap](../../ROADMAP.md#later-directions) concerns because they
 need indexing and resource policy, not a larger blocking stream interface.

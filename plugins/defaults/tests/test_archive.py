@@ -444,6 +444,30 @@ def test_extract_never_overwrites_existing_files(tmp_path: Path) -> None:
     assert existing.read_bytes() == b"keep"
 
 
+def test_extract_treats_a_dangling_symlink_as_an_existing_target(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "notes.txt"
+    source.write_bytes(b"new")
+    archive = tmp_path / "notes.obst"
+    extension = FileExtension()
+    registry = _registry(extension)
+    archiver = FileArchiver(registry)
+    _publish(archiver, archive, (source,))
+    output = tmp_path / "output"
+    output.mkdir()
+    target = output / source.name
+    try:
+        target.symlink_to(output / "missing-target")
+    except OSError:
+        pytest.skip("temporary filesystem does not permit symbolic links")
+
+    with pytest.raises(FileArchiveError, match="refusing to overwrite"):
+        _extract(archiver, archive, output)
+
+    assert target.is_symlink()
+
+
 def test_extract_rejects_a_windows_reparse_point_output_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

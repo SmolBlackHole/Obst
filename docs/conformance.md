@@ -25,9 +25,9 @@ pieces exercised by the evidence.
 
 ## First clean-room result
 
-An external clean-room reader reconstructed the `samples/apple.obst` revision
-stored in Git commit `f442ebc`. That pre-freeze draft ended after its last chunk
-and did not yet contain the terminal commit that now proves stream completeness.
+An external clean-room reader reconstructed a historical pre-freeze revision of
+`samples/apple.obst`. That draft ended after its last chunk and did not yet
+contain the terminal commit that now proves stream completeness.
 The reader used the published [binary format](format.md) and versioned
 [contracts](README.md#normative-contracts), not the Python reference
 implementation. It independently performed structural parsing, CRC and
@@ -154,7 +154,8 @@ cross-language execution evidence.
 
 The checked-in clean-room evidence also contains no preserved parser source or
 run log. Preserving one independent implementation and its execution evidence
-remains tracked under the [roadmap's conformance gaps](../ROADMAP.md#conformance-gaps).
+remains part of the
+[current stabilization milestone](../ROADMAP.md#now-pre-public-stabilization).
 
 ## Specification feedback
 
@@ -173,9 +174,9 @@ rules directly instead of relying on the Python implementation to settle them.
 
 ## Evidence status
 
-The historical container remains recoverable from Git commit `f442ebc`; the
-source image and current reference-side sample are checked into this repository.
-The independence claims and clean-room reader behavior are external reports
-supplied by the project author; neither separate reader is a repository
+The historical container is not part of the public repository; its exact digest
+is recorded above. The source image and current reference-side sample are
+checked in. The independence claims and clean-room reader behavior are external
+reports supplied by the project author; neither separate reader is a repository
 artifact. The results are meaningful interoperability evidence, while the
 checked-in vector corpus is the reproducible suite for the current draft.

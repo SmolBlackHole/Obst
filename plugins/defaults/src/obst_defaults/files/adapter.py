@@ -28,6 +28,7 @@ from obst.core.packaging import (
 )
 from obst.core.registry import ExtensionContribution, ExtensionRegistry
 from obst.core.streams import ChunkDecoder
+from obst_defaults.cleanup import close_all
 from obst_defaults.files.errors import FileArchiveError, FileProfileError
 from obst_defaults.files.models import (
     DEFAULT_FILE_EXTRACTION_LIMITS,
@@ -150,12 +151,13 @@ class FileArchiver:
                     ),
                 )
             )
-        opened_files: list[BinaryIO] = []
+        opened_files: list[tuple[Path, BinaryIO]] = []
+        primary_error: BaseException | None = None
         try:
             sources: list[LogicalStreamSource] = []
             for path, descriptor in planned:
                 input_file = _open_regular_file(source_profile_id, path)
-                opened_files.append(input_file)
+                opened_files.append((path, input_file))
                 sources.append(
                     LogicalStreamSource(
                         descriptor,
@@ -164,9 +166,17 @@ class FileArchiver:
                     )
                 )
             yield tuple(sources)
+        except BaseException as error:
+            primary_error = error
+            raise
         finally:
-            for input_file in reversed(opened_files):
-                input_file.close()
+            close_all(
+                (
+                    (f"input file {path}", input_file)
+                    for path, input_file in reversed(opened_files)
+                ),
+                primary_error=primary_error,
+            )
 
     def extract(
         self,

@@ -9,6 +9,7 @@ from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
     ContainerWriter,
+    ExtensionContractError,
     ExtensionDescriptor,
     ExtensionRegistry,
     ExtensionRegistryBuilder,
@@ -34,6 +35,10 @@ _CUSTOM_STAGE_ID = "org.example/inspection-only@1"
 _PROFILE_ID = "org.example/inspection-profile@1"
 _CUSTOM_DESCRIPTOR = ExtensionDescriptor()
 _PROFILE_DESCRIPTOR = ExtensionDescriptor()
+
+
+def _empty_interpretation(_data: bytes) -> InspectionInterpretation:
+    return InspectionInterpretation()
 
 
 class _IdentityEncoderStage:
@@ -365,6 +370,60 @@ def test_interpretation_policy_is_an_explicit_extension_allowlist() -> None:
     assert profile_interpreter.calls == 0
     assert interpreted.recipes[0].stages[0].parameters is not None
     assert interpreted.streams[0].metadata is None
+
+
+@pytest.mark.parametrize("capability", ("parameters", "metadata"))
+def test_interpreter_member_access_uses_the_extension_error_boundary(
+    capability: str,
+) -> None:
+    class ChangingStage:
+        extension_id = _CUSTOM_STAGE_ID
+        descriptor = _CUSTOM_DESCRIPTOR
+        kind = ExtensionKind.STAGE
+
+        def __init__(self) -> None:
+            self.accesses = 0
+
+        @property
+        def interpret_parameters(self) -> object:
+            self.accesses += 1
+            if self.accesses == 1:
+                return _empty_interpretation
+            raise RuntimeError("parameter getter changed")
+
+    class ChangingProfile:
+        extension_id = _PROFILE_ID
+        descriptor = _PROFILE_DESCRIPTOR
+        kind = ExtensionKind.STREAM_PROFILE
+
+        def __init__(self) -> None:
+            self.accesses = 0
+
+        @property
+        def interpret_metadata(self) -> object:
+            self.accesses += 1
+            if self.accesses == 1:
+                return _empty_interpretation
+            raise RuntimeError("metadata getter changed")
+
+    extension = ChangingStage() if capability == "parameters" else ChangingProfile()
+    registry = ExtensionRegistry((extension,))
+    manifest = Manifest(
+        recipes=(Recipe(0, (StageSpec(_CUSTOM_STAGE_ID),)),),
+        streams=(Stream(0, _PROFILE_ID, 0, b"opaque"),),
+    )
+    target = io.BytesIO()
+    ContainerWriter(target, manifest).finish()
+    extension_id = _CUSTOM_STAGE_ID if capability == "parameters" else _PROFILE_ID
+
+    with pytest.raises(ExtensionContractError, match="getter changed"):
+        inspect_container(
+            ContainerReader(io.BytesIO(target.getvalue())),
+            registry=registry,
+            interpretation_policy=InspectionInterpretationPolicy(
+                frozenset({extension_id})
+            ),
+        )
 
 
 def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> None:

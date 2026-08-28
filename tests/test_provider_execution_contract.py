@@ -433,5 +433,5 @@ def test_output_ceiling_reaches_both_directional_executors() -> None:
 
     assert ceilings == [
         ("encode", 64 * 1024 * 1024),
-        ("decode", 64 * 1024 * 1024),
+        ("decode", 4),
     ]

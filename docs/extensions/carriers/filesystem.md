@@ -91,6 +91,12 @@ directory persistence depends on the operating system and filesystem. A
 filesystem without the required hard-link semantics rejects no-overwrite
 publication instead of copying progressively through the final name.
 
+These guarantees assume a caller-owned destination directory. The carrier is
+not a portable privilege boundary against another actor concurrently renaming
+or mutating that directory tree. Supporting that stronger threat model would
+require platform-specific directory handles and no-follow publication rather
+than additional pathname checks in the shared carrier contract.
+
 ## Failure semantics
 
 - A failure before publication triggers cleanup of unpublished state.

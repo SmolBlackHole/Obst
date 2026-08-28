@@ -720,6 +720,21 @@ def test_container_byte_budget_accepts_exact_size_and_refuses_one_byte_less() ->
     assert error.value.resource == "container_bytes"
 
 
+def test_trailing_probe_does_not_charge_committed_container_budget() -> None:
+    valid = write_container(raw_manifest(), b"payload")
+    source = io.BytesIO(valid + b"x")
+    reader = ContainerReader(
+        source,
+        limits=ResourceLimits(max_container_bytes=len(valid)),
+    )
+
+    with pytest.raises(InvalidContainerError, match="trailing bytes"):
+        inspect_container(reader)
+
+    assert reader.bytes_consumed == len(valid)
+    assert source.tell() == len(valid) + 1
+
+
 def test_chunk_count_budget_accepts_exact_count_and_refuses_next_chunk() -> None:
     encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
 
@@ -1374,6 +1389,28 @@ def test_writer_preflight_refuses_known_chunk_work_without_mutating_state() -> N
             data=b"abc",
         )
     )
+
+
+def test_writer_preflights_cumulative_terminal_totals_before_chunk_output() -> None:
+    target = io.BytesIO()
+    manifest = raw_manifest()
+    writer = ContainerWriter(
+        target,
+        manifest,
+        limits=ResourceLimits(
+            max_logical_chunk_bytes=None,
+            max_total_logical_bytes=None,
+        ),
+    )
+    maximum = (1 << 64) - 1
+    digest = hashlib.blake2s(b"", digest_size=16).digest()
+    writer.write_chunk(Chunk(0, 0, 0, maximum, digest, b""))
+    size_before_rejected_chunk = len(target.getvalue())
+
+    with pytest.raises(ValueError, match="logical_size must fit into uint64"):
+        writer.write_chunk(Chunk(0, 1, 0, maximum, digest, b""))
+
+    assert len(target.getvalue()) == size_before_rejected_chunk
 
 
 def test_chunk_size_limit_accepts_boundary_and_rejects_larger_value() -> None:

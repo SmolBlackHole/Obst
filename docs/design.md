@@ -158,7 +158,7 @@ finalized.
 > [!NOTE]
 > **Future semantics:** Production auto-tuning and two-pass spool packaging do
 > not exist. They are tracked in the
-> [roadmap](../ROADMAP.md#next-production-encoding).
+> [roadmap](../ROADMAP.md#later-production-encoding).
 
 ## Stream semantics are not container semantics
 
@@ -307,7 +307,7 @@ concrete composition.
 > [!NOTE]
 > **Future semantics:** Nested inspection and repacking do not exist. Explicit
 > selection and bounded resource policies are tracked in the
-> [roadmap](../ROADMAP.md#later-archive-and-recursive-tooling).
+> [roadmap](../ROADMAP.md#later-directions).
 
 ## Design goals and non-goals
 

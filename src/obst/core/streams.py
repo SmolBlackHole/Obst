@@ -50,7 +50,11 @@ class ChunkEncoder:
             observed=len(data),
             phase="chunk_encode",
         )
-        encoded_payload = self._recipes.encode(data, recipe)
+        encoded_payload = self._recipes.encode(
+            data,
+            recipe,
+            max_output_size=self._limits.max_encoded_chunk_bytes,
+        )
         _require_chunk_size(
             resource="encoded_chunk_bytes",
             scope=scope,

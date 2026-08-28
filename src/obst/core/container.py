@@ -41,6 +41,7 @@ from obst.core.wire import (
     ContainerHeader,
     FormatVersion,
     TerminalCommit,
+    uint64,
 )
 
 
@@ -123,6 +124,10 @@ class ContainerWriter:
                 payload_crc32=zlib.crc32(chunk.encoded_payload),
                 logical_hash=chunk.logical_hash,
             ).encode()
+            self._preflight_terminal_totals(
+                chunk,
+                added_container_bytes=len(header) + chunk.encoded_size,
+            )
             self._require_container_capacity(len(header) + chunk.encoded_size)
             self._budget.consume_chunk(phase="container_write")
             self._budget.observe_logical_bytes(
@@ -214,6 +219,23 @@ class ContainerWriter:
             phase="container_write",
         )
 
+    def _preflight_terminal_totals(
+        self,
+        chunk: Chunk,
+        *,
+        added_container_bytes: int,
+    ) -> None:
+        uint64.require("chunk_count", self._chunk_count + 1)
+        uint64.require(
+            "committed_size",
+            self._target.bytes_written + added_container_bytes,
+        )
+        uint64.require("logical_size", self._logical_size + chunk.logical_size)
+        uint64.require(
+            "encoded_payload_size",
+            self._encoded_payload_size + chunk.encoded_size,
+        )
+
 
 class ContainerReader:
     """Parse one OBST byte stream into validated, still-encoded chunks."""
@@ -280,13 +302,7 @@ class ContainerReader:
                         committed_size=record_start,
                         committed_hash=committed_hash,
                     )
-                    trailing = read_exact(
-                        self._source,
-                        1,
-                        structure="trailing container data",
-                        allow_clean_eof=True,
-                    )
-                    if trailing is not None:
+                    if self._source.read_boundary_probe():
                         raise InvalidContainerError(
                             "trailing bytes after terminal commit record"
                         )
@@ -446,6 +462,10 @@ class _CountingReader:
         self.bytes_read += len(data)
         self._content_hasher.update(data)
         return data
+
+    def read_boundary_probe(self) -> bytes:
+        """Probe beyond the committed representation without charging it."""
+        return validate_read_result(self._source.read(1), requested=1)
 
 
 class _CountingWriter:

@@ -325,7 +325,7 @@ considerably more electricity will judge its compression choices.
 Capability negotiation does not exist yet. The planned runtime extension lets
 a receiver advertise supported decoders, profiles and limits before a sender
 builds an ordinary OBST stream. It is tracked in the
-[roadmap](ROADMAP.md#capability-negotiation).
+[roadmap](ROADMAP.md#later-directions).
 
 ## What does `0.1-apple` mean?
 

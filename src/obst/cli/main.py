@@ -49,6 +49,7 @@ _PLUGIN_TEST_WARNING = (
     "plugin conformance executes installed plugin code with your current process "
     "privileges. No sandbox is used. Test only plugins you trust."
 )
+_HOST_COMMANDS = frozenset({"extensions", "help", "inspect", "plugins"})
 
 
 def _plugin_manager() -> PluginManager:
@@ -194,10 +195,10 @@ def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     try:
         manager = _plugin_manager()
-        runtime = None if _is_inert_plugin_command(arguments) else manager.runtime()
-        parser, command_parsers, _ = _build_parser_tree(
-            () if runtime is None else runtime.commands
+        plugin_commands = (
+            manager.commands() if _requires_plugin_commands(arguments) else ()
         )
+        parser, command_parsers, contributed = _build_parser_tree(plugin_commands)
         args = parser.parse_args(arguments)
 
         if args.command == "help":
@@ -211,10 +212,7 @@ def main(argv: list[str] | None = None) -> int:
             return _run_plugin_management(manager, args)
 
         additional_plugins = tuple(getattr(args, "plugin", ()))
-        if additional_plugins:
-            runtime = manager.runtime(additional_plugins)
-        if runtime is None:
-            raise PluginError("command requires a plugin runtime")
+        runtime = manager.runtime(additional_plugins)
 
         if args.command == "extensions":
             return _list_extensions(runtime, as_json=args.json)
@@ -228,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
                 limits=DEFAULT_RESOURCE_LIMITS,
             )
 
-        contributed_command = _find_command(runtime, args.command)
+        contributed_command = contributed.get(args.command)
         if contributed_command is not None:
             return contributed_command.run(
                 args,
@@ -266,8 +264,13 @@ def main(argv: list[str] | None = None) -> int:
     return _fail("internal_error", RuntimeError("unknown command"), EXIT_INTERNAL)
 
 
-def _is_inert_plugin_command(arguments: list[str]) -> bool:
-    return bool(arguments) and arguments[0] == "plugins"
+def _requires_plugin_commands(arguments: list[str]) -> bool:
+    if not arguments or arguments[0].startswith("-"):
+        return False
+    command = arguments[0]
+    if command != "help":
+        return command not in _HOST_COMMANDS
+    return len(arguments) > 1 and arguments[1] not in _HOST_COMMANDS
 
 
 def _run_plugin_management(
@@ -334,10 +337,6 @@ def _list_extensions(runtime: PluginRuntime, *, as_json: bool) -> int:
     )
     sys.stdout.write(rendered)
     return EXIT_SUCCESS
-
-
-def _find_command(runtime: PluginRuntime, name: str) -> CliCommand | None:
-    return next((command for command in runtime.commands if command.name == name), None)
 
 
 def _fail(kind: str, error: BaseException, exit_code: int) -> int:

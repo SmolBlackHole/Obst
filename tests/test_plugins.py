@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+from email.message import Message
 from importlib import metadata
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -25,6 +27,16 @@ from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.conformance import obst_conformance
 
 _NOT_CALLABLE = 7
+
+
+class _StubDistribution:
+    def __init__(self, name: str) -> None:
+        package_metadata = Message()
+        package_metadata["Name"] = name
+        package_metadata["Version"] = "1.0"
+        self.name = name
+        self.version = "1.0"
+        self.metadata = cast(metadata.PackageMetadata, package_metadata)
 
 
 def valid_plugin_factory() -> tuple[Extension, ...]:
@@ -86,6 +98,46 @@ def valid_command_factory() -> tuple[_ExampleCommand, ...]:
     return (_ExampleCommand(),)
 
 
+class _RaisingNameCommand:
+    @property
+    def name(self) -> str:
+        raise RuntimeError("name getter exploded")
+
+    summary = "raise while the host captures the command"
+
+    def configure_parser(self, parser: argparse.ArgumentParser) -> None:
+        pass
+
+    def run(self, args: argparse.Namespace, context: CliContext) -> int:
+        return 0
+
+
+def raising_name_command_factory() -> tuple[_RaisingNameCommand, ...]:
+    return (_RaisingNameCommand(),)
+
+
+class _InvalidExitCommand(_ExampleCommand):
+    def run(self, args: argparse.Namespace, context: CliContext) -> int:
+        return "not-an-int"  # type: ignore[return-value]
+
+
+def invalid_exit_command_factory() -> tuple[_InvalidExitCommand, ...]:
+    return (_InvalidExitCommand(),)
+
+
+class _MutableCommand(_ExampleCommand):
+    def __init__(self) -> None:
+        self.name = "captured-command"
+        self.summary = "captured summary"
+
+
+_MUTABLE_COMMAND = _MutableCommand()
+
+
+def mutable_command_factory() -> tuple[_MutableCommand, ...]:
+    return (_MUTABLE_COMMAND,)
+
+
 def _entry_point(name: str, target: str, group: str) -> metadata.EntryPoint:
     return metadata.EntryPoint(name=name, value=target, group=group)
 
@@ -105,8 +157,21 @@ def _discover(
         CONFORMANCE_ENTRY_POINT_GROUP: conformance,
     }
 
+    all_entries = extensions + commands + conformance
+    entries_by_name: dict[str, list[metadata.EntryPoint]] = {}
+    for entry in all_entries:
+        entries_by_name.setdefault(entry.name, []).append(entry)
+    for name, owned_entries in entries_by_name.items():
+        if len(owned_entries) > 1:
+            owner = _StubDistribution(name)
+            for entry in owned_entries:
+                cast(Any, entry)._for(owner)
+
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
-        return entries[params["group"]]
+        group = params.get("group")
+        if group is None:
+            return all_entries
+        return entries[group]
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
     return PluginManager.discover(
@@ -180,10 +245,11 @@ def test_discovery_reads_inert_standard_distribution_metadata(
     distribution = next(iter(metadata.distributions(path=[str(tmp_path)])))
 
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
+        group = params.get("group")
         return tuple(
             entry
             for entry in distribution.entry_points
-            if entry.group == params["group"]
+            if group is None or entry.group == group
         )
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
@@ -246,11 +312,102 @@ def test_command_only_plugin_is_inert_until_selected(
     status = manager.catalog()[0]
     assert status.extension_reference is None
     assert status.command_reference == f"{__name__}:valid_command_factory"
-    assert manager.runtime().commands == ()
+    assert manager.commands() == ()
+    assert manager.runtime(("command-only",)).registry.capabilities() == ()
 
-    runtime = manager.runtime(("command-only",))
-    assert runtime.registry.capabilities() == ()
-    assert tuple(command.name for command in runtime.commands) == ("example-command",)
+    manager.enable("command-only")
+    assert tuple(command.name for command in manager.commands()) == ("example-command",)
+
+
+def test_one_shot_plugin_selection_loads_extensions_but_not_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _discover(
+        monkeypatch,
+        tmp_path,
+        extensions=(
+            _entry_point(
+                "one-shot",
+                f"{__name__}:valid_plugin_factory",
+                EXTENSION_ENTRY_POINT_GROUP,
+            ),
+        ),
+        commands=(
+            _entry_point(
+                "one-shot",
+                f"{__name__}:exploding_plugin_factory",
+                COMMAND_ENTRY_POINT_GROUP,
+            ),
+        ),
+    )
+
+    runtime = manager.runtime(("one-shot",))
+
+    assert runtime.registry.can_decode(RawExtension.extension_id)
+    assert manager.commands() == ()
+
+
+def test_command_contract_is_captured_once_and_validates_exit_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _MUTABLE_COMMAND.name = "captured-command"
+    _MUTABLE_COMMAND.summary = "captured summary"
+    manager = _discover(
+        monkeypatch,
+        tmp_path,
+        commands=(
+            _entry_point(
+                "mutable",
+                f"{__name__}:mutable_command_factory",
+                COMMAND_ENTRY_POINT_GROUP,
+            ),
+        ),
+        default_enabled=("mutable",),
+    )
+    command = manager.commands()[0]
+    _MUTABLE_COMMAND.name = "changed-after-capture"
+    _MUTABLE_COMMAND.summary = "changed after capture"
+
+    assert command.name == "captured-command"
+    assert command.summary == "captured summary"
+
+    invalid = _discover(
+        monkeypatch,
+        tmp_path,
+        commands=(
+            _entry_point(
+                "invalid-exit",
+                f"{__name__}:invalid_exit_command_factory",
+                COMMAND_ENTRY_POINT_GROUP,
+            ),
+        ),
+        default_enabled=("invalid-exit",),
+    ).commands()[0]
+    with pytest.raises(PluginLoadError, match=r"exact integer in 0\.\.255"):
+        invalid.run(argparse.Namespace(), CliContext.__new__(CliContext))
+
+
+def test_command_attribute_failures_use_the_plugin_error_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = _discover(
+        monkeypatch,
+        tmp_path,
+        commands=(
+            _entry_point(
+                "raising",
+                f"{__name__}:raising_name_command_factory",
+                COMMAND_ENTRY_POINT_GROUP,
+            ),
+        ),
+        default_enabled=("raising",),
+    )
+
+    with pytest.raises(PluginLoadError, match="name getter exploded"):
+        manager.commands()
 
 
 def test_duplicate_plugin_command_names_are_rejected_before_execution(
@@ -275,7 +432,9 @@ def test_duplicate_plugin_command_names_are_rejected_before_execution(
     )
 
     with pytest.raises(PluginLoadError, match="already provided"):
-        manager.runtime(("one", "two"))
+        manager.enable("one")
+        manager.enable("two")
+        manager.commands()
 
 
 def test_discovery_rejects_contributions_from_different_distributions(
@@ -314,7 +473,36 @@ def test_discovery_rejects_contributions_from_different_distributions(
     )
 
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
-        return tuple(entry for entry in all_entries if entry.group == params["group"])
+        group = params.get("group")
+        return tuple(
+            entry for entry in all_entries if group is None or entry.group == group
+        )
+
+    monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
+
+    with pytest.raises(PluginDiscoveryError, match="different distributions"):
+        PluginManager.discover(state_path=tmp_path / "state.json")
+
+
+def test_discovery_rejects_distinct_owners_with_equal_declared_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    extension = _entry_point(
+        "same",
+        "owner:extensions",
+        EXTENSION_ENTRY_POINT_GROUP,
+    )
+    command = _entry_point(
+        "same",
+        "owner:commands",
+        COMMAND_ENTRY_POINT_GROUP,
+    )
+    cast(Any, extension)._for(_StubDistribution("same-owner"))
+    cast(Any, command)._for(_StubDistribution("same-owner"))
+
+    def installed_entry_points(**_params: str) -> tuple[metadata.EntryPoint, ...]:
+        return extension, command
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
 
@@ -382,6 +570,27 @@ def test_corrupt_or_noncanonical_state_is_rejected(
     monkeypatch.setattr(metadata, "entry_points", no_entry_points)
 
     with pytest.raises(PluginStateError, match="must be sorted"):
+        PluginManager.discover(state_path=state_path)
+
+
+@pytest.mark.parametrize("schema_version", (True, 1.0))
+def test_plugin_state_requires_an_exact_integer_schema_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    schema_version: object,
+) -> None:
+    state_path = tmp_path / "plugins.json"
+    state_path.write_text(
+        json.dumps({"schema_version": schema_version, "enabled": []}),
+        encoding="utf-8",
+    )
+
+    def no_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
+        return ()
+
+    monkeypatch.setattr(metadata, "entry_points", no_entry_points)
+
+    with pytest.raises(PluginStateError, match="schema version"):
         PluginManager.discover(state_path=state_path)
 
 

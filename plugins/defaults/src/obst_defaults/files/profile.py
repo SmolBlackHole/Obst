@@ -146,7 +146,14 @@ def normalize_file_name(profile_id: str, name: str) -> str:
         )
     if normalized.split(".", 1)[0].casefold() in _RESERVED_FILENAMES:
         raise profile_error(profile_id, "file name is reserved on Windows")
-    if len(normalized.encode("utf-8")) > _MAX_FILENAME_BYTES:
+    try:
+        encoded_name = normalized.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise profile_error(
+            profile_id,
+            "file name is not valid UTF-8",
+        ) from exc
+    if len(encoded_name) > _MAX_FILENAME_BYTES:
         raise profile_error(
             profile_id,
             f"UTF-8 file name exceeds {_MAX_FILENAME_BYTES} metadata bytes",
