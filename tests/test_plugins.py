@@ -10,7 +10,11 @@ from typing import Any, cast
 import pytest
 
 from obst.cli import CliContext
-from obst.conformance import StageConformanceCase
+from obst.conformance import (
+    ConformanceSuite,
+    StageKnownAnswerCase,
+    case_extension_id,
+)
 from obst.core import Extension, ExtensionRegistry
 from obst.plugins import (
     COMMAND_ENTRY_POINT_GROUP,
@@ -55,25 +59,33 @@ def exploding_plugin_factory() -> tuple[Extension, ...]:
     raise RuntimeError("factory exploded")
 
 
-def valid_conformance_factory() -> tuple[StageConformanceCase, ...]:
-    return (
-        StageConformanceCase(
-            stage_id=RawExtension.extension_id,
-            parameters=b"",
-            logical=b"known bytes",
-            encoded=b"known bytes",
-            canonical_encoding=True,
+def valid_conformance_factory() -> ConformanceSuite:
+    return ConformanceSuite(
+        "valid",
+        (
+            StageKnownAnswerCase(
+                "raw-known-answer",
+                RawExtension.extension_id,
+                b"",
+                b"known bytes",
+                b"known bytes",
+                canonical_encoding=True,
+            ),
         ),
     )
 
 
-def failing_conformance_factory() -> tuple[StageConformanceCase, ...]:
-    return (
-        StageConformanceCase(
-            stage_id=RawExtension.extension_id,
-            parameters=b"",
-            logical=b"expected",
-            encoded=b"different",
+def failing_conformance_factory() -> ConformanceSuite:
+    return ConformanceSuite(
+        "valid",
+        (
+            StageKnownAnswerCase(
+                "raw-known-answer",
+                RawExtension.extension_id,
+                b"",
+                b"expected",
+                b"different",
+            ),
         ),
     )
 
@@ -150,7 +162,17 @@ def _discover(
     commands: tuple[metadata.EntryPoint, ...] = (),
     conformance: tuple[metadata.EntryPoint, ...] = (),
     default_enabled: tuple[str, ...] = (),
+    auto_conformance: bool = True,
 ) -> PluginManager:
+    if auto_conformance and extensions and not conformance:
+        conformance = tuple(
+            _entry_point(
+                name,
+                f"{__name__}:valid_conformance_factory",
+                CONFORMANCE_ENTRY_POINT_GROUP,
+            )
+            for name in sorted({entry.name for entry in extensions})
+        )
     entries = {
         EXTENSION_ENTRY_POINT_GROUP: extensions,
         COMMAND_ENTRY_POINT_GROUP: commands,
@@ -498,11 +520,18 @@ def test_discovery_rejects_distinct_owners_with_equal_declared_identity(
         "owner:commands",
         COMMAND_ENTRY_POINT_GROUP,
     )
-    cast(Any, extension)._for(_StubDistribution("same-owner"))
+    conformance = _entry_point(
+        "same",
+        "owner:conformance",
+        CONFORMANCE_ENTRY_POINT_GROUP,
+    )
+    extension_owner = _StubDistribution("same-owner")
+    cast(Any, extension)._for(extension_owner)
+    cast(Any, conformance)._for(extension_owner)
     cast(Any, command)._for(_StubDistribution("same-owner"))
 
     def installed_entry_points(**_params: str) -> tuple[metadata.EntryPoint, ...]:
-        return extension, command
+        return extension, command, conformance
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)
 
@@ -714,7 +743,8 @@ def test_plugin_conformance_is_explicit_and_renderer_neutral(
     report = manager.test("valid")
 
     assert report.passed is True
-    assert report.cases[0].stage_id == RawExtension.extension_id
+    assert report.cases[0].case_id == "raw-known-answer"
+    assert report.cases[0].extension_id == RawExtension.extension_id
     assert report.cases[0].error is None
 
 
@@ -753,28 +783,27 @@ def test_plugin_conformance_reports_case_failures_and_bad_contracts(
             ),
         ),
     )
-    with pytest.raises(PluginConformanceError, match="StageConformanceCase"):
+    with pytest.raises(PluginConformanceError, match="ConformanceSuite"):
         manager.test("valid")
 
 
-def test_plugin_without_conformance_contribution_is_explicit(
+def test_extension_plugin_without_conformance_is_rejected_during_discovery(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    manager = _discover(
-        monkeypatch,
-        tmp_path,
-        extensions=(
-            _entry_point(
-                "valid",
-                f"{__name__}:valid_plugin_factory",
-                EXTENSION_ENTRY_POINT_GROUP,
+    with pytest.raises(PluginDiscoveryError, match="must also publish"):
+        _discover(
+            monkeypatch,
+            tmp_path,
+            extensions=(
+                _entry_point(
+                    "valid",
+                    f"{__name__}:valid_plugin_factory",
+                    EXTENSION_ENTRY_POINT_GROUP,
+                ),
             ),
-        ),
-    )
-
-    with pytest.raises(PluginConformanceError, match="does not publish"):
-        manager.test("valid")
+            auto_conformance=False,
+        )
 
 
 def test_first_party_bundle_uses_the_same_plugin_and_conformance_contracts() -> None:
@@ -792,9 +821,15 @@ def test_first_party_bundle_uses_the_same_plugin_and_conformance_contracts() -> 
         "obst.zlib@1",
         "obst.zlib@2",
     )
-    cases = obst_conformance()
-    assert {case.stage_id for case in cases} == {
+    suite = obst_conformance()
+    assert suite.plugin_name == "obst-defaults"
+    assert {
+        extension_id
+        for case in suite.cases
+        if (extension_id := case_extension_id(case)) is not None
+    } == {
         "obst.delta8@1",
+        "obst.file@1",
         "obst.raw@1",
         "obst.zlib@1",
         "obst.zlib@2",
@@ -810,26 +845,22 @@ def test_first_party_plugin_passes_its_published_conformance_cases(
         tmp_path,
         extensions=(
             _entry_point(
-                "obst",
+                "obst-defaults",
                 "obst_defaults.bundle:obst_extensions",
                 EXTENSION_ENTRY_POINT_GROUP,
             ),
         ),
         conformance=(
             _entry_point(
-                "obst",
+                "obst-defaults",
                 "obst_defaults.conformance:obst_conformance",
                 CONFORMANCE_ENTRY_POINT_GROUP,
             ),
         ),
     )
 
-    report = manager.test("obst")
+    report = manager.test("obst-defaults")
 
     assert report.passed is True
-    assert tuple(case.stage_id for case in report.cases) == (
-        "obst.raw@1",
-        "obst.delta8@1",
-        "obst.zlib@1",
-        "obst.zlib@2",
-    )
+    assert len(report.cases) == 26
+    assert report.cases[0].case_id == "raw-known-answer"

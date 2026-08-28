@@ -55,6 +55,11 @@ persist an enabled set and build an operation-local runtime. Discovery and
 activation are inert; only explicit runtime loading imports code, and returned
 Extension objects still enter this same registry path.
 
+Every plugin that publishes `obst.extensions` also publishes a matching static
+`obst.conformance` suite. Command-only plugins do not need one. This makes the
+portable evidence travel with the provider distribution instead of giving
+first-party contracts a separate test path.
+
 The names describe different layers:
 
 ```text

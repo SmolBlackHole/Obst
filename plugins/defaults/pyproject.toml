@@ -25,3 +25,9 @@ obst-defaults = "obst_defaults.commands:obst_commands"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["obst_defaults*"]
+
+[tool.setuptools.package-data]
+obst_defaults = [
+    "conformance_vectors/*.json",
+    "conformance_vectors/vectors/*.hex",
+]

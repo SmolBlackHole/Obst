@@ -124,6 +124,7 @@ def _build_parser_tree(
         action="store_true",
         help="emit a stable machine-readable conformance report",
     )
+    _add_plugin_selection(plugins_test_parser)
 
     extensions_parser = commands.add_parser(
         "extensions",
@@ -311,7 +312,7 @@ def _run_plugin_management(
             f"{warning_style.warning('obst: warning:')} {_PLUGIN_TEST_WARNING}",
             file=sys.stderr,
         )
-        report = manager.test(args.name)
+        report = manager.test(args.name, tuple(args.plugin))
         rendered = (
             render_plugin_conformance_json(report)
             if args.json

@@ -37,6 +37,7 @@ assert "obst_defaults" not in sys.modules
 runtime = manager.runtime(("obst-defaults",))
 assert runtime.plugin_names == ("obst-defaults",)
 assert runtime.registry.can_encode("obst.raw@1")
+assert manager.test("obst-defaults").passed
 assert manager.commands() == ()
 
 manager.enable("obst-defaults")
@@ -70,6 +71,7 @@ status = manager.status("adaptive-zlib")
 assert status.installed
 assert not status.enabled
 assert "obst_example_adaptive_zlib" not in sys.modules
+assert manager.test("adaptive-zlib").passed
 """
 
 

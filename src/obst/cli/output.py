@@ -35,7 +35,7 @@ from obst.plugins import (
 
 INSPECTION_JSON_SCHEMA_VERSION = 6
 PLUGIN_CATALOG_JSON_SCHEMA_VERSION = 4
-PLUGIN_CONFORMANCE_JSON_SCHEMA_VERSION = 1
+PLUGIN_CONFORMANCE_JSON_SCHEMA_VERSION = 2
 EXTENSION_INVENTORY_JSON_SCHEMA_VERSION = 3
 
 _ASCII_APPLE = """                     ███████
@@ -194,9 +194,13 @@ def render_plugin_conformance_human(
         marker = "PASS" if case.passed else "FAIL"
         styled_marker = style.success(marker) if case.passed else style.error(marker)
         print(
-            f"  {styled_marker}  {style.identifier(escape_human_text(case.stage_id))}",
+            f"  {styled_marker}  {style.identifier(escape_human_text(case.case_id))}",
             file=output,
         )
+        details = case.kind.value
+        if case.extension_id is not None:
+            details = f"{details} | {escape_human_text(case.extension_id)}"
+        print(f"        {details}", file=output)
         if case.error is not None:
             print(f"        {escape_human_text(case.error)}", file=output)
     return output.getvalue()
@@ -210,7 +214,9 @@ def render_plugin_conformance_json(report: PluginConformanceReport) -> str:
         "passed": report.passed,
         "cases": [
             {
-                "stage_id": case.stage_id,
+                "id": case.case_id,
+                "kind": case.kind.value,
+                "extension_id": case.extension_id,
                 "passed": case.passed,
                 "error": case.error,
             }

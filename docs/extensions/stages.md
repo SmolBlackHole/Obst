@@ -388,6 +388,7 @@ conflicts, repeated and concurrent calls against one bound executor, and
 golden vectors shared across implementations.
 
 The pytest-independent
-[`obst.conformance`](../conformance.md#python-extension-test-kit) helper checks
-known Stage encodings, local round trips and optional canonical encoder output
-without discovering plugin-owned test modules.
+[`obst.conformance`](../conformance.md#plugin-extension-suites) runner checks
+static known answers, parameters, rejected inputs and output limits without
+discovering plugin-owned test modules. Its narrow `check_stage_conformance()`
+helper checks one `StageKnownAnswerCase` directly.

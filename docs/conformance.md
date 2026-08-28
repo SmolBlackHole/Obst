@@ -18,7 +18,7 @@ pieces exercised by the evidence.
 	- [What the results prove](#what-the-results-prove)
 	- [Portable vector corpus](#portable-vector-corpus)
 	- [Reference conformance coverage](#reference-conformance-coverage)
-	- [Python extension test kit](#python-extension-test-kit)
+	- [Plugin extension suites](#plugin-extension-suites)
 	- [Coverage boundary](#coverage-boundary)
 	- [Specification feedback](#specification-feedback)
 	- [Evidence status](#evidence-status)
@@ -108,21 +108,23 @@ implementation-independent byte format, not serialized Python architecture.
 The public [`conformance/`](../conformance/) corpus turns format behavior into
 small reusable artifacts. It contains exact Golden Vectors, valid containers
 whose stored representation need not be reproduced and isolated invalid
-containers that every reader must reject.
+containers rejected at a declared validation phase.
 
 The machine-readable catalog records vector digests, covered features, exact
-Extension IDs required for logical recovery, exact logical outputs and
-language-neutral rejection classifications. Its own [`README`](../conformance/README.md)
-is the authoritative vector catalog.
+Extension IDs required for logical recovery, structural outcomes, capability
+availability, exact logical outputs and language-neutral rejection
+classifications. Structural acceptance is distinct from recovery, so a missing
+decoder remains a local capability result rather than container corruption. Its
+own [`README`](../conformance/README.md) is the authoritative vector catalog.
 
 ## Reference conformance coverage
 
-The `obst-defaults` plugin separately publishes portable cases for its
-first-party Stage contracts without requiring encoder byte identity. Its own
-test suite exercises all declared zlib compression levels, dictionary-free and
-preset-dictionary round trips, output limits and rejection of truncated,
-trailing or concatenated RFC 1950 streams. Delta8 has fixed known-answer cases
-and proves that its previous-byte state resets at each chunk boundary.
+The `obst-defaults` plugin separately ships a static portable suite for its
+first-party Stage and stream-profile contracts. It covers known logical and
+encoded Stage bytes, canonical parameter bytes, malformed parameters and
+payloads, output limits, portable file metadata and rejected filenames. Its
+ordinary test suite adds provider-specific coverage such as all declared zlib
+compression levels, concurrent calls and filesystem publication behavior.
 
 The decode-only Delta8 plus zlib vector fixes one valid multi-chunk
 representation, not the output of every conforming zlib encoder.
@@ -131,26 +133,57 @@ These tests establish the reference provider's behavior. They do not replace
 running the public vectors in another language or preserving an independent
 implementation and its execution evidence.
 
-## Python extension test kit
+## Plugin extension suites
 
-Third-party Stage packages can use the pytest-independent
-`obst.conformance.check_stage_conformance()` helper in their own test suite. A
-`StageConformanceCase` checks a known encoded representation, a locally produced
-round trip and, only when the Stage contract requires it, exact canonical
-encoding.
+Every Python plugin that publishes `obst.extensions` also publishes one
+matching `obst.conformance` contribution. The plugin distribution owns a
+static `ConformanceSuite` stored as package resources:
 
-Extension authors may run the helper directly in their own repository or CI.
-Installed plugins may publish the same cases explicitly; the
-[plugin guide](extensions/plugins.md#run-published-conformance-cases) owns
-loading, isolation from the enabled set and trusted-code semantics.
+```text
+conformance_vectors/
+    index.json
+    vectors/*.hex
+```
+
+Catalog schema `1` records stable case IDs, closed case kinds, Extension IDs,
+SHA-256 digests and expected language-neutral behavior. The generic loader
+rejects unknown fields, invalid identities, unsafe paths, missing artifacts or
+wrong digests before running a case. The suite may cover:
+
+- known Stage encodings and optional canonical encoder output;
+- canonical Stage parameters and their inspection interpretation;
+- rejected Stage parameters or payloads;
+- encoder and decoder output ceilings;
+- canonical or rejected stream metadata; and
+- recovery of expected logical streams from one complete container.
+
+The portable suite contains data, not pytest modules, callbacks or Python
+exception names. Loading its entry-point factory and exercising its providers
+still executes trusted plugin code. The [plugin guide](extensions/plugins.md)
+owns publication, explicit dependency selection and that trust boundary.
+
+`obst.conformance.load_conformance_suite()` loads a packaged suite and
+`write_conformance_suite()` writes it deterministically. First-party artifacts
+are regenerated with:
+
+```console
+python scripts/build_plugin_conformance.py
+```
+
+The narrow `check_stage_conformance()` helper remains available for directly
+testing one `StageKnownAnswerCase` without plugin discovery. Runtime-only
+carriers and packagers have no portable wire vectors because their request and
+publication values are provider-specific; their lifecycle belongs in the
+plugin's ordinary tests.
 
 ## Coverage boundary
 
 Two successful samples do not establish complete conformance. The independent
-runs do not cover interleaved streams, multiple Recipes, per-chunk Recipe
-changes, RAW, Delta8, unknown extensions, empty streams or empty chunks. Those
-boundaries have reference-side public vectors, but still need preserved
-cross-language execution evidence.
+runs do not cover most malformed fixed records, manifest invariants,
+interleaved streams, per-chunk Recipe changes, RAW, Delta8, unknown extensions,
+empty streams or empty chunks. Those boundaries now have generated
+reference-side public vectors, but still need preserved cross-language
+execution evidence.
 
 The checked-in clean-room evidence also contains no preserved parser source or
 run log. Preserving one independent implementation and its execution evidence

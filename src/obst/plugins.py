@@ -15,8 +15,9 @@ from typing import cast
 
 from obst.cli.commands import CliCommand, CliContext
 from obst.conformance import (
+    ConformanceError,
+    ConformanceSuite,
     PluginConformanceReport,
-    StageConformanceCase,
     check_plugin_conformance,
 )
 from obst.core.errors import ExtensionError, ObstError
@@ -193,6 +194,18 @@ class PluginManager:
             extension_entry = extension_entries.get(name)
             command_entry = command_entries.get(name)
             conformance_entry = conformance_entries.get(name)
+            if extension_entry is not None and conformance_entry is None:
+                raise PluginDiscoveryError(
+                    name,
+                    f"plugins that publish {EXTENSION_ENTRY_POINT_GROUP} must also "
+                    f"publish {CONFORMANCE_ENTRY_POINT_GROUP}",
+                )
+            if conformance_entry is not None and extension_entry is None:
+                raise PluginDiscoveryError(
+                    name,
+                    f"{CONFORMANCE_ENTRY_POINT_GROUP} requires a matching "
+                    f"{EXTENSION_ENTRY_POINT_GROUP} contribution",
+                )
             entries = tuple(
                 entry
                 for entry in (extension_entry, command_entry, conformance_entry)
@@ -300,7 +313,11 @@ class PluginManager:
                 commands.append(command)
         return tuple(sorted(commands, key=lambda command: command.name))
 
-    def test(self, name: str) -> PluginConformanceReport:
+    def test(
+        self,
+        name: str,
+        additional: Iterable[str] = (),
+    ) -> PluginConformanceReport:
         """Run one plugin's explicitly published portable conformance cases."""
         plugin = self._require_installed(name)
         entry_point = plugin.conformance_entry_point
@@ -309,16 +326,34 @@ class PluginManager:
                 name,
                 f"plugin does not publish {CONFORMANCE_ENTRY_POINT_GROUP}",
             )
-        extensions = self._load_extensions(plugin)
+        owned_extensions = self._load_extensions(plugin)
+        extensions = list(owned_extensions)
+        selected = {name}
+        for dependency_name in additional:
+            _validate_plugin_name(dependency_name)
+            if dependency_name in selected:
+                continue
+            selected.add(dependency_name)
+            dependency = self._require_installed(dependency_name)
+            extensions.extend(self._load_extensions(dependency))
         try:
-            registry = ExtensionRegistry(extensions)
+            owned_registry = ExtensionRegistry(owned_extensions)
+            registry = ExtensionRegistry(tuple(extensions))
         except ExtensionError as exc:
             raise PluginConformanceError(
                 name,
-                f"extension registry rejected the plugin: {exc}",
+                f"extension registry rejected the selected plugin set: {exc}",
             ) from exc
-        cases = _load_conformance_cases(name, entry_point)
-        return check_plugin_conformance(name, registry, cases)
+        suite = _load_conformance_suite(name, entry_point)
+        try:
+            return check_plugin_conformance(
+                name,
+                registry,
+                suite,
+                owned_capabilities=owned_registry.capabilities(),
+            )
+        except ConformanceError as exc:
+            raise PluginConformanceError(name, str(exc)) from exc
 
     def _status(self, name: str) -> PluginStatus:
         plugin = self._installed.get(name)
@@ -508,21 +543,34 @@ def _load_factory(
     return cast(tuple[object, ...], values)
 
 
-def _load_conformance_cases(
+def _load_conformance_suite(
     plugin_name: str,
     entry_point: metadata.EntryPoint,
-) -> tuple[StageConformanceCase, ...]:
-    values = _load_factory(
-        plugin_name,
-        entry_point,
-        error_factory=PluginConformanceError,
-    )
-    if any(type(value) is not StageConformanceCase for value in values):
+) -> ConformanceSuite:
+    try:
+        factory = entry_point.load()
+    except Exception as exc:
         raise PluginConformanceError(
             plugin_name,
-            "factory must return only exact StageConformanceCase values",
+            f"entry point raised {type(exc).__name__}: {exc}",
+        ) from exc
+    if not callable(factory):
+        raise PluginConformanceError(
+            plugin_name, "entry point must resolve to a callable"
         )
-    return cast(tuple[StageConformanceCase, ...], values)
+    try:
+        suite = factory()
+    except Exception as exc:
+        raise PluginConformanceError(
+            plugin_name,
+            f"factory raised {type(exc).__name__}: {exc}",
+        ) from exc
+    if type(suite) is not ConformanceSuite:
+        raise PluginConformanceError(
+            plugin_name,
+            "factory must return one exact ConformanceSuite",
+        )
+    return suite
 
 
 def _validate_plugin_name(name: object) -> None:

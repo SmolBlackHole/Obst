@@ -118,11 +118,13 @@ the complete enabled set to local configuration. `OBST_CONFIG_HOME` overrides
 that directory. Invalid state fails explicitly instead of being silently
 replaced.
 
-Run the portable Stage cases deliberately published by one installed plugin:
+Run the portable suite deliberately published by one installed Extension
+plugin:
 
 ```console
 obst plugins test obst-defaults
 obst plugins test obst-defaults --json
+obst plugins test example --plugin dependency
 ```
 
 > [!WARNING]
@@ -130,7 +132,9 @@ obst plugins test obst-defaults --json
 > privileges. No sandbox is used. Test only plugins you trust.
 
 Testing loads and executes that plugin's `obst.extensions` and
-`obst.conformance` factories. It does not enable the plugin. A failed case
+`obst.conformance` factories. Each `--plugin NAME` explicitly supplies a
+dependency capability for this test only; no dependency is discovered or
+enabled automatically. Testing does not enable any plugin. A failed case
 returns exit code `11` after printing the complete report.
 
 List capabilities from the enabled set plus optional one-shot additions:
@@ -150,8 +154,9 @@ contributions. Container bytes never select, enable or load plugins.
 These commands have schema-versioned JSON output. Plugin catalog schema `4`
 reports all 3 contribution entry-point groups plus inert records with install,
 enabled and default state, distribution metadata and factory provenance. Plugin
-conformance schema `1` reports each case and its pass state. Cataloging never
-imports plugin code.
+conformance report schema `2` reports each case ID, kind, optional Extension
+ID, pass state and failure text. The static suite catalog itself uses schema
+`1`. Cataloging never imports plugin code.
 Extension inventory schema `3` reports loaded IDs, kinds and descriptors in 4
 typed record shapes. Stage and stream-profile records expose their execution,
 wire-codec and interpreter availability. Carrier records expose reader, writer

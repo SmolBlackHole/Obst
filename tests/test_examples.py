@@ -247,6 +247,13 @@ def test_example_plugin_command_composes_another_plugins_stage(
         ],
         group=COMMAND_ENTRY_POINT_GROUP,
     )
+    adaptive_conformance = metadata.EntryPoint(
+        name="adaptive-zlib",
+        value=adaptive_project["project"]["entry-points"][
+            CONFORMANCE_ENTRY_POINT_GROUP
+        ]["adaptive-zlib"],
+        group=CONFORMANCE_ENTRY_POINT_GROUP,
+    )
     defaults_extension = metadata.EntryPoint(
         name="obst-defaults",
         value=defaults_project["project"]["entry-points"][EXTENSION_ENTRY_POINT_GROUP][
@@ -261,15 +268,26 @@ def test_example_plugin_command_composes_another_plugins_stage(
         ],
         group=COMMAND_ENTRY_POINT_GROUP,
     )
+    defaults_conformance = metadata.EntryPoint(
+        name="obst-defaults",
+        value=defaults_project["project"]["entry-points"][
+            CONFORMANCE_ENTRY_POINT_GROUP
+        ]["obst-defaults"],
+        group=CONFORMANCE_ENTRY_POINT_GROUP,
+    )
     entries = {
         EXTENSION_ENTRY_POINT_GROUP: (adaptive_extension, defaults_extension),
         COMMAND_ENTRY_POINT_GROUP: (adaptive_command, defaults_command),
-        CONFORMANCE_ENTRY_POINT_GROUP: (),
+        CONFORMANCE_ENTRY_POINT_GROUP: (
+            adaptive_conformance,
+            defaults_conformance,
+        ),
     }
     owner = next(iter(metadata.distributions()))
     for entry in (
         *entries[EXTENSION_ENTRY_POINT_GROUP],
         *entries[COMMAND_ENTRY_POINT_GROUP],
+        *entries[CONFORMANCE_ENTRY_POINT_GROUP],
     ):
         cast(Any, entry)._for(owner)
     all_entries = tuple(entry for group in entries.values() for entry in group)
@@ -347,11 +365,25 @@ def test_example_plugin_round_trips_existing_obst_sample(
         value=extension_target,
         group=EXTENSION_ENTRY_POINT_GROUP,
     )
+    conformance_entry = metadata.EntryPoint(
+        name="adaptive-zlib",
+        value=project["project"]["entry-points"][CONFORMANCE_ENTRY_POINT_GROUP][
+            "adaptive-zlib"
+        ],
+        group=CONFORMANCE_ENTRY_POINT_GROUP,
+    )
+    owner = next(iter(metadata.distributions()))
+    for entry in (extension_entry, conformance_entry):
+        cast(Any, entry)._for(owner)
 
     def installed_entry_points(**params: str) -> tuple[metadata.EntryPoint, ...]:
         group = params.get("group")
-        if group is None or group == EXTENSION_ENTRY_POINT_GROUP:
+        if group is None:
+            return extension_entry, conformance_entry
+        if group == EXTENSION_ENTRY_POINT_GROUP:
             return (extension_entry,)
+        if group == CONFORMANCE_ENTRY_POINT_GROUP:
+            return (conformance_entry,)
         return ()
 
     monkeypatch.setattr(metadata, "entry_points", installed_entry_points)

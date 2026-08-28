@@ -173,6 +173,7 @@ def _require_encoded_size(
     budget: ResourceBudget,
 ) -> int:
     total_size = ManifestHeader.size
+    _require_manifest_wire_size(total_size)
     budget.require(
         resource="manifest_bytes",
         scope="manifest",
@@ -182,6 +183,7 @@ def _require_encoded_size(
     )
     for part in _iter_body_parts(manifest, extension_indexes):
         total_size += len(part)
+        _require_manifest_wire_size(total_size)
         budget.require(
             resource="manifest_bytes",
             scope="manifest",
@@ -189,9 +191,11 @@ def _require_encoded_size(
             observed=total_size,
             phase="manifest_encode",
         )
-        if total_size - ManifestHeader.size > uint32.maximum:
-            raise ValueError("manifest body size must fit into uint32")
     return total_size
+
+
+def _require_manifest_wire_size(total_size: int) -> None:
+    uint32.require("complete manifest size", total_size)
 
 
 def validate_manifest_counts(

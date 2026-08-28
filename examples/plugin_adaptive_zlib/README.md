@@ -44,7 +44,7 @@ The distribution publishes ordinary plugin entry points:
 adaptive-zlib = "obst_example_adaptive_zlib:obst_extensions"
 
 [project.entry-points."obst.conformance"]
-adaptive-zlib = "obst_example_adaptive_zlib:obst_conformance"
+adaptive-zlib = "obst_example_adaptive_zlib.conformance:obst_conformance"
 
 [project.entry-points."obst.commands"]
 adaptive-zlib = "obst_example_adaptive_zlib:obst_commands"
@@ -165,8 +165,8 @@ lower dictionary index.
 
 That search strategy is not required for interoperability. Another encoder may
 use sampling, hardware acceleration, a different cost model or considerably
-more electricity. Every declared combination is decodable, so known-answer
-conformance cases deliberately set `canonical_encoding=False`.
+more electricity. Every declared combination is decodable, so the static
+known-answer records deliberately mark their encoded bytes as non-canonical.
 
 The decoder only performs:
 
@@ -228,15 +228,20 @@ incompressible bytes feel guilty until they become smaller.
 
 ## Test the contract
 
-The plugin publishes fixed known-answer cases for one shuffled payload and one
-preset-dictionary payload:
+The plugin ships a static suite with 2 known answers plus parameter,
+malformed-input and output-limit cases:
 
 ```console
 obst plugins test adaptive-zlib
 ```
 
-Each case verifies known decoding and a local round trip. Neither demands one
-canonical encoder choice.
+The suite lives in packaged `index.json` and `.hex` resources. It verifies
+known decoding and local round trips without demanding one canonical encoder
+choice. Regenerate the checked-in artifacts from the repository root with:
+
+```console
+python scripts/build_plugin_conformance.py
+```
 
 ## Trust boundary
 
@@ -261,5 +266,8 @@ plugin_adaptive_zlib/
         __init__.py
         commands.py
         conformance.py
+        conformance_vectors/
+            index.json
+            vectors/*.hex
         extension.py
 ```

@@ -18,10 +18,16 @@ Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/examples/plugin
 adaptive-zlib = "obst_example_adaptive_zlib:obst_extensions"
 
 [project.entry-points."obst.conformance"]
-adaptive-zlib = "obst_example_adaptive_zlib:obst_conformance"
+adaptive-zlib = "obst_example_adaptive_zlib.conformance:obst_conformance"
 
 [project.entry-points."obst.commands"]
 adaptive-zlib = "obst_example_adaptive_zlib:obst_commands"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+obst_example_adaptive_zlib = [
+    "conformance_vectors/*.json",
+    "conformance_vectors/vectors/*.hex",
+]

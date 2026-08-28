@@ -1,0 +1,417 @@
+{
+    "cases": [
+        {
+            "canonical_encoding": true,
+            "encoded": {
+                "path": "vectors/raw-known-answer.encoded.hex",
+                "sha256": "c70b7926faf2a84068f491706baa475c15cfa83d9fe7bad638e99a710b0af92a"
+            },
+            "extension_id": "obst.raw@1",
+            "id": "raw-known-answer",
+            "kind": "stage-known-answer",
+            "logical": {
+                "path": "vectors/raw-known-answer.logical.hex",
+                "sha256": "c70b7926faf2a84068f491706baa475c15cfa83d9fe7bad638e99a710b0af92a"
+            },
+            "parameters": {
+                "path": "vectors/raw-known-answer.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "canonical_encoding": true,
+            "encoded": {
+                "path": "vectors/raw-empty.encoded.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "extension_id": "obst.raw@1",
+            "id": "raw-empty",
+            "kind": "stage-known-answer",
+            "logical": {
+                "path": "vectors/raw-empty.logical.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "parameters": {
+                "path": "vectors/raw-empty.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "directions": [
+                "encode",
+                "decode"
+            ],
+            "extension_id": "obst.raw@1",
+            "id": "raw-parameters-rejected",
+            "kind": "stage-bind-rejection",
+            "parameters": {
+                "path": "vectors/raw-parameters-rejected.parameters.hex",
+                "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/raw-encode-limit.data.hex",
+                "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+            },
+            "direction": "encode",
+            "extension_id": "obst.raw@1",
+            "id": "raw-encode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/raw-encode-limit.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/raw-decode-limit.data.hex",
+                "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+            },
+            "direction": "decode",
+            "extension_id": "obst.raw@1",
+            "id": "raw-decode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/raw-decode-limit.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "canonical_encoding": true,
+            "encoded": {
+                "path": "vectors/delta8-known-answer.encoded.hex",
+                "sha256": "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81"
+            },
+            "extension_id": "obst.delta8@1",
+            "id": "delta8-known-answer",
+            "kind": "stage-known-answer",
+            "logical": {
+                "path": "vectors/delta8-known-answer.logical.hex",
+                "sha256": "7eba475597a1393d3a21be23c6f39660e69c583970371165c3028c596692e724"
+            },
+            "parameters": {
+                "path": "vectors/delta8-known-answer.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "canonical_encoding": true,
+            "encoded": {
+                "path": "vectors/delta8-empty.encoded.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "extension_id": "obst.delta8@1",
+            "id": "delta8-empty",
+            "kind": "stage-known-answer",
+            "logical": {
+                "path": "vectors/delta8-empty.logical.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "parameters": {
+                "path": "vectors/delta8-empty.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "directions": [
+                "encode",
+                "decode"
+            ],
+            "extension_id": "obst.delta8@1",
+            "id": "delta8-parameters-rejected",
+            "kind": "stage-bind-rejection",
+            "parameters": {
+                "path": "vectors/delta8-parameters-rejected.parameters.hex",
+                "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/delta8-encode-limit.data.hex",
+                "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+            },
+            "direction": "encode",
+            "extension_id": "obst.delta8@1",
+            "id": "delta8-encode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/delta8-encode-limit.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/delta8-decode-limit.data.hex",
+                "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+            },
+            "direction": "decode",
+            "extension_id": "obst.delta8@1",
+            "id": "delta8-decode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/delta8-decode-limit.parameters.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+        },
+        {
+            "canonical_encoding": false,
+            "encoded": {
+                "path": "vectors/zlib-known-answer.encoded.hex",
+                "sha256": "4dcad7d599120e8a25c25a87f5efa88777f6dac21569e91555f5cd733b63c08d"
+            },
+            "extension_id": "obst.zlib@1",
+            "id": "zlib-known-answer",
+            "kind": "stage-known-answer",
+            "logical": {
+                "path": "vectors/zlib-known-answer.logical.hex",
+                "sha256": "b800155224483facd26c540120202e9947e5cd7550b524aca874f5de81c1f9f6"
+            },
+            "parameters": {
+                "path": "vectors/zlib-known-answer.parameters.hex",
+                "sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+            }
+        },
+        {
+            "canonical_encoding": false,
+            "encoded": {
+                "path": "vectors/zlib-empty.encoded.hex",
+                "sha256": "aca503def43dc086a5aaa5c3d6f86bcbbc2aa6a80007ddea4a81bce2b376fceb"
+            },
+            "extension_id": "obst.zlib@1",
+            "id": "zlib-empty",
+            "kind": "stage-known-answer",
+            "logical": {
+                "path": "vectors/zlib-empty.logical.hex",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "parameters": {
+                "path": "vectors/zlib-empty.parameters.hex",
+                "sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+            }
+        },
+        {
+            "extension_id": "obst.zlib@1",
+            "id": "zlib-parameters",
+            "interpretation": {
+                "error": null,
+                "fields": [
+                    {
+                        "name": "compression_level",
+                        "value": 6
+                    }
+                ],
+                "label": null
+            },
+            "kind": "stage-parameters",
+            "parameters": {
+                "path": "vectors/zlib-parameters.parameters.hex",
+                "sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+            }
+        },
+        {
+            "directions": [
+                "encode",
+                "decode"
+            ],
+            "extension_id": "obst.zlib@1",
+            "id": "zlib-parameters-rejected",
+            "kind": "stage-bind-rejection",
+            "parameters": {
+                "path": "vectors/zlib-parameters-rejected.parameters.hex",
+                "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+            }
+        },
+        {
+            "encoded": {
+                "path": "vectors/zlib-payload-rejected.encoded.hex",
+                "sha256": "f2e1f83e93d224a7240af6963ae223028639fcd69cf42493d94ecdbc3c4e1b4f"
+            },
+            "extension_id": "obst.zlib@1",
+            "id": "zlib-payload-rejected",
+            "kind": "stage-decode-rejection",
+            "max_output_size": 1024,
+            "parameters": {
+                "path": "vectors/zlib-payload-rejected.parameters.hex",
+                "sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/zlib-encode-limit.data.hex",
+                "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+            },
+            "direction": "encode",
+            "extension_id": "obst.zlib@1",
+            "id": "zlib-encode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/zlib-encode-limit.parameters.hex",
+                "sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/zlib-decode-limit.data.hex",
+                "sha256": "4dcad7d599120e8a25c25a87f5efa88777f6dac21569e91555f5cd733b63c08d"
+            },
+            "direction": "decode",
+            "extension_id": "obst.zlib@1",
+            "id": "zlib-decode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/zlib-decode-limit.parameters.hex",
+                "sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+            }
+        },
+        {
+            "canonical_encoding": false,
+            "encoded": {
+                "path": "vectors/zlib-dictionary-known-answer.encoded.hex",
+                "sha256": "fbcfc754c1659180371513f5d85a7dce8afe6a1e7171c9daec4ad3977af12cef"
+            },
+            "extension_id": "obst.zlib@2",
+            "id": "zlib-dictionary-known-answer",
+            "kind": "stage-known-answer",
+            "logical": {
+                "path": "vectors/zlib-dictionary-known-answer.logical.hex",
+                "sha256": "205a4a5bc16794b5b6cf32ac808644b2f34f8b60bef7ac6af55f828ef880f1d0"
+            },
+            "parameters": {
+                "path": "vectors/zlib-dictionary-known-answer.parameters.hex",
+                "sha256": "d75d625445daf3210cdbb13d3fe68a19a131c1d1af16ab91b453fce63c0c688a"
+            }
+        },
+        {
+            "extension_id": "obst.zlib@2",
+            "id": "zlib-dictionary-parameters",
+            "interpretation": {
+                "error": null,
+                "fields": [
+                    {
+                        "name": "compression_level",
+                        "value": 6
+                    },
+                    {
+                        "name": "dictionary_size",
+                        "value": 9
+                    },
+                    {
+                        "name": "dictionary_adler32",
+                        "value": "12e2037a"
+                    }
+                ],
+                "label": null
+            },
+            "kind": "stage-parameters",
+            "parameters": {
+                "path": "vectors/zlib-dictionary-parameters.parameters.hex",
+                "sha256": "d75d625445daf3210cdbb13d3fe68a19a131c1d1af16ab91b453fce63c0c688a"
+            }
+        },
+        {
+            "directions": [
+                "encode",
+                "decode"
+            ],
+            "extension_id": "obst.zlib@2",
+            "id": "zlib-dictionary-parameters-rejected",
+            "kind": "stage-bind-rejection",
+            "parameters": {
+                "path": "vectors/zlib-dictionary-parameters-rejected.parameters.hex",
+                "sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+            }
+        },
+        {
+            "encoded": {
+                "path": "vectors/zlib-dictionary-payload-rejected.encoded.hex",
+                "sha256": "ecdc3dd8e1c9165caec1ca28de165a38cf486bfd924ffc078d4861470cc62ade"
+            },
+            "extension_id": "obst.zlib@2",
+            "id": "zlib-dictionary-payload-rejected",
+            "kind": "stage-decode-rejection",
+            "max_output_size": 1024,
+            "parameters": {
+                "path": "vectors/zlib-dictionary-payload-rejected.parameters.hex",
+                "sha256": "d75d625445daf3210cdbb13d3fe68a19a131c1d1af16ab91b453fce63c0c688a"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/zlib-dictionary-encode-limit.data.hex",
+                "sha256": "01e782826ae5182220bd6158f883d01ceb1bce659dc020e7c511f802a9aa7737"
+            },
+            "direction": "encode",
+            "extension_id": "obst.zlib@2",
+            "id": "zlib-dictionary-encode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/zlib-dictionary-encode-limit.parameters.hex",
+                "sha256": "d75d625445daf3210cdbb13d3fe68a19a131c1d1af16ab91b453fce63c0c688a"
+            }
+        },
+        {
+            "data": {
+                "path": "vectors/zlib-dictionary-decode-limit.data.hex",
+                "sha256": "fbcfc754c1659180371513f5d85a7dce8afe6a1e7171c9daec4ad3977af12cef"
+            },
+            "direction": "decode",
+            "extension_id": "obst.zlib@2",
+            "id": "zlib-dictionary-decode-limit",
+            "kind": "stage-output-limit",
+            "max_output_size": 0,
+            "parameters": {
+                "path": "vectors/zlib-dictionary-decode-limit.parameters.hex",
+                "sha256": "d75d625445daf3210cdbb13d3fe68a19a131c1d1af16ab91b453fce63c0c688a"
+            }
+        },
+        {
+            "extension_id": "obst.file@1",
+            "id": "file-metadata",
+            "interpretation": {
+                "error": null,
+                "fields": [
+                    {
+                        "name": "name",
+                        "value": "README.md"
+                    }
+                ],
+                "label": "README.md"
+            },
+            "kind": "stream-metadata",
+            "metadata": {
+                "path": "vectors/file-metadata.metadata.hex",
+                "sha256": "b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5"
+            }
+        },
+        {
+            "extension_id": "obst.file@1",
+            "id": "file-path-rejected",
+            "kind": "stream-metadata-rejection",
+            "metadata": {
+                "path": "vectors/file-path-rejected.metadata.hex",
+                "sha256": "1ba7343c47dc442de7dec43a995deb9a7b62234ecca16d7c6f597b5155bd85b1"
+            },
+            "require_interpreter_error": true
+        },
+        {
+            "extension_id": "obst.file@1",
+            "id": "file-bidi-rejected",
+            "kind": "stream-metadata-rejection",
+            "metadata": {
+                "path": "vectors/file-bidi-rejected.metadata.hex",
+                "sha256": "5707122f1d55a96eaa65fd2dc432915aab0d1ffa31f56032e96354952b181def"
+            },
+            "require_interpreter_error": true
+        }
+    ],
+    "plugin": "obst-defaults",
+    "schema_version": 1
+}

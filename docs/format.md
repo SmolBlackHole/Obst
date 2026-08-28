@@ -111,6 +111,10 @@ The manifest has a 24-byte header followed by a variable-size body.
 |     16 |    4 | u32   | body CRC-32     | CRC of the complete manifest body |
 |     20 |    4 | u32   | header CRC-32   | CRC of bytes 0 through 19         |
 
+The complete manifest size in the container header includes this 24-byte
+manifest header. Both sizes must fit their `u32` fields, so the manifest body
+can contain at most `2^32 - 1 - 24` bytes.
+
 The body contains, in order, every extension entry, every recipe entry and
 every stream entry. Recipe and stream counts come from the container header.
 At least one recipe and one stream are required. No padding or trailing bytes
@@ -244,6 +248,12 @@ Chunks from different streams may be interleaved. Each stream starts at
 sequence zero and increments by one. End-of-input before the terminal commit,
 inside any record or after only a prefix of a payload is truncation.
 
+Logical and encoded sizes may each be zero at the framing layer. The selected
+Stage contracts still determine whether an encoded payload is valid. A
+zero-length chunk remains a chunk: it participates in stream sequencing, the
+terminal chunk count and the terminal content commitment. It is distinct from
+a stream with no chunks.
+
 Readers validate declared payload sizes before reading those payloads. They
 validate the manifest byte size before reading the manifest and its entry
 counts before constructing the complete manifest object graph or decoding.
@@ -346,17 +356,27 @@ The expected error classes are:
 
 ## Conformance vectors
 
-The public [`conformance/`](../conformance/) corpus separates 3 contracts:
+The public [`conformance/`](../conformance/) corpus separates 3 categories:
 
 - Golden Vectors require exact reproduction by the Python reference writer;
-- valid vectors require acceptance and byte-exact logical recovery without
-  requiring identical encoded bytes; and
-- invalid vectors require rejection under a language-neutral classification.
+- valid vectors require structural acceptance, followed by the cataloged
+  recovery or missing-capability result; and
+- invalid vectors require rejection at the cataloged structural or recovery
+  phase under a language-neutral classification.
 
 The minimal RAW container is the exact Golden Vector. The multi-chunk Delta8
 plus zlib vector is decode-only because conforming zlib encoders may choose
-different representations. The machine-readable catalog owns paths, SHA-256,
-feature tags, logical outputs and rejection rules.
+different representations. Catalog schema 2 separates structural validation
+from logical recovery so an unavailable Stage is never confused with a corrupt
+container. The machine-readable catalog owns paths, SHA-256, feature tags,
+required Extension IDs, phased outcomes, logical outputs and rejection rules.
+
+The generated corpus covers every field of the 4 fixed records, truncation at
+each record boundary, manifest ordering and reference rules, representative
+Extension identifier and specification URL failures, interleaving, sparse and
+maximum IDs, empty streams and chunks, terminal completeness, missing
+capabilities and post-decode logical integrity. Stage-specific parameter spaces
+remain in their independent contract suites instead of being duplicated here.
 
 Before the first compatibility release, an intentional v0.1 wire change updates
 this specification, the implementation and every affected vector together. After

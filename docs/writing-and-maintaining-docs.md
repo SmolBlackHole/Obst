@@ -33,6 +33,7 @@ place that must be kept vaguely in sync.
 | Python mapping of fixed wire fields and layouts        | `docs/core/wire.md`           |
 | Interoperability evidence and conformance coverage     | `docs/conformance.md`         |
 | Portable Golden, valid and invalid vector catalog      | `conformance/`                |
+| One plugin's portable Extension vector suite           | That plugin's package data    |
 | Meaning of one versioned `obst.*` identifier           | `docs/contracts/`             |
 | Python core operations                                 | `docs/core/`                  |
 | Extension composition and capability lookup            | `docs/core/registry.md`       |

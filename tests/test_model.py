@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import struct
 import zlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from typing import cast
 
 import pytest
 from hypothesis import given, settings
@@ -19,6 +20,7 @@ from obst.core import (
     StageSpec,
     Stream,
     format_version,
+    validate_manifest_resources,
 )
 from obst.core.errors import (
     CorruptContainerError,
@@ -28,7 +30,7 @@ from obst.core.errors import (
     UnsupportedVersionError,
 )
 from obst.core.manifest import decode_manifest, encode_manifest
-from obst.core.wire import ManifestHeader
+from obst.core.wire import ManifestHeader, uint32
 from obst_defaults.codecs.raw import RawExtension
 
 _METADATA_STREAM_TYPE = "org.example/data@1"
@@ -90,6 +92,14 @@ class _ManifestHeaderMutation:
     error_type: type[InvalidContainerError]
     message: str
     repair_checksum: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class _SizedManifestPart:
+    size: int
+
+    def __len__(self) -> int:
+        return self.size
 
 
 def raw_recipe(recipe_id: int) -> Recipe:
@@ -228,6 +238,30 @@ def test_manifest_encoding_accepts_exact_budget_and_rejects_one_byte_less() -> N
             limits=ResourceLimits(max_manifest_bytes=len(encoded) - 1),
         )
     assert error.value.resource == "manifest_bytes"
+
+
+def test_complete_manifest_size_must_fit_container_header_uint32(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    part = _SizedManifestPart(uint32.maximum - ManifestHeader.size)
+
+    def sized_parts(
+        _manifest: Manifest,
+        _extension_indexes: dict[str, int],
+    ) -> Iterator[bytes]:
+        yield cast(bytes, part)
+
+    monkeypatch.setattr(
+        "obst.core.manifest._iter_body_parts",
+        sized_parts,
+    )
+    limits = ResourceLimits(max_manifest_bytes=None)
+
+    validate_manifest_resources(_MUTATION_MANIFEST, limits=limits)
+    part = _SizedManifestPart(part.size + 1)
+
+    with pytest.raises(ValueError, match="complete manifest size must fit into uint32"):
+        validate_manifest_resources(_MUTATION_MANIFEST, limits=limits)
 
 
 def test_manifest_rejects_duplicate_recipe_and_stream_ids() -> None:

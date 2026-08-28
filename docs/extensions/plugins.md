@@ -45,9 +45,11 @@ OBST manifests. Command names belong to the generic CLI host and never enter
 container bytes. Containers never name distributions, plugins or commands.
 
 A plugin exists when one distribution publishes at least one contribution
-under `obst.extensions`, `obst.commands` or `obst.conformance`. It may publish
-at most one contribution under the same plugin name in each group. Matching
-contributions must come from the same installed distribution. One extension
+under `obst.extensions` or `obst.commands`. Every `obst.extensions`
+contribution must have a matching `obst.conformance` contribution under the
+same name. Command-only plugins need neither. A distribution may publish at
+most one contribution under the same plugin name in each group, and matching
+contributions must come from the same physical distribution. One extension
 factory may return several Stage, stream-profile, carrier and packager
 Extensions; one command factory may return several commands.
 
@@ -159,36 +161,50 @@ untrusted labels before styling them.
 
 ### Conformance contribution
 
-A plugin may publish portable Stage cases under the same name:
+An Extension plugin publishes a static portable suite under the same name:
 
 ```toml
 [project.entry-points."obst.conformance"]
 example = "org_example_obst:obst_conformance"
 ```
 
-The factory returns a non-empty exact tuple of `StageConformanceCase` values:
+The factory returns one exact `ConformanceSuite` loaded from package resources:
 
 ```python
-from obst.conformance import StageConformanceCase
+from importlib.resources import files
+
+from obst.conformance import ConformanceSuite, load_conformance_suite
 
 
-def obst_conformance() -> tuple[StageConformanceCase, ...]:
-    return (
-        StageConformanceCase(
-            stage_id="org.example/adaptive-zlib@1",
-            parameters=b"\x06\x07\x00",
-            logical=b"A0A1B0B1C0C1!",
-            encoded=bytes.fromhex(
-                "0100789c737474727276363004414500158002d1"
-            ),
-            canonical_encoding=False,
-        ),
+def obst_conformance() -> ConformanceSuite:
+    return load_conformance_suite(
+        files("org_example_obst").joinpath("conformance_vectors")
     )
 ```
 
-This entry point contains data factories, not pytest modules or arbitrary test
-discovery. `obst.conformance` covers Stage contracts. Stream-profile packages
-keep their profile-specific tests and shared vectors in their own suite.
+The package includes `conformance_vectors/index.json` plus the hexadecimal
+files referenced by that catalog. Catalog schema `1` owns stable case IDs,
+case kinds, Extension IDs, SHA-256 digests and expected portable behavior.
+The generic writer can generate those checked-in artifacts deterministically:
+
+```python
+from obst.conformance import write_conformance_suite
+
+write_conformance_suite(build_suite(), output_directory)
+```
+
+The portable case kinds cover known Stage encodings, typed parameters,
+rejected parameters and payloads, output ceilings, stream metadata,
+metadata rejection and optional complete-container recovery. Cases store data,
+not pytest modules, Python exception names or arbitrary test callbacks.
+
+Every wire-visible Stage and stream-profile ID returned by the Extension
+factory must have positive coverage in the suite. Runtime-only carriers and
+packagers have no language-neutral wire vectors because their request and
+publication values are provider-specific. Their lifecycle behavior remains in
+the plugin's own ordinary tests. A plugin may still include a complete
+container case that exercises runtime composition through its wire-visible
+contracts.
 
 ## Discover and inspect without loading
 
@@ -262,10 +278,23 @@ report = manager.test("example")
 assert report.passed
 ```
 
-The manager loads only that plugin's extension and conformance contributions,
-validates the extensions through an isolated registry, then runs the portable
-cases through [`obst.conformance`](../conformance.md#python-extension-test-kit).
-The renderer-neutral report lists every Stage ID, pass state and failure text.
+The manager loads that plugin's Extension contribution and static suite,
+validates the Extensions through an isolated registry, then runs the portable
+cases through [`obst.conformance`](../conformance.md#plugin-extension-suites).
+The renderer-neutral report lists every case ID, kind, optional Extension ID,
+pass state and failure text.
+
+Dependencies remain explicit trust decisions. A suite may require another
+installed capability, but the manager never discovers or enables its provider
+automatically:
+
+```python
+report = manager.test("example", additional=("dependency",))
+```
+
+The target suite may test only Extension IDs contributed by the target plugin.
+Complete-container cases may additionally name capabilities supplied by the
+explicit dependency set.
 
 Passing these cases proves only the published contracts covered by the cases.
 It is not a sandbox, a package-signature check or a claim about unrelated code
@@ -280,6 +309,7 @@ obst plugins list
 obst plugins enable example
 obst plugins disable example
 obst plugins test example
+obst plugins test example --plugin dependency
 obst extensions
 obst extensions --plugin experiment
 ```
@@ -317,7 +347,8 @@ behavior depends on capabilities: if an operation needs `obst.file@1` and
 `obst.zlib@1`, the activated set must supply the precise directional
 capabilities the operation uses regardless of which plugin supplied them. The
 manager does not silently enable another plugin because one plugin happens to
-expect it.
+expect it. The same rule applies to conformance: additional providers are
+named explicitly for that one test invocation and are not enabled persistently.
 
 Plugins may contribute stages, stream profiles, carriers and packagers through
 the same `obst.extensions` factory. The manager does not create separate entry

@@ -25,7 +25,7 @@ from obst.cli.commands import (
     EXIT_USAGE,
 )
 from obst.cli.main import main
-from obst.conformance import StageConformanceCase
+from obst.conformance import ConformanceSuite, StageKnownAnswerCase
 from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerWriter,
@@ -73,6 +73,7 @@ from obst_defaults.files import FileExtension
 _FIRST_PARTY_PLUGIN_NAME = "obst-defaults"
 _FIRST_PARTY_PLUGIN_TARGET = "obst_defaults.bundle:obst_extensions"
 _FIRST_PARTY_COMMAND_TARGET = "obst_defaults.commands:obst_commands"
+_FIRST_PARTY_CONFORMANCE_TARGET = "obst_defaults.conformance:obst_conformance"
 
 
 class _StubDistribution:
@@ -121,12 +122,31 @@ def _first_party_commands() -> metadata.EntryPoint:
     )
 
 
+def _conformance_entry(name: str) -> metadata.EntryPoint:
+    target = (
+        _FIRST_PARTY_CONFORMANCE_TARGET
+        if name == _FIRST_PARTY_PLUGIN_NAME
+        else f"{__name__}:cli_conformance_factory"
+    )
+    return metadata.EntryPoint(
+        name=name,
+        value=target,
+        group=CONFORMANCE_ENTRY_POINT_GROUP,
+    )
+
+
 def _install_plugin_entries(
     monkeypatch: pytest.MonkeyPatch,
     extensions: tuple[metadata.EntryPoint, ...],
     conformance: tuple[metadata.EntryPoint, ...] = (),
     commands: tuple[metadata.EntryPoint, ...] | None = None,
 ) -> None:
+    explicit_conformance_names = {entry.name for entry in conformance}
+    conformance = conformance + tuple(
+        _conformance_entry(entry.name)
+        for entry in extensions
+        if entry.name not in explicit_conformance_names
+    )
     command_entries = (
         (
             (_first_party_commands(),)
@@ -780,11 +800,11 @@ def test_plugins_command_lists_entry_points_without_loading_them(
     }
     plugins = {item["name"]: item for item in document["plugins"]}
     assert plugins["example"] == {
-        "conformance_reference": None,
+        "conformance_reference": f"{__name__}:cli_conformance_factory",
         "command_reference": None,
         "default": False,
-        "distribution_name": None,
-        "distribution_version": None,
+        "distribution_name": "example",
+        "distribution_version": "1.0",
         "documentation_url": None,
         "enabled": False,
         "extension_reference": "module.that.must.not.load:factory",
@@ -1040,8 +1060,10 @@ def test_plugin_activation_and_conformance_commands_use_the_manager(
     assert report["cases"] == [
         {
             "error": None,
+            "extension_id": _ConformingCliExtension.extension_id,
+            "id": "conforming-known-answer",
+            "kind": "stage-known-answer",
             "passed": True,
-            "stage_id": _ConformingCliExtension.extension_id,
         }
     ]
 
@@ -1260,14 +1282,18 @@ def cli_conforming_extension_factory() -> tuple[Extension, ...]:
     return (_ConformingCliExtension(),)
 
 
-def cli_conformance_factory() -> tuple[StageConformanceCase, ...]:
-    return (
-        StageConformanceCase(
-            stage_id=_ConformingCliExtension.extension_id,
-            parameters=b"",
-            logical=b"payload",
-            encoded=b"payload",
-            canonical_encoding=True,
+def cli_conformance_factory() -> ConformanceSuite:
+    return ConformanceSuite(
+        "example",
+        (
+            StageKnownAnswerCase(
+                "conforming-known-answer",
+                _ConformingCliExtension.extension_id,
+                b"",
+                b"payload",
+                b"payload",
+                canonical_encoding=True,
+            ),
         ),
     )
 
