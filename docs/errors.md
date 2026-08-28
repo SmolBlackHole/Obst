@@ -18,7 +18,6 @@ container.
 		- [Missing runtime tooling is a host configuration failure](#missing-runtime-tooling-is-a-host-configuration-failure)
 		- [Truncation is different from failed integrity](#truncation-is-different-from-failed-integrity)
 		- [Local refusal is not invalid wire data](#local-refusal-is-not-invalid-wire-data)
-		- [Refused publication is not a pipeline failure](#refused-publication-is-not-a-pipeline-failure)
 	- [CLI failure contract](#cli-failure-contract)
 
 ## Python exception hierarchy
@@ -37,6 +36,7 @@ classDiagram
     ObstError <|-- PluginError
     PluginError <|-- PluginDiscoveryError
     PluginError <|-- PluginStateError
+    PluginError <|-- PluginActivationError
     PluginError <|-- PluginLoadError
     PluginError <|-- PluginConformanceError
     ObstError <|-- ConformanceError
@@ -48,10 +48,6 @@ classDiagram
     SelectionError <|-- UnknownRecipeError
     ObstError <|-- PackagingError
     PackagingError <|-- SourceConsumedError
-    ObstError <|-- FileProfileError
-    ObstError <|-- FileArchiveError
-    ObstError <|-- CarrierError
-    CarrierError <|-- CarrierStateError
     ObstError <|-- InvalidContainerError
     InvalidContainerError <|-- CorruptContainerError
     CorruptContainerError <|-- TruncatedContainerError
@@ -65,11 +61,9 @@ Wrong endpoint return types or impossible progress values instead raise
 `BinaryIOContractError` before OBST changes its byte accounting.
 
 Core failures are imported from `obst.core`. Adapter-specific failures remain
-with the adapter that owns their semantics: `FileProfileError` and
-`FileArchiveError` come from `obst_defaults.files`, while `CarrierError` and
-`CarrierStateError` come from `obst_defaults.carriers`. The host-side plugin
-family is imported from `obst.plugins`. The transport-neutral core defines
-carrier provider protocols, but does not know about paths, archives, installed
+with the distribution that owns their semantics. The host-side plugin family
+is imported from `obst.plugins`. The transport-neutral core defines Carrier
+provider protocols, but does not know about paths, archives, installed
 packages or local activation state. `ConformanceError` is imported from
 `obst.conformance`; `CliCommandError` is imported from `obst.cli`.
 
@@ -85,9 +79,10 @@ packages or local activation state. `ConformanceError` is imported from
 | `PluginError`                     | Base class for host-side plugin discovery, state, loading and conformance failures. It never arises from container bytes alone.                                                        |
 | `PluginDiscoveryError`            | Installed entry-point names are invalid, ambiguous, unavailable or split across different distributions.                                                                               |
 | `PluginStateError`                | The local enabled-plugin state is malformed, unsupported, unreadable or cannot be persisted atomically.                                                                                |
+| `PluginActivationError`           | The host tried to enable a discovered plugin that publishes neither an Extension nor a command contribution.                                                                           |
 | `PluginLoadError`                 | A selected trusted contribution cannot import, violates its factory or command contract, returns an invalid command exit value or cannot compose with the selected registry.           |
 | `PluginConformanceError`          | An explicit plugin test cannot load or validate the plugin's published `obst.conformance` contribution. Failed cases remain structured report results.                                 |
-| `ConformanceError`                | A portable conformance suite, its claimed coverage or one local provider result violates the conformance contract.                                                                      |
+| `ConformanceError`                | A portable conformance suite, its claimed coverage or one local provider result violates the conformance contract.                                                                     |
 | `CliCommandError`                 | A contributed CLI command maps one owned domain failure to the generic CLI error kind and exit-code contract.                                                                          |
 | `OperationStateError`             | A single-use reader, writer or other stateful core operation was used after its valid phase.                                                                                           |
 | `SelectionError`                  | Base class for a requested stream or recipe that the manifest does not declare.                                                                                                        |
@@ -95,10 +90,6 @@ packages or local activation state. `ConformanceError` is imported from
 | `UnknownRecipeError`              | The requested recipe ID is not declared by the manifest.                                                                                                                               |
 | `PackagingError`                  | Logical sources cannot be packaged under the requested policy.                                                                                                                         |
 | `SourceConsumedError`             | A single-use logical source was requested more than once.                                                                                                                              |
-| `FileProfileError`                | File metadata, a selected file source profile or recovered file bytes violate one file contract.                                                                                       |
-| `FileArchiveError`                | File-adapter composition or publication policy cannot map the selected streams to files, for example because a materializer is missing, names collide or a target already exists.      |
-| `CarrierError`                    | A carrier endpoint could not open, read, write, finish, commit, abort or publish safely.                                                                                               |
-| `CarrierStateError`               | A carrier lifecycle operation was called in the wrong state.                                                                                                                           |
 | `ResourceLimitError`              | A valid operation exceeds local resource policy. Structured fields name the resource, scope, maximum, observed value and phase.                                                        |
 | `InvalidContainerError`           | Input bytes violate container structure, references, ordering or flags. Local policy refusal is a separate error family.                                                               |
 | `CorruptContainerError`           | Recognizable OBST bytes fail an encoded checksum or decoded logical hash.                                                                                                              |
@@ -112,9 +103,10 @@ Several specialized exceptions expose structured fields such as `stage_id`,
 `resource`, `scope`, `maximum` and `observed`. Applications should prefer those
 fields over parsing human-readable messages.
 
-Reader, writer and carrier state errors are terminal where an operation may
-already have consumed or emitted bytes. Retrying the same object does not
-resume it; create a new operation from a valid source or destination instead.
+Reader and writer state errors are terminal where an operation may already
+have consumed or emitted bytes. Retrying the same object does not resume it;
+create a new operation from a valid source or destination instead. A concrete
+Carrier documents its own state and retry semantics.
 
 ## Provider rejection boundary
 
@@ -170,9 +162,9 @@ from obst.core import ExtensionRegistry, MissingExtensionCapabilityError
 registry = ExtensionRegistry()
 
 try:
-    registry.require_packager_provider("obst.fixed@1")
+    registry.require_packager_provider("org.example/fixed@1")
 except MissingExtensionCapabilityError as error:
-    assert error.extension_id == "obst.fixed@1"
+    assert error.extension_id == "org.example/fixed@1"
     assert error.capability == "packager provider"
 ```
 
@@ -213,18 +205,6 @@ The CLI reports the same family as `resource_limit` and returns exit code `10`.
 Changing local policy may make the operation acceptable without changing the
 container bytes. See [Resource limits](core/resources.md).
 
-### Refused publication is not a pipeline failure
-
-With `output.obst` already present:
-
-```console
-$ obst pack input.bin -o output.obst
-obst: carrier_error: output already exists: output.obst
-```
-
-The command returns exit code `8`. The packager does not overwrite the target
-and the failure says nothing about the validity of `input.bin`.
-
 ## CLI failure contract
 
 CLI diagnostics use this form on stderr:
@@ -237,24 +217,23 @@ obst: KIND: MESSAGE
 `MESSAGE` is for humans and may include paths or details from the operating
 system. Do not parse it as a stable schema.
 
-| Code | Error kind                                                      | Meaning                                                                                           |
-| ---- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `0`  | none                                                            | Success. A missing decoder is still success for normal `inspect`.                                 |
-| `1`  | `internal_error`                                                | Internal command-dispatch failure.                                                                |
-| `2`  | argparse usage                                                  | Invalid command-line syntax. Argparse owns the diagnostic format.                                 |
-| `3`  | `invalid_container`, `corrupt_container`, `truncated_container` | Invalid, corrupt or truncated container input.                                                    |
-| `4`  | `unsupported_version`, or none                                  | Unsupported format version, or missing required decoder with `--require-decodable`.               |
-| `5`  | `io_error`, `binary_io_contract_error`                          | Endpoint I/O failure or violation of the minimal binary reader/writer contract.                   |
-| `6`  | `pipeline_error`                                                | An `ObstError` not mapped to a more specific CLI family, normally a pipeline or decoder failure.  |
-| `7`  | `archive_error`                                                 | Archive composition or output-policy failure, including missing materializers and unsafe targets. |
-| `8`  | `carrier_error`                                                 | Whole-container output open, commit, abort or overwrite failure.                                  |
-| `9`  | `profile_error`                                                 | Stream-profile metadata, file-member validation or reconstruction failure.                        |
-| `10` | `resource_limit`                                                | A valid operation was refused by its local resource policy.                                       |
-| `11` | `plugin_error`                                                  | Plugin discovery, state, import, factory composition or explicit conformance failed.              |
+| Code | Error kind                                                      | Meaning                                                                                          |
+| ---- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `0`  | none                                                            | Success. A missing decoder is still success for normal `inspect`.                                |
+| `1`  | `internal_error`                                                | Internal command-dispatch failure.                                                               |
+| `2`  | argparse usage                                                  | Invalid command-line syntax. Argparse owns the diagnostic format.                                |
+| `3`  | `invalid_container`, `corrupt_container`, `truncated_container` | Invalid, corrupt or truncated container input.                                                   |
+| `4`  | `unsupported_version`, or none                                  | Unsupported format version, or missing required decoder with `--require-decodable`.              |
+| `5`  | `io_error`, `binary_io_contract_error`                          | Endpoint I/O failure or violation of the minimal binary reader/writer contract.                  |
+| `6`  | `pipeline_error`                                                | An `ObstError` not mapped to a more specific CLI family, normally a pipeline or decoder failure. |
+| `10` | `resource_limit`                                                | A valid operation was refused by its local resource policy.                                      |
+| `11` | `plugin_error`                                                  | Plugin discovery, state, import, factory composition or explicit conformance failed.             |
 
 Native `inspect` reports failures opening or reading its local path or stdin as
-`io_error` with exit code `5`. `carrier_error` remains reserved for lifecycle
-failures from plugin-provided carrier or publication tooling.
+`io_error` with exit code `5`. Contributed commands may define additional
+error kinds and exit codes through `CliCommandError`; the contributing plugin
+owns their documentation. For example, `obst-defaults` documents its
+[file and Carrier failures](../plugins/defaults/docs/errors.md) separately.
 
 `obst inspect --require-decodable` returns `4` without an error kind when the
 stored container is valid but a stage required by an actual payload chunk is

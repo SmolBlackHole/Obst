@@ -1,6 +1,6 @@
 # `obst.file@1` stream contract
 
-Parent: [Normative contracts](../../README.md#normative-contracts)
+Parent: [obst-defaults stream contracts](README.md)
 
 Status: experimental first-party stream-profile contract.
 
@@ -65,19 +65,19 @@ cases whose properties changed between versions.
 > [!NOTE]
 > **Future semantics:** A pinned Unicode data version does not exist for
 > `obst.file@1`. Defining that dependency is tracked in the
-> [roadmap](../../../ROADMAP.md#now-pre-public-stabilization).
+> [roadmap](../../../../../ROADMAP.md#now-pre-public-stabilization).
 
 Filename collision comparison uses Unicode case folding after NFC
 normalization. Two colliding names do not form a conforming file collection,
 even when a host filesystem would accept both. Version 1 leaves the collection
 scope unspecified. The first-party Python
-[file adapter](../../extensions/files.md#extract-files) treats all streams in
+[file adapter](../../files/extraction.md#run-extraction) treats all streams in
 one pure file container as the collection.
 
 > [!NOTE]
 > **Future semantics:** A container-wide portable collision scope does not
 > exist for `obst.file@1`. Defining that scope is tracked in the
-> [roadmap](../../../ROADMAP.md#now-pre-public-stabilization).
+> [roadmap](../../../../../ROADMAP.md#now-pre-public-stabilization).
 
 ## Recipes and chunks
 
@@ -104,13 +104,13 @@ behavior.
 
 ## Python reference implementation
 
-[`plugins/defaults/src/obst_defaults/files/profile.py`](../../../plugins/defaults/src/obst_defaults/files/profile.py)
+[`plugins/defaults/src/obst_defaults/files/profile.py`](../../../src/obst_defaults/files/profile.py)
 provides `FileExtension`, which owns metadata encoding, file sourcing,
 materialization and optional interpretation through public extension
 capabilities. Its typed Python metadata value is `PortableFileMetadata`;
 authoritative wire metadata remains the UTF-8 byte sequence specified above.
-[`plugins/defaults/src/obst_defaults/files/adapter.py`](../../../plugins/defaults/src/obst_defaults/files/adapter.py)
+[`plugins/defaults/src/obst_defaults/files/adapter.py`](../../../src/obst_defaults/files/adapter.py)
 provides `FileArchiver`, which resolves those capabilities by exact
 stream-profile ID from the Extension objects selected by its caller.
 Filesystem composition is documented separately in
-[Portable files](../../extensions/files.md).
+[File profiles](../../files/profiles.md).

@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "obst-defaults"
 version = "0.1.0"
 description = "Explicitly activated first-party tooling for OBST"
+readme = "README.md"
 license = "MPL-2.0"
 requires-python = ">=3.14"
 dependencies = ["obst==0.1.0"]
@@ -24,7 +25,7 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/docs/extensions/README.md"
+Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/README.md"
 
 [project.entry-points."obst.extensions"]
 obst-defaults = "obst_defaults.bundle:obst_extensions"

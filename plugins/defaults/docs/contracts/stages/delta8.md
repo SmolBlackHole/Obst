@@ -1,6 +1,6 @@
 # `obst.delta8@1` stage contract
 
-Parent: [Normative contracts](../../README.md#normative-contracts)
+Parent: [obst-defaults Stage contracts](README.md)
 
 Status: experimental first-party stage contract.
 
@@ -92,6 +92,6 @@ inputs, exact round-trips, parameter rejection and output limits.
 
 ## Python reference implementation
 
-[`plugins/defaults/src/obst_defaults/transforms/delta8.py`](../../../plugins/defaults/src/obst_defaults/transforms/delta8.py)
+[`plugins/defaults/src/obst_defaults/transforms/delta8.py`](../../../src/obst_defaults/transforms/delta8.py)
 provides `Delta8Extension`, a self-describing object that supplies both
 directional binding capabilities through the public Stage Extension API.

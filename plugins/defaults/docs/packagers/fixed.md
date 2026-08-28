@@ -1,6 +1,6 @@
 # Fixed packager: `obst.fixed@1`
 
-Parent: [Packager extensions](../packagers.md)
+Parent: [obst-defaults Packagers](README.md)
 
 The fixed packager writes every logical source exactly once using the recipe
 already declared by that source. It performs no candidate search and no hidden
@@ -73,7 +73,7 @@ terminal commit closes the representation.
 
 `FixedPackageRequest.limits` supplies one immutable `ResourceLimits` policy to
 source preflight, recipe execution and container writing. The
-[resource guide](../../core/resources.md) documents the defaults and refusal
+[resource guide](../../../../docs/core/resources.md) documents the defaults and refusal
 semantics.
 
 ## What fixed does not mean
@@ -84,6 +84,6 @@ may declare different recipes, and a stage provider may still have multiple
 valid encodings unless its own contract requires canonical output.
 
 Automatic candidate search and two-pass spooling are separate roadmap work.
-See the [packager overview](../packagers.md#third-party-policies) for the policy
-boundary and [core packaging](../../core/packaging.md) for the shared operation
+See the [packager overview](../../../../docs/extensions/packagers.md#third-party-policies) for the policy
+boundary and [core packaging](../../../../docs/core/packaging.md) for the shared operation
 contracts.

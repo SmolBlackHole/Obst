@@ -145,20 +145,9 @@ assert (
 ```
 
 Delegating `decode()` to `encode()` is correct here because reversal is
-self-inverse. It is not a general codec pattern. zlib needs different
-operations in each direction:
-
-```python
-import zlib
-
-
-def encode(data: bytes) -> bytes:
-    return zlib.compress(data)
-
-
-def decode(data: bytes) -> bytes:
-    return zlib.decompress(data)
-```
+self-inverse. Most codecs require different bound operations for the 2
+directions; sharing an implementation is correct only when the versioned Stage
+contract defines the same operation both ways.
 
 An extension package exports `ReverseExtension` or a configured instance.
 Importing it has no global side effect.

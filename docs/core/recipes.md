@@ -2,200 +2,139 @@
 
 Parent: [Core API](README.md)
 
-Recipe execution applies registered stage contracts to one byte string. Chunk
-execution adds the identity and integrity data needed to prove the same logical
-bytes return after decoding. This page owns the direct Python API between the
-[packager](packaging.md) and [stage providers](../extensions/stages.md#provider-protocols).
-The [extension registry](registry.md) owns capability composition, and the
-[container vocabulary](../anatomy.md#the-pieces-at-a-glance) defines the stored
-pieces.
+This page owns the Python operations that apply an already registered
+[Recipe](../anatomy.md#recipes-describe-reversible-representation) or turn its
+result into a [Chunk](../anatomy.md#chunks-make-the-stream-bounded). The
+[Stage guide](../extensions/stages.md#provider-protocols) owns provider
+implementation, and [writing](writing.md) owns container framing.
 
 ## Table of contents
 
 - [Recipe and chunk execution](#recipe-and-chunk-execution)
 	- [Table of contents](#table-of-contents)
-	- [Execute one recipe](#execute-one-recipe)
-	- [Reuse recipe bindings](#reuse-recipe-bindings)
-	- [Execute one chunk](#execute-one-chunk)
+	- [Execute one Recipe](#execute-one-recipe)
+	- [Reuse Recipe bindings](#reuse-recipe-bindings)
+	- [Execute one Chunk](#execute-one-chunk)
 	- [Validate manifest resources](#validate-manifest-resources)
 	- [Operation budgets](#operation-budgets)
 
-## Execute one recipe
+## Execute one Recipe
 
-A `Recipe` stores the ordered stage specifications used by one or more chunks.
-Encoding follows declaration order. Decoding walks the same recipe backward:
-
-> [!WARNING]
-> **Executable documentation:** The following Python block runs during tests
-> with the current process privileges. It is not sandboxed.
+`encode_recipe()` applies Stage encoders in declaration order.
+`decode_recipe()` applies their decoders in reverse order and requires the
+expected logical size:
 
 ```python
-from typing import Self
-
 from obst.core import (
-    ExtensionDescriptor,
-    ExtensionKind,
     ExtensionRegistry,
     Recipe,
     ResourceLimits,
-    StageSpec,
     decode_recipe,
     encode_recipe,
-    require_no_parameters,
-    require_stage_output_size,
 )
 
 
-class ReverseExtension:
-    extension_id = "org.example/reverse@1"
-    kind = ExtensionKind.STAGE
-    descriptor = ExtensionDescriptor(
-        display_name="Reverse",
-        summary="Reverse the bytes in one chunk.",
-        specification_url="https://example.org/obst/reverse-v1",
+def round_trip_recipe(
+    logical: bytes,
+    recipe: Recipe,
+    registry: ExtensionRegistry,
+    limits: ResourceLimits,
+) -> bytes:
+    encoded = encode_recipe(logical, recipe, registry, limits=limits)
+    return decode_recipe(
+        encoded,
+        recipe,
+        registry,
+        expected_size=len(logical),
+        limits=limits,
     )
-
-    def bind_encoder(self, parameters: bytes, /) -> Self:
-        require_no_parameters(self.extension_id, parameters)
-        return self
-
-    def bind_decoder(self, parameters: bytes, /) -> Self:
-        require_no_parameters(self.extension_id, parameters)
-        return self
-
-    def encode(
-        self,
-        data: bytes,
-        /,
-        *,
-        max_output_size: int | None,
-    ) -> bytes:
-        require_stage_output_size(
-            self.extension_id,
-            len(data),
-            max_output_size=max_output_size,
-            operation="encode",
-        )
-        return data[::-1]
-
-    def decode(
-        self,
-        data: bytes,
-        /,
-        *,
-        max_output_size: int | None,
-    ) -> bytes:
-        return self.encode(data, max_output_size=max_output_size)
-
-
-reverse = ReverseExtension()
-registry = ExtensionRegistry((reverse,))
-recipe = Recipe(
-    0,
-    (StageSpec(reverse.extension_id),),
-)
-limits = ResourceLimits(max_intermediate_bytes=1024 * 1024)
-logical = b"banana" * 100
-
-encoded = encode_recipe(logical, recipe, registry, limits=limits)
-assert encoded == logical[::-1]
-recovered = decode_recipe(
-    encoded,
-    recipe,
-    registry,
-    expected_size=len(logical),
-    limits=limits,
-)
-
-assert recovered == logical
 ```
 
-`decode_recipe()` verifies the expected output size. It cannot verify the
-logical hash because a recipe has no chunk identity. Use the chunk helpers
-when recovered-byte integrity matters.
+The size check catches expansion or truncation after decoding. A Recipe has no
+stream or Chunk identity, so this operation cannot verify a logical hash. Use
+the Chunk API when recovered-byte integrity matters.
 
-## Reuse recipe bindings
+## Reuse Recipe bindings
 
-Standalone helpers create one bounded operation. `RecipeEncoder` and
-`RecipeDecoder` instead cache immutable directional bindings across many chunks
-while keeping cumulative logical-byte and stage-execution accounting inside the
-session:
+The standalone helpers create one bounded operation per call. Long-running
+operations use `RecipeEncoder` and `RecipeDecoder` instead:
 
 ```python
 from obst.core import RecipeDecoder, RecipeEncoder
 
 encoder = RecipeEncoder(registry, limits=limits)
-encoder.preflight((recipe,))
-encoded_a = encoder.encode(logical_a, recipe)
-encoded_b = encoder.encode(logical_b, recipe)
+encoder.preflight(recipes)
+encoded_a = encoder.encode(logical_a, recipe_a)
+encoded_b = encoder.encode(logical_b, recipe_b)
 
 decoder = RecipeDecoder(registry, limits=limits)
 recovered_a = decoder.decode(
     encoded_a,
-    recipe,
+    recipe_a,
     expected_size=len(logical_a),
 )
 ```
 
-Encoder preflight resolves every stage provider for every supplied recipe
-before invoking the first bind callback. Decoders bind only recipes they
-actually execute. Binding validates exact opaque parameter bytes once per
-recipe, direction and session.
+`RecipeEncoder.preflight()` resolves every Stage provider for all supplied
+Recipes before invoking the first bind callback. It then caches each immutable
+directional binding. `RecipeDecoder` binds lazily because a reader need not
+decode every Recipe declared by a container.
 
-## Execute one chunk
+Both sessions validate the exact opaque parameter bytes once per Recipe,
+direction and session. Their cumulative logical-byte and Stage-execution
+counters remain active across calls.
 
-`encode_chunk_once()` produces a model value ready for `ContainerWriter`. It
-records the stream ID, sequence, recipe ID, logical size, logical hash and
-encoded payload. `decode_chunk_once()` verifies both the declared size and
-logical hash:
+## Execute one Chunk
 
-```python
-from obst.core import decode_chunk_once, encode_chunk_once
-
-chunk = encode_chunk_once(
-    logical,
-    stream_id=0,
-    sequence=0,
-    recipe=recipe,
-    registry=registry,
-    limits=limits,
-)
-recovered = decode_chunk_once(chunk, recipe, registry, limits=limits)
-
-assert recovered == logical
-```
-
-For multiple chunks, use the symmetrical sessions instead of repeatedly
-constructing standalone operations:
+`encode_chunk_once()` adds stream identity, sequence, Recipe identity, logical
+size and logical hash to the encoded payload. `decode_chunk_once()` checks the
+Recipe ID, recovers the bytes and verifies their declared size and hash:
 
 ```python
-from obst.core import ChunkDecoder, ChunkEncoder, ManifestIndex
-
-chunk_encoder = ChunkEncoder(registry, limits=limits)
-chunk_encoder.preflight((recipe,))
-chunk = chunk_encoder.encode(
-    logical,
-    stream_id=0,
-    sequence=0,
-    recipe=recipe,
+from obst.core import (
+    ExtensionRegistry,
+    Recipe,
+    ResourceLimits,
+    decode_chunk_once,
+    encode_chunk_once,
 )
 
-index = ManifestIndex(manifest)
-chunk_decoder = ChunkDecoder(index, registry, limits=limits)
-recovered = chunk_decoder.decode(chunk)
+
+def round_trip_chunk(
+    logical: bytes,
+    recipe: Recipe,
+    registry: ExtensionRegistry,
+    limits: ResourceLimits,
+) -> bytes:
+    chunk = encode_chunk_once(
+        logical,
+        stream_id=0,
+        sequence=0,
+        recipe=recipe,
+        registry=registry,
+        limits=limits,
+    )
+    return decode_chunk_once(chunk, recipe, registry, limits=limits)
 ```
 
-`ManifestIndex` is an immutable runtime lookup for declared streams, recipes
-and extensions. It is not serialized and is not a byte-offset index.
+Use the session types when processing several Chunks:
 
-The helpers do not serialize container framing or encoded CRCs. That is the
-writer's job. The [writing guide](writing.md) owns framing, and the
-[format specification](../format.md) defines the resulting bytes.
+| Operation | Session        | Additional responsibility                                      |
+| --------- | -------------- | -------------------------------------------------------------- |
+| Encode    | `ChunkEncoder` | Reuses Recipe bindings and constructs complete `Chunk` values. |
+| Decode    | `ChunkDecoder` | Resolves each Chunk through one immutable `ManifestIndex`.     |
+
+`ManifestIndex` is a lookup for declared streams, Recipes and Extensions. It
+is not serialized and does not contain byte offsets.
+
+Chunk helpers return model values. `ContainerWriter` adds the stored header,
+payload CRC and terminal commitment. The [format specification](../format.md)
+defines those bytes.
 
 ## Validate manifest resources
 
-Call `validate_manifest_resources()` to prove that a manifest fits local
-resource policy without constructing its encoded body:
+`validate_manifest_resources()` checks a manifest against local policy without
+constructing its encoded body:
 
 ```python
 from obst.core import validate_manifest_resources
@@ -203,30 +142,25 @@ from obst.core import validate_manifest_resources
 validate_manifest_resources(manifest, limits=limits)
 ```
 
-This check does not resolve stage providers or invoke extension code.
-`RecipeEncoder.preflight()` and `ChunkEncoder.preflight()` resolve and bind the
-selected encoders. The shipped `obst.fixed@1` packager composes both checks
-before it writes chunks; `ContainerWriter` also validates and encodes its final
-manifest during construction.
+The check invokes no Extension code. Encoder preflight separately resolves and
+binds every selected provider before a Packager publishes container bytes.
+`ContainerWriter` also validates and encodes its final manifest during
+construction.
 
-Every provider required by one recipe is resolved from the immutable
-[registry](registry.md#resolve-capabilities) before that recipe invokes its
-first provider callback. A missing later stage therefore fails without
-partially executing the recipe.
+Every provider required by one Recipe is resolved from the immutable
+[registry](registry.md#resolve-capabilities) before that Recipe invokes its
+first bind callback. A missing later Stage therefore cannot leave a Recipe
+partially executed.
 
 ## Operation budgets
 
-Each standalone recipe or chunk call owns one independent `ResourceLimits`
-budget. `RecipeEncoder`, `RecipeDecoder`, `ChunkEncoder` and `ChunkDecoder`
-retain their own cumulative logical and stage-execution counters across calls.
-Readers and writers own separate structural counters; sharing `ResourceLimits`
-shares policy, not mutable accounting.
+Each standalone Recipe or Chunk helper owns an independent budget under the
+supplied `ResourceLimits`. Session objects retain cumulative logical-byte and
+Stage-execution counters across calls. Readers and writers own separate
+structural counters; sharing `ResourceLimits` shares policy, not mutable
+accounting.
 
-Use the [`obst.fixed@1` packager provider](../extensions/packagers/fixed.md) for
-fixed multi-stream packaging. Use
-[`ChunkDecoder`](reading.md#selective-chunk-decoding) when an adapter needs
-selective decoding without access to private core state.
-
-The [resource guide](resources.md) defines counters and defaults. The
-[packaging guide](packaging.md) and [reading guide](reading.md) document the 2
-composition roots.
+The [resource guide](resources.md) owns limits and accounting. The
+[packaging guide](packaging.md) composes forward execution across logical
+sources, while [reading](reading.md#selective-chunk-decoding) composes selective
+recovery through `ChunkDecoder`.

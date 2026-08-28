@@ -1,6 +1,6 @@
 # Memory carrier: `obst.memory@1`
 
-Parent: [Carriers](../carriers.md)
+Parent: [obst-defaults Carriers](README.md)
 
 The memory carrier adapts one complete OBST byte stream to or from immutable
 Python `bytes`. It is useful for tests, examples and applications that already
@@ -66,13 +66,14 @@ container_bytes = receipt.reference
 ```
 
 The mutable buffer remains private until `commit()` returns a new immutable
-`bytes` value. `abort()` discards it. The higher-level `publish_package()`
-helper applies that transaction boundary around a prepared package operation.
+`bytes` value. `abort()` discards it. The plugin's [package-execution
+helper](package-execution.md#publish-transactionally) applies that transaction
+boundary around a prepared package operation.
 
 ## Limits of the adapter
 
 The completed container must fit in memory, and committing creates an immutable
 byte string from the internal buffer. For large or continuously arriving data,
 select a carrier with a streaming writer or an external transactional target.
-The [resource policy](../../core/resources.md) bounds OBST parsing and recipe
+The [resource policy](../../../../docs/core/resources.md) bounds OBST parsing and recipe
 work, but it does not turn this adapter into bounded external storage.

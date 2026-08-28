@@ -76,7 +76,7 @@ class ZlibExtension:
         summary="zlib-wrapped DEFLATE with a declared compression level.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/contracts/stages/zlib.md"
+            "plugins/defaults/docs/contracts/stages/zlib.md"
         ),
     )
 
@@ -136,7 +136,7 @@ class ZlibDictionaryExtension:
         summary="zlib-wrapped DEFLATE with a self-described preset dictionary.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/contracts/stages/zlib-dictionary.md"
+            "plugins/defaults/docs/contracts/stages/zlib-dictionary.md"
         ),
     )
 

@@ -16,39 +16,39 @@ Start with the [project README](../README.md) if you have not met the fruit yet.
 		- [Concepts and format](#concepts-and-format)
 		- [Python core](#python-core)
 		- [Extensions and adapters](#extensions-and-adapters)
-		- [Normative contracts](#normative-contracts)
+		- [Contract catalogs](#contract-catalogs)
 		- [Project support](#project-support)
 	- [Status markers](#status-markers)
 
 ## I want to... (break free)
 
-| Read                                                               | To                                   |
-| ------------------------------------------------------------------ | ------------------------------------ |
-| [Anatomy of an OBST container](anatomy.md)                         | understand the container             |
-| [Binary format](format.md) and [contracts](contracts/)             | implement a reader or writer         |
-| [CLI installation guide](cli.md#install-and-identify-the-format)   | install the Python packages          |
-| [Conformance](conformance.md) and [format corpus](../src/obst/conformance/corpus/) | check independent interoperability |
-| [Core API](core/)                                                  | use the Python library               |
-| [Extension system](extensions/)                                    | build or ship an extension           |
-| [Portable file adapter](extensions/files.md)                       | package or extract regular files     |
-| [CLI guide](cli.md)                                                | use the command line                 |
-| [Runtime errors](errors.md)                                        | understand a failure or exit code    |
-| [Design notes](design.md)                                          | understand an architectural decision |
-| [Roadmap](../ROADMAP.md)                                           | see unfinished work                  |
+| Read                                                                               | To                                   |
+| ---------------------------------------------------------------------------------- | ------------------------------------ |
+| [Anatomy of an OBST container](anatomy.md)                                         | understand the container             |
+| [Binary format](format.md) and [contracts](contracts/)                             | implement a reader or writer         |
+| [CLI installation guide](cli.md#install-and-identify-the-format)                   | install the Python packages          |
+| [Conformance](conformance.md) and [format corpus](../src/obst/conformance/corpus/) | check independent interoperability   |
+| [Core API](core/)                                                                  | use the Python library               |
+| [Extension system](extensions/)                                                    | build or ship an extension           |
+| [`obst-defaults` file adapter](../plugins/defaults/docs/files/README.md)           | package or extract regular files     |
+| [CLI guide](cli.md)                                                                | use the command line                 |
+| [Runtime errors](errors.md)                                                        | understand a failure or exit code    |
+| [Design notes](design.md)                                                          | understand an architectural decision |
+| [Roadmap](../ROADMAP.md)                                                           | see unfinished work                  |
 
 ## Documentation by layer
 
 ### Concepts and format
 
-| Page                             | Contents                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------ |
-| [Anatomy](anatomy.md)            | Conceptual relationship between headers, manifest, streams, recipes and chunks |
-| [Binary format](format.md)       | Normative framing, fields, limits and validation rules                         |
-| [Conformance](conformance.md)    | Independent reconstruction evidence and coverage boundaries                    |
-| [Format corpus](../src/obst/conformance/corpus/) | Valid and invalid language-neutral container cases                  |
-| [Design](design.md)              | Rationale for implemented architecture and ownership boundaries                |
-| [CLI](cli.md)                    | Commands, output modes and filesystem safety                                   |
-| [Runtime errors](errors.md)      | Python exceptions, CLI error kinds, exit codes and negative examples           |
+| Page                                             | Contents                                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| [Anatomy](anatomy.md)                            | Conceptual relationship between headers, manifest, streams, recipes and chunks |
+| [Binary format](format.md)                       | Normative framing, fields, limits and validation rules                         |
+| [Conformance](conformance.md)                    | Independent reconstruction evidence and coverage boundaries                    |
+| [Format corpus](../src/obst/conformance/corpus/) | Valid and invalid language-neutral container cases                             |
+| [Design](design.md)                              | Rationale for implemented architecture and ownership boundaries                |
+| [CLI](cli.md)                                    | Native commands, plugin-host behavior and output modes                         |
+| [Runtime errors](errors.md)                      | Python exceptions, CLI error kinds, exit codes and negative examples           |
 
 ### Python core
 
@@ -70,30 +70,25 @@ Start with the [project README](../README.md) if you have not met the fruit yet.
 | --------------------------------------- | --------------------------------------------------------------- |
 | [Extension index](extensions/README.md) | Taxonomy, import boundaries and explicit composition            |
 | [Stages](extensions/stages.md)          | Self-describing providers, binding, limits and interpretation   |
-| [Codecs](extensions/codecs.md)          | Compression-oriented stages and first-party codecs              |
-| [Transforms](extensions/transforms.md)  | Reversible preprocessing and the Delta8 transform               |
+| [Codecs](extensions/codecs.md)          | Generic compression-oriented Stage guidance                     |
+| [Transforms](extensions/transforms.md)  | Generic reversible preprocessing guidance                       |
 | [Profiles](extensions/profiles.md)      | Logical semantics, metadata and profile interpretation          |
-| [Portable files](extensions/files.md)   | `FileExtension`, file packaging and bounded extraction          |
 | [Carriers](extensions/carriers.md)      | Reader, streaming-writer and transactional-publisher lifecycles |
 | [Packagers](extensions/packagers.md)    | Replaceable policy for constructing complete containers         |
 | [Archivers](extensions/archivers.md)    | General domain-to-stream application-adapter pattern            |
 | [Plugins](extensions/plugins.md)        | Opt-in package discovery, factories and trust boundary          |
 
-### Normative contracts
+### Contract catalogs
 
-| Contract                                                                           | ID              |
-| ---------------------------------------------------------------------------------- | --------------- |
-| [Opaque byte streams](contracts/streams/bytes.md)                                  | `obst.bytes@1`  |
-| [Portable files](contracts/streams/file.md)                                        | `obst.file@1`   |
-| [RAW identity stage](contracts/stages/raw.md)                                      | `obst.raw@1`    |
-| [Modulo-256 delta transform](contracts/stages/delta8.md)                           | `obst.delta8@1` |
-| [Dictionary-free zlib-wrapped DEFLATE](contracts/stages/zlib.md)                   | `obst.zlib@1`   |
-| [zlib-wrapped DEFLATE with preset dictionary](contracts/stages/zlib-dictionary.md) | `obst.zlib@2`   |
+| Catalog                                                                   | Owner                  |
+| ------------------------------------------------------------------------- | ---------------------- |
+| [Built-in OBST contracts](contracts/README.md)                            | OBST format            |
+| [`obst-defaults` contracts](../plugins/defaults/docs/contracts/README.md) | `obst-defaults` plugin |
 
 ### Project support
 
-| Page                                                            | Contents                                              |
-| --------------------------------------------------------------- | ----------------------------------------------------- |
+| Page                                                            | Contents                                |
+| --------------------------------------------------------------- | --------------------------------------- |
 | [Writing and maintaining docs](writing-and-maintaining-docs.md) | Authority, status and maintenance rules |
 | [Roadmap](../ROADMAP.md)                                        | Unfinished work and delivery order      |
 

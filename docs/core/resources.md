@@ -21,9 +21,10 @@ valid under the wire format.
 
 `ResourceLimits` is frozen and keyword-only. Core readers, writers and
 [recipe execution and chunk helpers](recipes.md) accept it directly. A
-packager may expose the same policy through its provider-owned request, as the
-[fixed packager](../extensions/packagers/fixed.md) does, but that is not
-required by the generic packager protocol:
+packager may expose the same policy through its provider-owned request, but
+that is not required by the generic Packager protocol. The
+[`obst-defaults` fixed policy](../../plugins/defaults/docs/packagers/fixed.md)
+is one concrete example:
 
 ```python
 from obst.core import ContainerReader, ResourceLimitError, ResourceLimits
@@ -140,10 +141,11 @@ extension code into a sandbox.
 
 ## Adapter-owned limits
 
-Container limits do not invent filesystem or network semantics. The first-party
-file profile adds `FileExtractionLimits` for member count, one recovered file
-and total recovered filesystem bytes. Those limits are documented with the
-[file adapter](../extensions/files.md#file-extraction-limits).
+Container limits do not invent filesystem or network semantics. A file adapter
+may add limits for member count, one recovered file and total recovered
+filesystem bytes. The concrete
+[`obst-defaults` policy](../../plugins/defaults/docs/files/extraction.md#extraction-limits)
+is documented with its adapter.
 
 HTTP response sizes, deadlines and cancellation belong to the application or
 transport adapter. They are not implemented by `ResourceLimits`.

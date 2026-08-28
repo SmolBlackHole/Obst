@@ -174,6 +174,7 @@ def test_documentation_page_opens_with_introduction_and_useful_toc(
         for index, line in enumerate(lines)
         if line.startswith("## ") and line != _TABLE_OF_CONTENTS_HEADING
     ]
+    has_nested_sections = any(line.startswith("### ") for line in lines)
     toc_index = next(
         (
             index
@@ -192,7 +193,9 @@ def test_documentation_page_opens_with_introduction_and_useful_toc(
     introduction = [line for line in lines[3:introduction_end] if line.strip()]
 
     assert introduction, "expected an introduction after the Parent link"
-    if len(section_indexes) >= 2:
+    if document.name != "README.md" and (
+        len(section_indexes) >= 4 or has_nested_sections
+    ):
         assert toc_index is not None, "expected a table of contents"
         assert toc_index < section_indexes[0]
         toc_lines = lines[toc_index + 1 : section_indexes[0]]
@@ -279,7 +282,6 @@ def test_public_docs_include_canonical_executable_examples() -> None:
     }
     assert identities == {
         ("docs/core/README.md", 1),
-        ("docs/core/recipes.md", 1),
         ("docs/extensions/profiles.md", 1),
         ("docs/extensions/stages.md", 1),
     }

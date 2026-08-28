@@ -118,7 +118,7 @@ Recipes
   [0] obst.zlib@1(compression_level=9) | 6 chunks
 
 Resource footprint
-  Manifest 276 B | largest chunk 64.0 KiB logical / 63.1 KiB encoded
+  Manifest 310 B | largest chunk 64.0 KiB logical / 63.1 KiB encoded
   Stage executions 6 | largest stream 361.5 KiB if materialized
 
 Stage capabilities
@@ -126,8 +126,8 @@ Stage capabilities
       Declared by recipe: 0
       Used by chunks: yes (6 total; recipe 0: 6)
       zlib-wrapped DEFLATE with a declared compression level.
-      Declared specification: https://github.com/SmolBlackHole/Obst/blob/main/docs/contracts/stages/zlib.md
-      Local specification: https://github.com/SmolBlackHole/Obst/blob/main/docs/contracts/stages/zlib.md
+      Declared specification: https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/zlib.md
+      Local specification: https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/zlib.md
 ```
 
 The runtime can also emit the same inspection as JSON:
@@ -297,7 +297,7 @@ not require seeking, so bytes may arrive through stdin, a socket or an HTTP
 body before somebody stores them in a place they will eventually call
 cloud-native. The carrier changes. The container does not.
 
-The CLI's [file handling](docs/extensions/files.md#composition-boundary)
+The plugin's [file handling](plugins/defaults/docs/files/README.md)
 is an adapter around the core, not a secret filesystem model hiding inside it.
 
 ## What happens if a decoder is missing?
@@ -373,8 +373,8 @@ May God have mercy on your stack.
 ### Is OBST an archive format?
 
 The core is not. The CLI can pack explicit files as independent
-[`obst.file@1`](docs/contracts/streams/file.md) streams and restore their
-basenames and exact bytes. The [portable file adapter](docs/extensions/files.md)
+[`obst.file@1`](plugins/defaults/docs/contracts/streams/file.md) streams and restore their
+basenames and exact bytes. The [portable file adapter](plugins/defaults/docs/files/README.md)
 belongs to extensions and tools around the byte-stream container.
 
 In German, an `Obstkorb` is a fruit basket. A cold-storage profile therefore

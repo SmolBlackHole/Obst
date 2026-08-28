@@ -73,14 +73,14 @@ Decoding is a separate operation because it requires an explicitly composed
 from io import BytesIO
 
 from obst.core import ContainerReader, ExtensionRegistry, materialize_stream
-from obst_defaults.codecs import RawExtension, ZlibExtension
-from obst_defaults.transforms import Delta8Extension
 
-registry = ExtensionRegistry(
-    (RawExtension(), ZlibExtension(), Delta8Extension())
-)
-reader = ContainerReader(BytesIO(container_bytes))
-logical_bytes = materialize_stream(reader, stream_id=0, registry=registry)
+
+def recover_stream(
+    container_bytes: bytes,
+    registry: ExtensionRegistry,
+) -> bytes:
+    reader = ContainerReader(BytesIO(container_bytes))
+    return materialize_stream(reader, stream_id=0, registry=registry)
 ```
 
 `iter_decoded_chunks()` yields each encoded `Chunk` together with its recovered

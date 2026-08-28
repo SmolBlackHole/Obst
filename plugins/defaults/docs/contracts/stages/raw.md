@@ -1,6 +1,6 @@
 # `obst.raw@1` stage contract
 
-Parent: [Normative contracts](../../README.md#normative-contracts)
+Parent: [obst-defaults Stage contracts](README.md)
 
 Status: experimental first-party stage contract.
 
@@ -77,11 +77,11 @@ There are no parameters to interpret.
 
 At minimum, a conforming implementation verifies `empty -> empty` and
 `00 ff -> 00 ff` in both directions. The `raw-known-answer` case lives in the
-[`obst-defaults` conformance catalog](../../../plugins/defaults/src/obst_defaults/conformance_vectors/index.json).
+[`obst-defaults` conformance catalog](../../../src/obst_defaults/conformance_vectors/index.json).
 Stage-level tests cover parameter rejection, output budgets and byte identity.
 
 ## Python reference implementation
 
-[`plugins/defaults/src/obst_defaults/codecs/raw.py`](../../../plugins/defaults/src/obst_defaults/codecs/raw.py)
+[`plugins/defaults/src/obst_defaults/codecs/raw.py`](../../../src/obst_defaults/codecs/raw.py)
 provides `RawExtension`, a self-describing object that supplies both directional
 binding capabilities through the public Stage Extension API.

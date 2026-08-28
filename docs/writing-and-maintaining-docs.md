@@ -11,6 +11,8 @@ place that must be kept vaguely in sync.
 - [Writing and maintaining OBST documentation](#writing-and-maintaining-obst-documentation)
 	- [Table of contents](#table-of-contents)
 	- [Choose the document by authority](#choose-the-document-by-authority)
+	- [Define facts once](#define-facts-once)
+	- [Structure documentation as a book](#structure-documentation-as-a-book)
 	- [Link upward and sideways](#link-upward-and-sideways)
 	- [Copy-paste a documentation page](#copy-paste-a-documentation-page)
 	- [Describe the present by default](#describe-the-present-by-default)
@@ -25,37 +27,109 @@ place that must be kept vaguely in sync.
 
 ## Choose the document by authority
 
-| Content                                                | Owner                         |
-| ------------------------------------------------------ | ----------------------------- |
-| Project purpose, first use and navigation              | Root `README.md`              |
-| Conceptual container walkthrough                       | `docs/anatomy.md`             |
-| Container framing and structural validity              | `docs/format.md`              |
-| Python mapping of fixed wire fields and layouts        | `docs/core/wire.md`           |
-| Interoperability evidence and conformance coverage     | `docs/conformance.md`         |
-| Portable Golden, valid and invalid vector catalog      | `conformance/`                |
-| One plugin's portable Extension vector suite           | That plugin's package data    |
-| Meaning of one versioned `obst.*` identifier           | `docs/contracts/`             |
-| Python core operations                                 | `docs/core/`                  |
-| Extension composition and capability lookup            | `docs/core/registry.md`       |
-| Python extensions and adapters                         | `docs/extensions/`            |
-| Python distribution layout and activation rationale    | `docs/design.md`              |
-| First-party file adapter and extraction                | `docs/extensions/files.md`    |
-| Shared carrier lifecycle and provider contracts        | `docs/extensions/carriers.md` |
-| One first-party carrier's requests and guarantees      | `docs/extensions/carriers/`   |
-| Packager provider boundary and first-party policies    | `docs/extensions/packagers*`  |
-| Command syntax, successful output and command behavior | `docs/cli.md`                 |
-| Runtime failures, Python exceptions and CLI exit codes | `docs/errors.md`              |
-| Rationale for implemented boundaries                   | `docs/design.md`              |
-| Unimplemented work                                     | `ROADMAP.md`                  |
+| Content                                             | Owner                                   |
+| --------------------------------------------------- | --------------------------------------- |
+| Project purpose, first use and navigation           | Root `README.md`                        |
+| Conceptual container walkthrough                    | `docs/anatomy.md`                       |
+| Container framing and structural validity           | `docs/format.md`                        |
+| Python mapping of fixed wire fields and layouts     | `docs/core/wire.md`                     |
+| Interoperability evidence and conformance coverage  | `docs/conformance.md`                   |
+| Portable valid and invalid format corpus            | `src/obst/conformance/corpus/`          |
+| One plugin's portable Extension vector suite        | That plugin's package data              |
+| Built-in `obst.bytes@1` contract                    | Root `docs/contracts/`                  |
+| Meaning of another versioned Extension ID           | Implementing plugin's `docs/contracts/` |
+| Python core operations                              | `docs/core/`                            |
+| Extension composition and capability lookup         | `docs/core/registry.md`                 |
+| Generic Extension and adapter protocols             | `docs/extensions/`                      |
+| Python distribution layout and activation rationale | `docs/design.md`                        |
+| Shared carrier lifecycle and provider contracts     | `docs/extensions/carriers.md`           |
+| One concrete adapter or Carrier                     | Implementing plugin's docs              |
+| Packager provider boundary                          | `docs/extensions/packagers.md`          |
+| One concrete packaging policy                       | Implementing plugin's docs              |
+| Native command-host behavior                        | `docs/cli.md`                           |
+| One contributed command's behavior                  | Contributing plugin's docs              |
+| Core and native CLI failures                        | `docs/errors.md`                        |
+| Provider-specific errors and exit codes             | Owning plugin's docs                    |
+| Rationale for implemented boundaries                | `docs/design.md`                        |
+| Unimplemented work                                  | `ROADMAP.md`                            |
 
 If a paragraph fits two rows, split the facts by authority and link between
 them. Do not copy the paragraph.
 
+## Define facts once
+
+One authoritative page explains a behavior, mechanism or contract completely.
+A consuming page keeps only the consequence needed for its own reader and
+links to that owner at the point of use. The link should say why the target is
+relevant; one or two contextual sentences are usually enough, but they are not
+a quota.
+
+Do not repeat defaults, numeric limits, lifecycle rules, rollback behavior,
+security guarantees, conflict handling or wire encodings on several pages. For
+example, a CLI guide may state that a command refuses an existing output because
+that is visible command behavior. The concrete Carrier page owns how exclusive
+publication achieves it.
+
+A `Related documentation` section is for useful next questions. It does not
+replace contextual links and must not become a list of authorities whose facts
+were already copied into the current page.
+
+Names, stable IDs and short term reminders may recur when they make a page
+understandable on its own. Normative contracts are the deliberate exception to
+aggressive deduplication: each must remain independently implementable.
+
+## Structure documentation as a book
+
+Every substantial documentation tree has one landing page that reads like a
+small book index. It groups pages by reader journey and routes downward from
+concept to detail. The root project and every plugin follow the same rule.
+
+The root documentation uses this shape:
+
+```text
+docs/README.md
+  Part I: understand OBST
+  Part II: use the Python runtime
+  Part III: extend OBST
+  Part IV: use the tools
+  Reference and appendices
+  Project
+```
+
+A plugin mirrors the pattern with its own subject:
+
+```text
+plugin/docs/README.md
+  Part I: understand the plugin
+  Part II: contracts
+  Part III: runtime capabilities
+  Part IV: use and verify the tooling
+  OBST references
+```
+
+Each meaningful branch has its own `README.md` when it owns multiple pages or
+is expected to grow. That branch index explains the category and links to its
+children. Leaves contain the actual behavior, protocol usage or normative
+contract. A reader should be able to descend from the owner landing page to
+any leaf without guessing a filesystem path.
+
+The parts are an information hierarchy, not a requirement to create extra
+directories named `part-1` or to repeat one page under several headings. A
+reference page may be linked from both a learning path and an appendix while
+remaining one authoritative document.
+
+Indexes stay short. They answer "where should I read next?" and must not copy
+algorithms, parameter tables, error semantics or other facts owned by their
+children. Add a branch only when it removes a current navigation ambiguity or
+contains multiple related leaves; do not prebuild empty taxonomy for imagined
+features.
+
 ## Link upward and sideways
 
-Every Markdown page below `docs/` begins with one `Parent:` link immediately
-after its title. The parent is the nearest index or section overview, not
-necessarily the directory that happens to contain the file.
+Every Markdown page below an owner's documentation root begins with one
+`Parent:` link immediately after its title. The parent is the nearest index or
+section overview, not necessarily the directory that happens to contain the
+file. This applies equally to root documentation and plugin documentation.
 
 Follow the parent link with a short introduction, normally three to five
 rendered lines. It should state what the page explains, what it owns and, where
@@ -66,8 +140,9 @@ Pages with at least two main sections then provide `## Table of contents`
 before the first section. OBST uses the VS Code extension Markdown All in One
 to recognize and update that list on save. Keep the extension's generated
 shape, including its title and nested headings, instead of maintaining a
-second hand-written format or generator. Small pages with fewer than two main
-sections and navigation-only indexes may omit a redundant table of contents.
+second hand-written format or generator. Flat pages with at most three main
+sections and branch indexes named `README.md` may omit a redundant table of
+contents. Nested sections or four or more main sections require one.
 
 Cross-references between documentation pages are encouraged when another page
 owns the next question or supporting detail. Link to that authority instead of
@@ -79,8 +154,8 @@ owns it when the current page does not. Do not link every repetition. The
 [container vocabulary](anatomy.md#the-pieces-at-a-glance) is the starting map,
 not a second copy of every definition.
 
-Normative contracts link to the contract index even though stages and stream
-profiles also have implementation guides elsewhere.
+Normative contracts link to their owner's contract index even though Stages
+and stream profiles also have implementation guides elsewhere.
 
 ## Copy-paste a documentation page
 
@@ -153,7 +228,8 @@ markers. Put the work in the roadmap or describe the implemented behavior.
 
 ## Keep normative contracts self-contained
 
-Every file in `docs/contracts/` follows the same outline where applicable:
+Every normative contract in root or plugin-owned `docs/contracts/` follows the
+same outline where applicable:
 
 1. status and complete versioned identifier;
 2. contract type;
@@ -255,13 +331,11 @@ keeping checked-off items.
   and `2 streams`, instead of spelling out the number.
 - Do not present roadmap behavior as a runnable example.
 
-Runtime documentation tests parse public `python` fences and resolve every
-imported `obst.*` module and name. Plugin-specific examples remain
-non-executable while their documentation still lives in the central tree;
-moving those pages and executable checks into their owning distributions is a
-separate documentation-ownership pass. Ordinary fragments are not executed,
-so they must still be reviewed for truthful behavior, safe bounds and complete
-surrounding context.
+The runtime's documentation tests parse public `python` fences and resolve
+every imported `obst.*` module and name. Each plugin owns equivalent checks for
+its documentation and may mark complete examples executable there. Ordinary
+fragments are not executed, so they must still be reviewed for truthful
+behavior, safe bounds and complete surrounding context.
 
 ### Executable canonical examples
 
@@ -287,9 +361,9 @@ the warning and its following Python block with the same care as source-code
 changes. The temporary directory limits accidental output placement; it is not
 a security sandbox.
 
-Keep the set deliberately small. The core in-memory round trip and one complete
-self-describing extension are canonical journeys; every nearby fragment does
-not need to become an integration test.
+Keep the set deliberately small. The core in-memory round trip and complete
+self-describing provider examples are canonical journeys; every nearby use of
+those providers does not need another integration test.
 
 ## Add and move pages
 

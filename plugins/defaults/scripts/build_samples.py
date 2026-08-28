@@ -25,7 +25,7 @@ from obst_defaults.codecs.zlib import ZlibExtension, ZlibParameters
 from obst_defaults.files import DEFAULT_FILE_CHUNK_SIZE, FileArchiver, FileExtension
 from obst_defaults.packagers import FixedPackageRequest, FixedPackagerExtension
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 SAMPLE_ROOT = ROOT / "samples"
 IMAGE_ROOT = SAMPLE_ROOT / "images"
 MANIFEST_PATH = SAMPLE_ROOT / "manifest.json"

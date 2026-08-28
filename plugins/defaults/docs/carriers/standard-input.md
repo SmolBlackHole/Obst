@@ -1,6 +1,6 @@
 # Standard-input carrier: `obst.stdin@1`
 
-Parent: [Carriers](../carriers.md)
+Parent: [obst-defaults Carriers](README.md)
 
 The standard-input carrier exposes a host-owned binary input stream as an OBST
 container source. It reads only; standard output is a different capability and
@@ -61,4 +61,4 @@ transitions raise `CarrierStateError` through the shared carrier contract.
 
 OBST requires binary input. POSIX redirection is binary-safe. Windows
 PowerShell 5.1's object pipeline can alter arbitrary bytes; the
-[CLI guide](../../cli.md#inspect-from-stdin) documents a binary-safe redirect.
+[CLI guide](../../../../docs/cli.md#inspect-from-stdin) documents a binary-safe redirect.

@@ -27,19 +27,20 @@ or downloads code from container bytes.
 ## Compose extension objects
 
 An extension object supplies its own versioned ID, kind, descriptor and every
-capability it implements. First-party and third-party objects enter the same
+capability it implements. Objects from every trusted source enter the same
 builder:
 
 ```python
-from obst.core import ExtensionRegistryBuilder
-from obst_defaults.codecs import RawExtension, ZlibExtension
-from obst_defaults.transforms import Delta8Extension
+from collections.abc import Iterable
 
-builder = ExtensionRegistryBuilder()
-builder.register(RawExtension())
-builder.register(ZlibExtension())
-builder.register(Delta8Extension())
-registry = builder.build()
+from obst.core import Extension, ExtensionRegistry, ExtensionRegistryBuilder
+
+
+def build_registry(trusted_extensions: Iterable[Extension]) -> ExtensionRegistry:
+    builder = ExtensionRegistryBuilder()
+    for extension in trusted_extensions:
+        builder.register(extension)
+    return builder.build()
 ```
 
 The builder is useful when an application assembles capabilities from several
@@ -49,19 +50,17 @@ produces the same immutable runtime type:
 ```python
 from obst.core import ExtensionRegistry
 
-registry = ExtensionRegistry(
-    (RawExtension(), ZlibExtension(), Delta8Extension())
-)
+registry = ExtensionRegistry(trusted_extensions)
 ```
 
 The [extension guides](../extensions/README.md) own the provider protocols and
 show how to implement an extension. The registry owns only validation,
 composition and lookup.
 
-Importing `obst.core` does not construct or activate first-party defaults. The
-concrete `obst_defaults` objects above are ordinary explicit inputs to the same
-registry used for third-party extensions. Installed-plugin discovery and
-activation remain separate host decisions.
+Importing `obst.core` does not construct or activate providers. Directly
+composed objects and explicitly loaded plugin contributions use the same
+registry. Installed-plugin discovery and activation remain separate host
+decisions.
 
 ## Freeze an immutable snapshot
 
@@ -84,11 +83,11 @@ instead of reading extension identity again.
 Stage lookups distinguish the 2 reversible directions:
 
 ```python
-if registry.can_encode("obst.zlib@1"):
-    encoder_provider = registry.require_encoder_provider("obst.zlib@1")
+if registry.can_encode("org.example/codec@1"):
+    encoder_provider = registry.require_encoder_provider("org.example/codec@1")
 
-if registry.can_decode("obst.zlib@1"):
-    decoder_provider = registry.require_decoder_provider("obst.zlib@1")
+if registry.can_decode("org.example/codec@1"):
+    decoder_provider = registry.require_decoder_provider("org.example/codec@1")
 ```
 
 `can_encode()` and `can_decode()` are non-raising availability checks.
@@ -103,8 +102,8 @@ bytes and cache the resulting directional executors for their operation.
 Carrier and packager providers use the same lookup boundary:
 
 ```python
-reader_provider = registry.require_carrier_reader_provider("obst.filesystem@1")
-packager_provider = registry.require_packager_provider("obst.fixed@1")
+reader_provider = registry.require_carrier_reader_provider("org.example/store@1")
+packager_provider = registry.require_packager_provider("org.example/fixed@1")
 ```
 
 Missing runtime capabilities raise `MissingExtensionCapabilityError`.
@@ -152,7 +151,8 @@ for contribution in registry.contributions():
 ```
 
 This is the supported attachment point for application adapters that define
-their own optional protocols. The [file adapter](../extensions/files.md), for
+their own optional protocols. The
+[`obst-defaults` file adapter](../../plugins/defaults/docs/files/profiles.md), for
 example, recognizes file-source and file-materializer methods without teaching
 the core what a file is.
 
@@ -254,13 +254,26 @@ Two objects cannot both own the same capability under one ID. Registering the
 same complete codec twice is therefore an error, not last-registration-wins:
 
 ```python
-from obst.core import ExtensionRegistrationError, ExtensionRegistry
-from obst_defaults.codecs import RawExtension
+from obst.core import (
+    ExtensionDescriptor,
+    ExtensionKind,
+    ExtensionRegistrationError,
+    ExtensionRegistry,
+)
+
+
+class EncoderExtension:
+    extension_id = "org.example/codec@1"
+    kind = ExtensionKind.STAGE
+    descriptor = ExtensionDescriptor()
+
+    def bind_encoder(self, parameters: bytes) -> object:
+        raise NotImplementedError
 
 try:
-    ExtensionRegistry((RawExtension(), RawExtension()))
+    ExtensionRegistry((EncoderExtension(), EncoderExtension()))
 except ExtensionRegistrationError as error:
-    assert error.extension_id == "obst.raw@1"
+    assert error.extension_id == "org.example/codec@1"
 ```
 
 Separate encoder-only and decoder-only objects may share an ID when their
@@ -275,17 +288,23 @@ registry keeps their directions separate and does not invoke them during
 lookup:
 
 ```python
+from dataclasses import dataclass
 from typing import cast
 
 from obst.core import StageParameterEncoder
-from obst_defaults.codecs import ZlibParameters
 
-provider = registry.get_stage_parameter_encoder("obst.zlib@1")
+
+@dataclass(frozen=True)
+class ExampleParameters:
+    level: int
+
+
+provider = registry.get_stage_parameter_encoder("org.example/codec@1")
 if provider is None:
-    raise RuntimeError("zlib parameter authoring is unavailable")
+    raise RuntimeError("parameter authoring is unavailable")
 
-zlib_parameters = cast(StageParameterEncoder[ZlibParameters], provider)
-wire_parameters = zlib_parameters.encode_parameters(ZlibParameters(9))
+parameter_encoder = cast(StageParameterEncoder[ExampleParameters], provider)
+wire_parameters = parameter_encoder.encode_parameters(ExampleParameters(9))
 ```
 
 The corresponding methods are:

@@ -15,7 +15,7 @@ resulting container bytes go.
 	- [Define one logical source](#define-one-logical-source)
 	- [Resolve a packaging policy](#resolve-a-packaging-policy)
 	- [Write or publish the operation](#write-or-publish-the-operation)
-	- [First-party fixed policy](#first-party-fixed-policy)
+	- [Concrete policy example](#concrete-policy-example)
 	- [Resource limits](#resource-limits)
 
 ## The boundary
@@ -49,14 +49,12 @@ from obst.core import (
     RecipeSpec,
     StageSpec,
 )
-from obst_defaults.codecs import ZlibExtension, ZlibParameters
 
-zlib = ZlibExtension()
 recipe = RecipeSpec(
     (
         StageSpec(
-            zlib.extension_id,
-            zlib.encode_parameters(ZlibParameters(9)),
+            "org.example/codec@1",
+            b"\x09",
         ),
     ),
 )
@@ -100,7 +98,7 @@ Container bytes cannot select a packaging policy.
 
 A missing provider raises `MissingExtensionCapabilityError` before preparation.
 The [packager extension guide](../extensions/packagers.md) owns the provider
-contract and the first-party fixed request.
+contract. A concrete plugin owns its request value and packaging policy.
 
 ## Write or publish the operation
 
@@ -114,12 +112,12 @@ visibility, commit, abort and publication receipts.
 and per-stream logical accounting. It deliberately contains no carrier path,
 object key or publication reference.
 
-## First-party fixed policy
+## Concrete policy example
 
 The separately installed `obst.fixed@1` provider implements the shared
-contracts above by using every source's explicitly declared recipe. Its
-[dedicated extension page](../extensions/packagers/fixed.md) owns manifest
-construction, determinism, preflight and exact policy semantics.
+contracts above. Its
+[plugin-owned extension page](../../plugins/defaults/docs/packagers/fixed.md)
+owns manifest construction, determinism, preflight and exact policy semantics.
 
 Other packagers can return the same `PackageWriteOperation` contract after
 making different recipe, chunking or reuse decisions. The
@@ -129,8 +127,7 @@ boundary.
 ## Resource limits
 
 Core sources, recipe execution and container writing accept the public
-`ResourceLimits` policy. A packager decides how its request exposes that
-policy; the first-party fixed request passes one value through the complete
-operation. No private mutable budget object crosses extension boundaries.
+`ResourceLimits` policy. A Packager decides how its request exposes that
+policy. No private mutable budget object crosses extension boundaries.
 
 The [resource guide](resources.md) documents defaults and structured refusal.

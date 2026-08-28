@@ -3,9 +3,9 @@
 Parent: [Extension system](README.md)
 
 A packager turns declared logical sources into one valid OBST container under
-a provider-defined policy. Sources may already declare recipes and chunk
-boundaries, as they do for the first-party fixed policy; smarter packagers may
-derive different declarations. A packager never owns the destination.
+a provider-defined policy. Sources may already declare Recipes and chunk
+boundaries, or a Packager may derive different declarations. A Packager never
+owns the destination.
 Packager IDs are local runtime capabilities and never appear in container
 bytes.
 
@@ -16,7 +16,7 @@ bytes.
 	- [Provider contract](#provider-contract)
 	- [What a packager owns](#what-a-packager-owns)
 	- [What a packager does not own](#what-a-packager-does-not-own)
-	- [First-party packagers](#first-party-packagers)
+	- [Concrete packagers](#concrete-packagers)
 	- [Third-party policies](#third-party-policies)
 
 ## Provider contract
@@ -59,15 +59,11 @@ Packager identity is not needed for decoding. The produced manifest records
 only the stream-type and stage contracts needed to understand and recover its
 logical bytes.
 
-## First-party packagers
+## Concrete packagers
 
-| ID             | Policy                                        | Page                        |
-| -------------- | --------------------------------------------- | --------------------------- |
-| `obst.fixed@1` | Use every source's explicitly declared recipe | [Fixed](packagers/fixed.md) |
-
-The first-party implementation ships in the separately installable
-`obst-defaults` plugin and enters the registry through the same path as a
-third-party packager.
+The separately installable `obst-defaults` plugin documents its
+[`obst.fixed@1` policy](../../plugins/defaults/docs/packagers/fixed.md). It
+enters the registry through the same provider path as every other Packager.
 
 ## Third-party policies
 

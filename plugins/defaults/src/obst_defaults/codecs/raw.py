@@ -18,7 +18,7 @@ class RawExtension:
         summary="Identity stage for untransformed bytes.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/contracts/stages/raw.md"
+            "plugins/defaults/docs/contracts/stages/raw.md"
         ),
     )
 

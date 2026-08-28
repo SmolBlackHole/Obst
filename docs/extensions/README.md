@@ -14,7 +14,6 @@ boundaries.
 | Codec          | Compression-oriented stage role                  | Yes, as a stage | [Codecs](codecs.md)         |
 | Transform      | Structure-oriented stage role                    | Yes, as a stage | [Transforms](transforms.md) |
 | Stream profile | Meaning and metadata of logical bytes            | Yes             | [Profiles](profiles.md)     |
-| Portable files | First-party file profile and filesystem adapter  | `obst.file@1`   | [Files](files.md)           |
 | Carrier        | Reading, writing or publishing container bytes   | No              | [Carriers](carriers.md)     |
 | Packager       | Policy for producing one valid container         | No              | [Packagers](packagers.md)   |
 | Archiver       | Composition between domain inputs and containers | No              | [Archivers](archivers.md)   |
@@ -40,7 +39,7 @@ The import boundary mirrors that distinction:
 obst                    runtime package metadata
 obst.core               neutral runtime contracts and operations
 obst.cli                generic command host, native inspection and rendering
-obst_defaults.*         installable first-party implementations
+provider_distribution.* installable provider implementations
 ```
 
 > [!IMPORTANT]
@@ -80,28 +79,13 @@ canonical ID, descriptor metadata and every executable or interpretive
 capability it provides:
 
 ```python
-from obst.core import ExtensionRegistry
-from obst_defaults.codecs import (
-    RawExtension,
-    ZlibDictionaryExtension,
-    ZlibExtension,
-)
-from obst_defaults.carriers.memory import MemoryCarrierExtension
-from obst_defaults.files import FileExtension
-from obst_defaults.packagers import FixedPackagerExtension
-from obst_defaults.transforms import Delta8Extension
+from collections.abc import Iterable
 
-registry = ExtensionRegistry(
-    (
-        RawExtension(),
-        ZlibExtension(),
-        ZlibDictionaryExtension(),
-        Delta8Extension(),
-        FileExtension(),
-        MemoryCarrierExtension(),
-        FixedPackagerExtension(),
-    )
-)
+from obst.core import Extension, ExtensionRegistry
+
+
+def compose_runtime(extensions: Iterable[Extension]) -> ExtensionRegistry:
+    return ExtensionRegistry(extensions)
 ```
 
 There is no assembly wrapper, registration decorator or first-party shortcut.
@@ -116,8 +100,13 @@ Registration inspects provider shape without executing providers or optional
 interpreters. [Recipe execution](../core/recipes.md) owns Stage binding;
 [inspection](../core/inspection.md) owns its explicit interpretation policy.
 
-The [contract index](../README.md#normative-contracts) links to the
-language-neutral meaning of every first-party wire-visible ID. These pages
+The [contract index](../contracts/README.md) owns the built-in stream contract
+and routes to contracts published by provider distributions. These pages
 document the Python implementation boundary. The
 [recipe execution guide](../core/recipes.md) shows how a registry participates
 in encoding and decoding.
+
+The separately installed
+[`obst-defaults` documentation](../../plugins/defaults/docs/README.md) is one
+concrete provider book. Its first-party ownership grants no special registry or
+plugin-loading path.

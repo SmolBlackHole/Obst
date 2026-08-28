@@ -44,14 +44,15 @@ IDs identify runtime capabilities; only Stage and stream-profile IDs may enter
 OBST manifests. Command names belong to the generic CLI host and never enter
 container bytes. Containers never name distributions, plugins or commands.
 
-A plugin exists when one distribution publishes at least one contribution
-under `obst.extensions` or `obst.commands`. Every `obst.extensions`
-contribution must have a matching `obst.conformance` contribution under the
-same name. Command-only plugins need neither. A distribution may publish at
-most one contribution under the same plugin name in each group, and matching
-contributions must come from the same physical distribution. One extension
-factory may return several Stage, stream-profile, carrier and packager
-Extensions; one command factory may return several commands.
+A plugin name is discovered when one distribution publishes at least one
+contribution under `obst.extensions`, `obst.commands` or `obst.conformance`.
+Every `obst.extensions` contribution must have matching conformance under the
+same name. Command-only and conformance-only plugins need no Extension
+contribution. A distribution may publish at most one contribution under the
+same plugin name in each group, and matching contributions must come from the
+same physical distribution. One extension factory may return several Stage,
+stream-profile, carrier and packager Extensions; one command factory may
+return several commands.
 
 ## Package layout and installation choices
 
@@ -161,14 +162,14 @@ untrusted labels before styling them.
 
 ### Conformance contribution
 
-A distribution may publish a static portable suite under a plugin name:
+A distribution may publish a portable suite under a plugin name:
 
 ```toml
 [project.entry-points."obst.conformance"]
 example = "org_example_obst:obst_conformance"
 ```
 
-The factory returns one exact `ConformanceSuite` loaded from package resources:
+The factory loads one exact `ConformanceSuite` from package resources:
 
 ```python
 from importlib.resources import files
@@ -182,21 +183,9 @@ def obst_conformance() -> ConformanceSuite:
     )
 ```
 
-The package includes one `conformance_vectors/index.json`. Catalog schema `2`
-owns stable case IDs, case kinds, Extension IDs, canonical inline hexadecimal
-bytes, SHA-256 digests and expected portable behavior. The generic writer can
-generate that checked-in catalog deterministically:
-
-```python
-from obst.conformance import write_conformance_suite
-
-write_conformance_suite(build_suite(), output_directory)
-```
-
-The portable case kinds cover known Stage encodings, typed parameters,
-rejected parameters and payloads, output ceilings, stream metadata,
-metadata rejection and optional complete-container recovery. Cases store data,
-not pytest modules, Python exception names or arbitrary test callbacks.
+The package includes one `conformance_vectors/index.json`. The shared
+[conformance guide](../conformance.md#plugin-extension-suites) owns the catalog
+schema, portable case kinds and public load, write and run APIs.
 
 The `obst.extensions`, `obst.commands` and `obst.conformance` contributions
 are independent. A format corpus may therefore be conformance-only, while a
@@ -209,10 +198,10 @@ distribution's ordinary tests. A suite may also include a complete container
 case that exercises explicitly supplied dependencies through wire-visible
 contracts.
 
-`ConformanceSuite` stores only portable cases. The selected plugin name remains
-entry-point and CLI context; it is not serialized into the catalog. Direct
-callers and the plugin manager both execute suites through
-`run_conformance_suite()`.
+The selected plugin name remains entry-point and CLI context; it is not stored
+inside the suite. Discovery stays inert. Loading the factory and exercising
+providers executes installed code with the current process privileges, so a
+conformance test is not a sandbox.
 
 ## Discover and inspect without loading
 
@@ -259,6 +248,10 @@ roaming or XDG configuration location. Corrupt state raises `PluginStateError`
 and is never reset silently.
 
 `enable()` and `disable()` update only that file. They do not import code.
+Only a plugin with an Extension or command contribution can be enabled, because
+a conformance-only plugin has no runtime contribution to activate. Trying to
+enable one raises `PluginActivationError`; it remains available to explicit
+`test()` calls.
 `runtime()` imports Extension factories for the persistently enabled set plus
 explicit one-shot additions, validates their tuple results and builds one
 immutable registry for the caller's operation. It returns a `PluginRuntime`

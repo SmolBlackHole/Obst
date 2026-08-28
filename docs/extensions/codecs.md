@@ -1,84 +1,52 @@
-# Codecs
+# Codec Stages
 
 Parent: [Extension system](README.md)
 
 A codec is a [Stage Extension](stages.md) whose main purpose is compression or
-another encoded representation. It is a role, not a separate core protocol or
-registry type. Codecs receive one bounded chunk at a time and own their exact
-parameter bytes.
+another stored representation. It is a design role, not a separate registry
+kind or provider protocol.
 
 ## Table of contents
 
-- [Codecs](#codecs)
+- [Codec Stages](#codec-stages)
 	- [Table of contents](#table-of-contents)
-	- [First-party codecs](#first-party-codecs)
-	- [Author parameters through the extension](#author-parameters-through-the-extension)
+	- [Codec boundary](#codec-boundary)
+	- [Parameters and identity](#parameters-and-identity)
+	- [Implementation guidance](#implementation-guidance)
+	- [Concrete examples](#concrete-examples)
 
-## First-party codecs
+## Codec boundary
 
-| Extension     | Purpose                                | Normative contract                                        | Python provider           |
-| ------------- | -------------------------------------- | --------------------------------------------------------- | ------------------------- |
-| `obst.raw@1`  | Identity fallback                      | [RAW](../contracts/stages/raw.md)                         | `RawExtension`            |
-| `obst.zlib@1` | Dictionary-free zlib-wrapped DEFLATE   | [zlib](../contracts/stages/zlib.md)                       | `ZlibExtension`           |
-| `obst.zlib@2` | zlib-wrapped DEFLATE with a dictionary | [zlib dictionary](../contracts/stages/zlib-dictionary.md) | `ZlibDictionaryExtension` |
+A codec receives one bounded chunk at a time and returns bytes. It must define
+an exact inverse, reject malformed parameters or payloads through the public
+provider boundary, and obey the operation's output limits.
 
-Each provider is an ordinary self-describing extension object:
+The core owns Stage binding, execution order, error translation and resource
+accounting. A codec owns its algorithm and its exact parameter-byte contract.
 
-```python
-from obst.core import ExtensionRegistry
-from obst_defaults.codecs import (
-    RawExtension,
-    ZlibDictionaryParameters,
-    ZlibDictionaryExtension,
-    ZlibExtension,
-    ZlibParameters,
-)
+## Parameters and identity
 
-registry = ExtensionRegistry(
-    (RawExtension(), ZlibExtension(), ZlibDictionaryExtension())
-)
-```
+Changing the meaning of parameter bytes, accepted payloads or recovered output
+requires a new versioned Extension ID. An encoder may evolve internally while
+retaining an ID only when every emitted representation remains valid under the
+same published decoding contract.
 
-They have no private execution path. A third-party codec is registered,
-inspected, bound and executed through the same contracts. The
-[stage identity rules](stages.md#stable-identity) define when another provider
-may claim one of those IDs.
+Typed parameter-authoring helpers belong to the Extension that owns those
+bytes. They must not become a second, silently divergent wire definition.
 
-## Author parameters through the extension
+## Implementation guidance
 
-Opaque parameter bytes are authored by the concrete extension that consumes
-them. This keeps the public convenience API beside the wire contract instead
-of creating parallel free functions:
+Codec providers should be stateless or safely reusable after binding. Hidden
+state across chunks breaks independent framing, bounded scheduling and
+parallel execution. A provider must never fetch code or capabilities based on
+container input.
 
-```python
-from obst.core import StageSpec
-from obst_defaults.codecs import (
-    ZlibDictionaryExtension,
-    ZlibDictionaryParameters,
-    ZlibExtension,
-    ZlibParameters,
-)
+See the [Stage guide](stages.md) for complete provider protocols and
+[Recipe execution](../core/recipes.md) for forward and inverse ordering.
 
-zlib_v1 = ZlibExtension()
-zlib_v2 = ZlibDictionaryExtension()
+## Concrete examples
 
-dictionary_free = StageSpec(
-    zlib_v1.extension_id,
-    zlib_v1.encode_parameters(ZlibParameters(9)),
-)
-with_dictionary = StageSpec(
-    zlib_v2.extension_id,
-    zlib_v2.encode_parameters(
-        ZlibDictionaryParameters(9, b"common-prefix:")
-    ),
-)
-```
-
-`encode_parameters()` accepts one contract-specific typed value and creates
-the exact bytes subsequently passed back to that extension's
-`decode_parameters()`, `bind_encoder()` or `bind_decoder()`. Parameter decoding
-is available independently for tooling; binding parses the same bytes once per
-recipe and direction during an operation. The
-[dictionary-free](../contracts/stages/zlib.md) and
-[preset-dictionary](../contracts/stages/zlib-dictionary.md) contracts remain
-the language-neutral authority for their representation.
+The separately distributed
+[`obst-defaults` codec guide](../../plugins/defaults/docs/codecs.md) documents
+its RAW and zlib providers. Those algorithms and parameter contracts are owned
+and tested by that plugin, not by this generic runtime page.

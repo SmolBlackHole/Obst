@@ -75,7 +75,7 @@ def test_wire_extension_specification_urls_target_owned_contracts(
     assert url is not None
     assert url.startswith(REPOSITORY_URL_PREFIX)
     relative_path = url.removeprefix(REPOSITORY_URL_PREFIX)
-    assert relative_path.startswith("docs/contracts/")
+    assert relative_path.startswith("plugins/defaults/docs/contracts/")
     assert (REPOSITORY_ROOT / relative_path).is_file()
 
 
@@ -96,5 +96,6 @@ def test_runtime_extension_specification_urls_target_extension_docs(
     assert url.startswith(REPOSITORY_URL_PREFIX)
     relative_path = url.removeprefix(REPOSITORY_URL_PREFIX)
     page, _, _fragment = relative_path.partition("#")
-    assert page.startswith("docs/extensions/")
+    assert page.startswith("plugins/defaults/docs/")
+    assert "/contracts/" not in page
     assert (REPOSITORY_ROOT / page).is_file()

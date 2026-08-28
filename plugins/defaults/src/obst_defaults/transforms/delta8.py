@@ -20,7 +20,7 @@ class Delta8Extension:
         summary="Modulo-256 delta transform over individual bytes.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/contracts/stages/delta8.md"
+            "plugins/defaults/docs/contracts/stages/delta8.md"
         ),
     )
 

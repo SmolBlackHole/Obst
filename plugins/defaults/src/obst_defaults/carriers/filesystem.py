@@ -63,7 +63,7 @@ class FilesystemCarrierExtension:
         summary="Read or transactionally publish an OBST stream through a path.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/extensions/carriers/filesystem.md"
+            "plugins/defaults/docs/carriers/filesystem.md"
         ),
     )
 

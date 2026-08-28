@@ -18,6 +18,9 @@ reproducible:
 
 - close the current parser, resource, plugin, carrier and filesystem hardening
   pass with focused regressions and a completely green quality gate;
+- decide whether a zero-Stage Recipe becomes the canonical identity
+  representation for untransformed chunks, then align the core model, RAW
+  tooling and every affected conformance vector before the format freezes;
 - preserve one independent reader implementation and run log against the
   public conformance corpus;
 - finish the language-neutral Unicode version and collection-scope rules for

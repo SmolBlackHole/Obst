@@ -10,6 +10,39 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).parents[1]
+REPOSITORY_ROOT = PROJECT_ROOT.parents[1]
+
+
+def _environment(config_home: Path) -> dict[str, str]:
+    environment = os.environ.copy()
+    environment.update(
+        OBST_CONFIG_HOME=str(config_home),
+        PIP_DISABLE_PIP_VERSION_CHECK="1",
+        PIP_NO_INDEX="1",
+    )
+    return environment
+
+
+def _venv_python(environment_root: Path) -> Path:
+    return environment_root / (
+        "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    )
+
+
+def _run(
+    command: list[str | Path],
+    *,
+    environment: dict[str, str],
+    cwd: Path,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [str(part) for part in command],
+        cwd=cwd,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_installed_distribution_publishes_all_three_plugin_contributions() -> None:
@@ -37,6 +70,74 @@ def test_installed_distribution_publishes_all_three_plugin_contributions() -> No
             "obst_defaults.conformance:obst_conformance",
         ),
     }
+
+
+@pytest.mark.distribution
+@pytest.mark.timeout(120)
+def test_defaults_supports_a_clean_editable_cli_round_trip(tmp_path: Path) -> None:
+    environment_root = tmp_path / "editable"
+    config_home = tmp_path / "config"
+    environment = _environment(config_home)
+    _run(
+        [sys.executable, "-m", "venv", "--system-site-packages", environment_root],
+        environment=environment,
+        cwd=tmp_path,
+    )
+    python = _venv_python(environment_root)
+    _run(
+        [
+            python,
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-build-isolation",
+            "-e",
+            REPOSITORY_ROOT,
+            "-e",
+            PROJECT_ROOT,
+        ],
+        environment=environment,
+        cwd=tmp_path,
+    )
+
+    _run(
+        [python, "-m", "obst.cli", "plugins", "enable", "obst-defaults"],
+        environment=environment,
+        cwd=tmp_path,
+    )
+    extensions = _run(
+        [python, "-m", "obst.cli", "extensions"],
+        environment=environment,
+        cwd=tmp_path,
+    )
+    assert "obst.zlib@1" in extensions.stdout
+    _run(
+        [python, "-m", "obst.cli", "plugins", "test", "obst-defaults"],
+        environment=environment,
+        cwd=tmp_path,
+    )
+
+    source = tmp_path / "input.bin"
+    container = tmp_path / "round-trip.obst"
+    restored = tmp_path / "restored"
+    source.write_bytes(b"book-shaped documentation\n" * 4096)
+    _run(
+        [python, "-m", "obst.cli", "pack", source, "-o", container],
+        environment=environment,
+        cwd=tmp_path,
+    )
+    _run(
+        [python, "-m", "obst.cli", "inspect", container, "--quiet"],
+        environment=environment,
+        cwd=tmp_path,
+    )
+    _run(
+        [python, "-m", "obst.cli", "unpack", container, "-o", restored],
+        environment=environment,
+        cwd=tmp_path,
+    )
+    assert (restored / source.name).read_bytes() == source.read_bytes()
 
 
 @pytest.mark.distribution

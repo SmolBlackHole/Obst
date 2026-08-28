@@ -75,7 +75,7 @@ class FileExtension:
         summary="One portable basename and its exact file bytes.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/contracts/streams/file.md"
+            "plugins/defaults/docs/contracts/streams/file.md"
         ),
     )
 

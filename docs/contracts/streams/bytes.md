@@ -1,6 +1,6 @@
 # `obst.bytes@1` stream contract
 
-Parent: [Normative contracts](../../README.md#normative-contracts)
+Parent: [OBST contract index](../README.md)
 
 Status: experimental core stream contract.
 

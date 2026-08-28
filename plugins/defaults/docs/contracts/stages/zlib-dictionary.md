@@ -1,6 +1,6 @@
 # `obst.zlib@2` stage contract
 
-Parent: [Normative contracts](../../README.md#normative-contracts)
+Parent: [obst-defaults Stage contracts](README.md)
 
 Status: experimental first-party stage contract.
 
@@ -129,8 +129,8 @@ or on the provider version that created a container.
 
 ## Python reference implementation
 
-[`plugins/defaults/src/obst_defaults/codecs/zlib.py`](../../../plugins/defaults/src/obst_defaults/codecs/zlib.py)
+[`plugins/defaults/src/obst_defaults/codecs/zlib.py`](../../../src/obst_defaults/codecs/zlib.py)
 provides `ZlibDictionaryExtension`, a self-describing object that supplies
 parameter authoring, both directional binding capabilities and optional
 parameter interpretation through the public Stage Extension API.
-The [codec guide](../../extensions/codecs.md) owns the Python authoring example.
+The [codec guide](../../codecs.md) owns the Python authoring example.

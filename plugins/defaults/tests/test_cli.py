@@ -944,7 +944,7 @@ def test_extensions_command_reports_builtin_capability_inventory(
     assert capabilities["obst.filesystem@1"]["reader_available"] is True
     assert capabilities["obst.filesystem@1"]["publisher_available"] is True
     assert capabilities["obst.filesystem@1"]["specification_url"].endswith(
-        "docs/extensions/carriers/filesystem.md"
+        "plugins/defaults/docs/carriers/filesystem.md"
     )
     assert capabilities["obst.memory@1"]["kind"] == "carrier"
     assert capabilities["obst.stdin@1"]["reader_available"] is True
@@ -953,7 +953,7 @@ def test_extensions_command_reports_builtin_capability_inventory(
         "display_name": "Fixed packager",
         "specification_url": (
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/extensions/packagers/fixed.md"
+            "plugins/defaults/docs/packagers/fixed.md"
         ),
         "id": "obst.fixed@1",
         "kind": "packager",
@@ -976,11 +976,11 @@ def test_human_extension_inventory_separates_capability_blocks(
     assert "Carrier         read yes, write no, publish no" in captured.out
     assert "Packager        prepare yes" in captured.out
     assert (
-        "Specification   https://github.com/SmolBlackHole/Obst/blob/main/docs/contracts/stages/raw.md"
+        "Specification   https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/raw.md"
         in captured.out
     )
     assert (
-        "Specification   https://github.com/SmolBlackHole/Obst/blob/main/docs/extensions/carriers/filesystem.md"
+        "Specification   https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/carriers/filesystem.md"
         in captured.out
     )
     assert captured.err == ""

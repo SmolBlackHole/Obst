@@ -1,6 +1,6 @@
 # Filesystem carrier: `obst.filesystem@1`
 
-Parent: [Carriers](../carriers.md)
+Parent: [obst-defaults Carriers](README.md)
 
 The filesystem carrier binds OBST container bytes to one caller-selected path.
 It can read an existing container or publish a newly completed container
@@ -55,7 +55,7 @@ finally:
 
 The session opens the path once and returns that same binary handle. Opening or
 closing failures are reported as `CarrierError`. The core sees a
-[`BinaryReader`](../../core/reading.md), not the path.
+[`BinaryReader`](../../../../docs/core/reading.md), not the path.
 
 ## Publish a new container
 
@@ -75,9 +75,9 @@ publisher = filesystem.bind_publisher(
 
 The publisher creates a temporary sibling and exposes the final path only from
 `commit()`. Packaging code writes through the returned `BinaryWriter` without
-learning the destination path. Use `publish_package()` from
-`obst_defaults.carriers` to compose a prepared package operation with this
-lifecycle.
+learning the destination path. The plugin's [package-execution
+helper](package-execution.md#publish-transactionally) runs a prepared package
+operation inside that transaction.
 
 ## Visibility and durability
 
@@ -106,5 +106,5 @@ than additional pathname checks in the shared carrier contract.
 - Repeating an invalid lifecycle operation raises `CarrierStateError`.
 - Existing output is refused unless the request explicitly enables overwrite.
 
-The general [carrier lifecycle](../carriers.md#writer-and-publisher-semantics)
+The general [carrier lifecycle](../../../../docs/extensions/carriers.md#writer-and-publisher-semantics)
 defines how these outcomes compose with packaging failures.

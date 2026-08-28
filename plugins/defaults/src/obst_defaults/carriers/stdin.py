@@ -31,7 +31,7 @@ class StdinCarrierExtension:
         summary="Read an OBST stream from a host-owned standard-input endpoint.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/extensions/carriers/standard-input.md"
+            "plugins/defaults/docs/carriers/standard-input.md"
         ),
     )
 

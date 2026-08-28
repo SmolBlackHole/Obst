@@ -7,11 +7,7 @@ This page documents the CLI that exists. The
 
 The runtime CLI owns format inspection, plugin management, capability inventory
 and help. Explicitly activated plugins may contribute additional commands. The
-separately installed `obst-defaults` plugin maps ordinary files to and from the
-`obst.file@1` stream profile through `pack` and `unpack`. That plugin is a
-filesystem frontend, not the container boundary. The Python core reads and
-writes binary streams, so the same serialized container may instead be held in
-memory, stored as a database BLOB or transferred through another adapter.
+command host does not give first-party distributions a private loading path.
 
 ## Table of contents
 
@@ -26,10 +22,7 @@ memory, stored as a database BLOB or transferred through another adapter.
 		- [Machine-readable inspection](#machine-readable-inspection)
 		- [Status-only inspection](#status-only-inspection)
 	- [Terminal presentation](#terminal-presentation)
-	- [Pack explicit files](#pack-explicit-files)
-		- [Packing policy](#packing-policy)
-		- [Portable filenames](#portable-filenames)
-	- [Unpack every file](#unpack-every-file)
+	- [Contributed commands](#contributed-commands)
 	- [Resource policy](#resource-policy)
 	- [Black magic that already works](#black-magic-that-already-works)
 	- [Exit codes and errors](#exit-codes-and-errors)
@@ -37,7 +30,7 @@ memory, stored as a database BLOB or transferred through another adapter.
 	- [Built-in help](#built-in-help)
 
 The runtime always provides `inspect`, `plugins`, `extensions` and `help`.
-Activating `obst-defaults` adds `pack` and `unpack`:
+The table uses `obst-defaults` only as a real contributed-command example:
 
 | Command      | Purpose                                               | Reads stdin |
 | ------------ | ----------------------------------------------------- | ----------- |
@@ -47,6 +40,9 @@ Activating `obst-defaults` adds `pack` and `unpack`:
 | `plugins`    | List, enable, disable or test installed plugins       | No          |
 | `extensions` | Report capabilities from enabled and one-shot plugins | No          |
 | `help`       | Show general or command-specific help                 | No          |
+
+The [`obst-defaults` CLI guide](../plugins/defaults/docs/cli.md) owns the
+behavior and policy of its `pack` and `unpack` commands.
 
 Installation does not activate any plugin. The persisted host state may enable
 `obst-defaults` and third-party plugins through the same manager. An available
@@ -156,7 +152,7 @@ reports all 3 contribution entry-point groups plus inert records with install,
 enabled state, distribution metadata and factory provenance. Plugin
 conformance report schema `2` reports each case ID, kind, optional Extension
 ID, pass state and failure text. The static suite catalog itself uses schema
-`1`. Cataloging never imports plugin code.
+`2`. Cataloging never imports plugin code.
 Extension inventory schema `3` reports loaded IDs, kinds and descriptors in 4
 typed record shapes. Stage and stream-profile records expose their execution,
 wire-codec and interpreter availability. Carrier records expose reader, writer
@@ -368,134 +364,28 @@ Set `NO_COLOR` to disable color. Set a non-empty `FORCE_COLOR` value other than
 both are present. Untrusted names, labels and error details are escaped before
 presentation codes are added.
 
-## Pack explicit files
+## Contributed commands
 
-```text
-obst pack [-h] -o OUTPUT [--plugin NAME] INPUT [INPUT ...]
-```
+An enabled plugin may contribute command objects through the public
+`obst.commands` entry-point group. The host validates names and command
+contracts, rejects collisions and builds one command tree from the selected
+trusted contributions.
 
-Every positional `INPUT` is an existing regular file. `-o` or `--output`
-explicitly names the new container, so the destination cannot be mistaken for
-another input:
-
-```console
-obst pack samples/apple.obst -o samples/apple-container.obst
-obst pack samples/apple.obst samples/fruit-bowl.obst samples/pineapple.obst -o all-fruit.obst
-```
-
-`--plugin NAME` is a one-shot capability addition for this already available
-command. The current packing policy requires a file-source and file-materializer capability under
-`obst.file@1`, plus parameter authoring and encoding under `obst.zlib@1`.
-Concrete Python classes and the plugins that supplied them are irrelevant.
-All capabilities are resolved before the output carrier publishes a target.
-
-The second example is valid OBST inside OBST. The inner containers are stored
-as ordinary file bytes. `pack` does not open, tune or recursively rewrite them.
-Unpacking restores those inner `.obst` files byte for byte.
-
-### Packing policy
-
-- one `obst.file@1` stream is created per input, in CLI argument order
-- stream IDs start at 0
-- the portable basename is stored, not the source directory
-- every stream uses `obst.zlib@1` at level 9
-- input is read in logical chunks of 64 KiB, not loaded as one large byte string
-- an empty file becomes a valid stream with zero chunks
-- only regular, non-redirected files are accepted
-- an existing output is never overwritten
-- the complete temporary container is synced before exclusive publication
-
-The [file-extension guide](extensions/files.md#create-logical-stream-sources)
-owns source-handle and portable-name rules. The
-[filesystem carrier](extensions/carriers/filesystem.md#publish-a-new-container)
-owns hard-link publication, cleanup receipts and filesystem limitations.
-
-`pack` does not accept `-` or stdin. Chunked file reading is streaming
-internally, but it is not a stdin interface.
-
-### Portable filenames
-
-Every member uses the portable basename contract from the
-[`obst.file@1` profile](contracts/streams/file.md). Packing rejects unsafe names
-and collisions before creating the output.
-
-On success, the command reports every member's logical size and chunk count:
-
-```text
-Packed 2 files
-  Destination     fruits.obst
-  Container size  123 B
-
-Files
-  apple.txt          3 B  1 chunk
-  banana.bin        64 B  1 chunk
-```
-
-## Unpack every file
-
-```text
-obst unpack [-h] -o OUTPUT_DIRECTORY [--plugin NAME] INPUT
-```
-
-`-o` and `--output` explicitly name the extraction directory. The option is
-required, so extraction never silently targets the working directory.
-
-```console
-obst unpack fruits.obst -o restored
-obst unpack fruits.obst --output restored
-```
-
-`unpack` accepts a path only, not stdin. It extracts every stream for which the
-activated Extension set supplies a `FileMaterializer` under the exact declared
-stream type. Mixed file profiles are valid; one missing materializer rejects
-the complete request before output creation rather than guessing at semantics.
-
-Before decoding, OBST validates every member name, collision and destination.
-It decodes into temporary storage, verifies every chunk and publishes only
-regular files without overwriting existing targets. Extraction never executes,
-imports or launches recovered bytes. The output may still be executable if
-another program launches it later.
-
-The complete extraction, rollback, redirected-root and threat-model guarantees
-live in the [file-extension guide](extensions/files.md#extract-files). The
-[`obst.file@1` contract](contracts/streams/file.md) lists metadata that is not
-preserved.
-
-On Windows, an input container may carry Mark of the Web in the NTFS
-`Zone.Identifier` stream. Extracted files do not inherit that origin. When the
-CLI detects the mark it exits successfully but writes an explicit warning:
-
-```text
-obst: warning: input has Windows Mark of the Web; extracted files do not inherit it and may be treated as local files
-```
-
-Library callers own equivalent origin or quarantine policy for their carrier
-context. `unpack` always restores all members. An explicitly selected plugin
-may supply a decoder or file materializer required by the request; it does not
-cause container-directed discovery.
-
-On success, the command lists the restored basenames:
-
-```text
-Unpacked 2 files
-  Destination     restored
-
-Files
-  apple.txt
-  banana.bin
-```
+One-shot `--plugin NAME` selection can add capabilities to an already
+available command operation. It cannot make an inactive plugin's command
+appear, because that parser has not been loaded. Container bytes can neither
+activate a plugin nor contribute a command.
 
 ## Resource policy
 
-The CLI uses the finite `DEFAULT_RESOURCE_LIMITS` core policy. File extraction
-also uses `DEFAULT_FILE_EXTRACTION_LIMITS`, which bounds member count, one
-recovered file and total recovered filesystem bytes.
+The CLI uses the finite `DEFAULT_RESOURCE_LIMITS` core policy. The command line
+does not expose a matrix of limit flags. Library callers that need
+deployment-specific ceilings pass `ResourceLimits` explicitly. Contributed
+commands may add their own adapter-specific policies and must document them
+with the owning plugin.
 
-The command line does not expose a matrix of limit flags. Library callers that
-need deployment-specific ceilings pass `ResourceLimits` and
-`FileExtractionLimits` explicitly. Crossing a local ceiling reports
-`obst: resource_limit: ...` and returns exit code `10`; it does not label the
-container corrupt or invalid.
+Crossing a core ceiling reports `obst: resource_limit: ...` and returns exit
+code `10`; it does not label the container corrupt or invalid.
 
 The complete defaults and accounting scopes live in the
 [resource guide](core/resources.md).
@@ -507,10 +397,7 @@ The format is small, but a few pleasantly suspicious things are real:
 - inspect a non-seekable OBST stream from stdin while validating its stored form
 - preserve an unknown stream type as bytes when its pipeline stages are available
 - inspect a structurally valid container even when a decoder stage is missing
-- carry several named files as independent, chunked streams in one container
-- store OBST inside OBST and recover the inner container bit for bit
 - report declared original size and framing-inclusive compression ratio without decoding
-- preserve empty files and normalized Unicode filenames
 - drive tooling through JSON or exit codes without inviting the ASCII apple
 
 The recursion is composition, not recursive interpretation. The
@@ -527,15 +414,13 @@ Python exception hierarchy and negative examples.
 
 ## Unsupported operations
 
-The reference CLI does not provide:
+The native runtime CLI does not provide:
 
-- stdin input for `pack` or `unpack`
-- selecting one stream or member during inspection or extraction
-- nested inspection of an inner OBST member
+- selecting one stream during inspection
+- nested inspection of logical bytes that happen to contain OBST
 - indexed or random-access reads
-- autotuned recipe selection in the production packager
-- recursive or cross-stream repacking
-- directory-tree and filesystem-metadata profiles
+
+Contributed commands own their own unsupported-operation lists.
 
 ## Built-in help
 

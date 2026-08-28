@@ -241,7 +241,7 @@ encoder choice. Regenerate the checked-in catalog from the repository root
 with:
 
 ```console
-python scripts/build_conformance.py
+python examples/plugin_adaptive_zlib/scripts/build_conformance.py
 ```
 
 ## Trust boundary
@@ -263,6 +263,9 @@ plugin_adaptive_zlib/
     pyproject.toml
     README.md
     compare_samples.py
+    scripts/
+        build_conformance.py
+        quality.py
     src/obst_example_adaptive_zlib/
         __init__.py
         commands.py
@@ -270,4 +273,5 @@ plugin_adaptive_zlib/
         conformance_vectors/
             index.json
         extension.py
+    tests/
 ```

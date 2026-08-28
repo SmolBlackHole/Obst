@@ -47,7 +47,7 @@ class MemoryCarrierExtension:
         summary="Read or publish a complete OBST stream in memory.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/extensions/carriers/memory.md"
+            "plugins/defaults/docs/carriers/memory.md"
         ),
     )
 

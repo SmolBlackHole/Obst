@@ -56,7 +56,7 @@ class FixedPackagerExtension:
         summary="Package each logical source once with its declared fixed recipe.",
         specification_url=(
             "https://github.com/SmolBlackHole/Obst/blob/main/"
-            "docs/extensions/packagers/fixed.md"
+            "plugins/defaults/docs/packagers/fixed.md"
         ),
     )
 

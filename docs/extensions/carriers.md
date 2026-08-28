@@ -16,7 +16,7 @@ registry and never enter container bytes.
 	- [Writer and publisher semantics](#writer-and-publisher-semantics)
 		- [Negative lifecycle cases](#negative-lifecycle-cases)
 	- [Typed requests](#typed-requests)
-	- [First-party carriers](#first-party-carriers)
+	- [Concrete carriers](#concrete-carriers)
 	- [Third-party carriers](#third-party-carriers)
 
 ## Extension and session contracts
@@ -71,62 +71,33 @@ writer:     open -> incremental visibility -> finish -> close
 publisher:  open -> unpublished bytes -> commit or abort
 ```
 
-The first-party orchestration helpers are imported from the separately
-installable defaults package:
-
-```python
-from obst_defaults.carriers import publish_package, write_package
-```
-
-`write_package(operation, writer)` may leave a visible prefix if writing
-fails. It attempts to close the session and preserves the primary failure.
-
-`publish_package(operation, publisher)` reports success only after `commit()`.
-If opening, packaging, writing or committing fails, it attempts `abort()` and
-adds an abort failure as an exception note without replacing the primary
-error.
+A host composes a prepared package operation with one of these sessions. A
+streaming writer may leave a visible prefix after failure. A transactional
+publisher commits only after the package operation succeeds and otherwise
+aborts. Concrete orchestration helpers, result values and failure types belong
+to the distribution that supplies them.
 
 Returning successfully from `commit()` means publication is already complete.
-Cleanup that fails after publication belongs in
-`PublicationReceipt.cleanup_issues`; it must not turn a visible complete
-target into a false commit failure.
+A provider must not report a commit failure after making the complete target
+visible.
 
 ### Negative lifecycle cases
 
-| Failure point                                       | Required result                                                           |
-| --------------------------------------------------- | ------------------------------------------------------------------------- |
-| reader `open()` fails                               | no container operation starts; carrier failure remains primary            |
-| writer fails after exposing bytes                   | partial output may remain; close is attempted                             |
-| packaging fails through a publisher                 | no commit; abort is attempted                                             |
-| publisher `commit()` fails before publish           | commit failure remains primary; abort failure becomes an exception note   |
-| cleanup fails after publication                     | successful receipt with `cleanup_issues`                                  |
-| invalid non-idempotent transition after termination | `CarrierStateError`; `close()` and pre-commit `abort()` may be idempotent |
-
-This publisher is invalid:
-
-```python
-def commit(self) -> PublicationReceipt[str]:
-    publish_complete_target()
-    remove_temporary_state()  # raises after the target became visible
-    return PublicationReceipt("target", ())
-```
-
-It can report failure after publication succeeded. A correct publisher enters
-committed state when the complete target becomes visible and reports later
-cleanup failures in the receipt.
+| Failure point                             | Required result                                                            |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| reader `open()` fails                     | no container operation starts; carrier failure remains primary             |
+| writer fails after exposing bytes         | partial output may remain; close is attempted                              |
+| packaging fails through a publisher       | no commit; abort is attempted                                              |
+| publisher `commit()` fails before publish | commit failure remains primary; abort failure becomes an exception note    |
+| cleanup fails after publication           | provider reports successful publication plus its owned cleanup result      |
+| invalid transition after termination      | provider-owned state failure; documented idempotent cleanup may still work |
 
 ## Typed requests
 
-Requests belong to their carrier because unrelated transports do not share one
-honest option dictionary:
-
-```python
-FilesystemReadRequest(path)
-FilesystemPublishRequest(path, overwrite=False)
-MemoryReadRequest(data)
-MemoryPublishRequest()
-StdinReadRequest(source)
-```
+Requests belong to their Carrier because unrelated transports do not share one
+honest option dictionary. An object store may require a bucket and key, a
+database may require a connection and row identity, and a stream may require a
+host-owned endpoint.
 
 The composition root may know the selected carrier ID and request type. It
 resolves the provider from `ExtensionRegistry` and never constructs a concrete
@@ -136,20 +107,13 @@ Passing the wrong request type is a carrier contract failure. There is no
 generic `**kwargs` fallback and no filename-shaped universal URI pretending to
 model memory, databases and sockets equally well.
 
-## First-party carriers
+## Concrete carriers
 
-The `obst-defaults` distribution supplies these carriers through its ordinary
-`obst.extensions` plugin contribution. They enter a runtime only when the host
-explicitly activates or directly composes that plugin's objects.
-
-| ID                  | Capabilities  | Endpoint                 | Detailed page                                |
-| ------------------- | ------------- | ------------------------ | -------------------------------------------- |
-| `obst.filesystem@1` | read, publish | Caller-selected path     | [Filesystem](carriers/filesystem.md)         |
-| `obst.memory@1`     | read, publish | Immutable Python `bytes` | [Memory](carriers/memory.md)                 |
-| `obst.stdin@1`      | read          | Host-owned binary input  | [Standard input](carriers/standard-input.md) |
-
-Those pages own adapter-specific requests, guarantees and limitations. This
-page owns the provider and session contracts shared by every carrier.
+The separately installable `obst-defaults` plugin documents its
+[filesystem, memory and standard-input Carriers](../../plugins/defaults/docs/carriers/README.md).
+Those pages own adapter-specific requests, orchestration helpers, guarantees
+and limitations. This page owns only the provider and session contracts shared
+by every Carrier.
 
 ## Third-party carriers
 

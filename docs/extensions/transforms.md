@@ -1,55 +1,47 @@
-# Transforms
+# Transform Stages
 
 Parent: [Extension system](README.md)
 
 A transform is a [Stage Extension](stages.md) that rearranges or recodes bytes
-so another stage can represent them more effectively. It is a role, not a
-separate core protocol or registry type. Like every stage, it must remain
-exactly reversible and chunk-local.
+so another Stage can represent them more effectively. It is a design role, not
+a separate registry kind or provider protocol.
 
 ## Table of contents
 
-- [Transforms](#transforms)
+- [Transform Stages](#transform-stages)
 	- [Table of contents](#table-of-contents)
-	- [First-party transform](#first-party-transform)
-	- [Contract boundaries](#contract-boundaries)
+	- [Transform boundary](#transform-boundary)
+	- [Chunk independence](#chunk-independence)
+	- [Lossless scope](#lossless-scope)
+	- [Concrete example](#concrete-example)
 
-A recipe may combine transforms with codecs:
+## Transform boundary
+
+A transform participates in the same reversible Recipe contract as a codec:
 
 ```text
 logical bytes -> transform -> codec -> encoded payload
 logical bytes <- inverse   <- decode <- encoded payload
 ```
 
-## First-party transform
+Encoding applies Stages in declaration order. Decoding applies inverse
+operations in reverse order.
 
-| Extension       | Purpose                | Normative contract                      | Python provider   |
-| --------------- | ---------------------- | --------------------------------------- | ----------------- |
-| `obst.delta8@1` | Modulo-256 byte deltas | [Delta8](../contracts/stages/delta8.md) | `Delta8Extension` |
+## Chunk independence
 
-```python
-from obst.core import ExtensionRegistry
-from obst_defaults.transforms import Delta8Extension
+A transform must define alignment, reset behavior and malformed inputs. Hidden
+state across calls makes independently framed chunks unsafe. Record-aware
+transforms must state what happens when a chunk ends in the middle of a record.
 
-registry = ExtensionRegistry((Delta8Extension(),))
-```
+## Lossless scope
 
-`Delta8Extension` is a self-describing object with the same binding and
-execution path available to third-party stages. It receives empty parameters,
-binds once per recipe and direction, and applies no state across chunks.
+Stages advertised as reversible cannot hide lossy conversion. Numeric scaling,
+quantization and schema meaning belong to a versioned
+[stream profile](profiles.md) whose logical-byte representation states that
+meaning explicitly.
 
-## Contract boundaries
+## Concrete example
 
-A transform must define chunk alignment and state explicitly. Hidden state
-across calls would make independently processed chunks unsafe. Record-aware
-transforms must define what happens when a chunk ends in the middle of a
-record.
-
-The exact Delta8 formulas, reset rule and invalid inputs belong to its
-[normative contract](../contracts/stages/delta8.md), not this Python extension
-guide.
-
-Lossy conversion does not belong in a stage advertised as reversible. Numeric
-scaling, quantization and schema meaning belong in a versioned
-[stream profile](profiles.md) whose logical-byte encoding states the loss
-explicitly.
+The separately distributed
+[`obst-defaults` transform guide](../../plugins/defaults/docs/transforms.md)
+documents its Delta8 provider and normative contract.
