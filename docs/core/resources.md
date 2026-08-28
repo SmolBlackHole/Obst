@@ -108,6 +108,10 @@ Readers and writers use the same default declaration and chunk policy. Output
 created under the default writer policy is therefore not rejected merely by
 the default reader policy of the same implementation.
 
+A writer reserves the mandatory 64-byte terminal commit when it opens and
+before it accepts each chunk. It therefore refuses a prefix that could fit the
+ceiling but could never become a complete OBST container.
+
 ## Policy refusal
 
 Crossing a local ceiling raises `ResourceLimitError`. It exposes structured

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import struct
 
 import pytest
@@ -15,6 +16,7 @@ from obst.core.wire import (
     TerminalCommit,
     UnsignedInteger,
     extension_declaration,
+    format_version,
     little_endian,
     recipe_declaration,
     stage_declaration,
@@ -143,6 +145,12 @@ def test_container_header_round_trip() -> None:
 
     assert len(encoded) == ContainerHeader.size == 32
     assert encoded.startswith(ContainerHeader.magic)
+    assert record.version is format_version
+    assert tuple(inspect.signature(ContainerHeader).parameters) == (
+        "manifest_size",
+        "stream_count",
+        "recipe_count",
+    )
     assert ContainerHeader.decode(encoded) == record
 
 

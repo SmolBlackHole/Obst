@@ -25,9 +25,10 @@ from obst.core.io import (
 )
 from obst.core.manifest import (
     ManifestIndex,
-    decode_manifest,
+    decode_manifest_parts,
     encode_manifest,
     validate_manifest_counts,
+    validate_manifest_header,
 )
 from obst.core.model import Chunk, Manifest
 from obst.core.resources import (
@@ -40,6 +41,7 @@ from obst.core.wire import (
     ChunkHeader,
     ContainerHeader,
     FormatVersion,
+    ManifestHeader,
     TerminalCommit,
     uint64,
 )
@@ -128,7 +130,9 @@ class ContainerWriter:
                 chunk,
                 added_container_bytes=len(header) + chunk.encoded_size,
             )
-            self._require_container_capacity(len(header) + chunk.encoded_size)
+            self._require_container_capacity(
+                len(header) + chunk.encoded_size + TerminalCommit.size
+            )
             self._budget.consume_chunk(phase="container_write")
             self._budget.observe_logical_bytes(
                 self._logical_size + chunk.logical_size,
@@ -171,7 +175,9 @@ class ContainerWriter:
             stream_count=len(self.manifest.streams),
             recipe_count=len(self.manifest.recipes),
         ).encode()
-        self._require_container_capacity(len(header) + len(manifest_bytes))
+        self._require_container_capacity(
+            len(header) + len(manifest_bytes) + TerminalCommit.size
+        )
         write_all(self._target, header)
         write_all(self._target, manifest_bytes)
 
@@ -354,14 +360,30 @@ class ContainerReader:
             limits=self.limits,
         )
         self._require_container_capacity(parsed.manifest_size)
-        manifest_bytes = read_exact(
+        if parsed.manifest_size < ManifestHeader.size:
+            raise InvalidContainerError("manifest is shorter than its fixed header")
+        manifest_header_bytes = read_exact(
             self._source,
-            parsed.manifest_size,
-            structure="manifest",
+            ManifestHeader.size,
+            structure="manifest header",
         )
-        assert manifest_bytes is not None
-        manifest = decode_manifest(
-            manifest_bytes,
+        assert manifest_header_bytes is not None
+        manifest_header = ManifestHeader.decode(manifest_header_bytes)
+        validate_manifest_header(
+            manifest_header,
+            manifest_size=parsed.manifest_size,
+            limits=self.limits,
+            phase="container_read",
+        )
+        manifest_body = read_exact(
+            self._source,
+            manifest_header.body_size,
+            structure="manifest body",
+        )
+        assert manifest_body is not None
+        manifest = decode_manifest_parts(
+            manifest_header,
+            manifest_body,
             recipe_count=parsed.recipe_count,
             stream_count=parsed.stream_count,
             limits=self.limits,

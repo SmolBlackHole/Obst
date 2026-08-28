@@ -49,6 +49,15 @@ def test_format_suite_covers_every_structural_outcome() -> None:
     } == set(ContainerStructuralOutcome)
 
 
+def test_format_suite_pins_confirmed_portable_regressions() -> None:
+    case_ids = {case.case_id for case in obst_conformance().cases}
+
+    assert {
+        "complete-chunk-suffix-removed",
+        "extension-id-dual-role",
+    } <= case_ids
+
+
 def test_format_vectors_are_packaged_resources() -> None:
     root = files("obst.conformance").joinpath("corpus")
 

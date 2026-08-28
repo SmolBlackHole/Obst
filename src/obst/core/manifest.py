@@ -223,6 +223,31 @@ def validate_manifest_counts(
     )
 
 
+def validate_manifest_header(
+    header: ManifestHeader,
+    *,
+    manifest_size: int,
+    limits: ResourceLimits,
+    phase: str = "manifest_decode",
+) -> None:
+    """Validate declared manifest framing and Extension count policy."""
+    if type(header) is not ManifestHeader:
+        raise TypeError("manifest header must be an exact ManifestHeader")
+    if manifest_size < ManifestHeader.size:
+        raise InvalidContainerError("manifest is shorter than its fixed header")
+    if header.body_size != manifest_size - ManifestHeader.size:
+        raise InvalidContainerError(
+            "manifest body size does not match container header"
+        )
+    ResourceBudget(limits).require(
+        resource="extensions",
+        scope="manifest",
+        maximum=limits.max_extensions,
+        observed=header.extension_count,
+        phase=phase,
+    )
+
+
 def decode_manifest(
     data: bytes,
     *,
@@ -248,21 +273,68 @@ def decode_manifest(
         raise InvalidContainerError("manifest is shorter than its fixed header")
 
     header = ManifestHeader.decode(data[: ManifestHeader.size])
-    if header.body_size != len(data) - ManifestHeader.size:
-        raise InvalidContainerError(
-            "manifest body size does not match container header"
-        )
-
     body = data[ManifestHeader.size :]
-    if zlib.crc32(body) != header.body_crc32:
-        raise CorruptContainerError("manifest body checksum mismatch")
+    validate_manifest_header(
+        header,
+        manifest_size=len(data),
+        limits=limits,
+    )
+    return _decode_manifest_body(
+        header,
+        body,
+        recipe_count=recipe_count,
+        stream_count=stream_count,
+        budget=budget,
+    )
+
+
+def decode_manifest_parts(
+    header: ManifestHeader,
+    body: bytes,
+    *,
+    recipe_count: int,
+    stream_count: int,
+    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+) -> Manifest:
+    """Decode one validated fixed header and its exact manifest body."""
+    manifest_size = ManifestHeader.size + len(body)
+    budget = ResourceBudget(limits)
     budget.require(
-        resource="extensions",
+        resource="manifest_bytes",
         scope="manifest",
-        maximum=limits.max_extensions,
-        observed=header.extension_count,
+        maximum=limits.max_manifest_bytes,
+        observed=manifest_size,
         phase="manifest_decode",
     )
+    validate_manifest_counts(
+        recipe_count=recipe_count,
+        stream_count=stream_count,
+        limits=limits,
+    )
+    validate_manifest_header(
+        header,
+        manifest_size=manifest_size,
+        limits=limits,
+    )
+    return _decode_manifest_body(
+        header,
+        body,
+        recipe_count=recipe_count,
+        stream_count=stream_count,
+        budget=budget,
+    )
+
+
+def _decode_manifest_body(
+    header: ManifestHeader,
+    body: bytes,
+    *,
+    recipe_count: int,
+    stream_count: int,
+    budget: ResourceBudget,
+) -> Manifest:
+    if zlib.crc32(body) != header.body_crc32:
+        raise CorruptContainerError("manifest body checksum mismatch")
 
     cursor = Cursor(body)
     extensions = _decode_extensions(cursor, header.extension_count)

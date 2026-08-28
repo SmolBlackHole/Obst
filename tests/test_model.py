@@ -550,6 +550,19 @@ def test_manifest_rejects_unreferenced_extension_declarations() -> None:
         )
 
 
+def test_manifest_rejects_one_extension_id_in_stage_and_stream_roles() -> None:
+    shared_id = "org.example/dual-role@1"
+
+    with pytest.raises(
+        ValueError,
+        match="cannot identify both a Stage and a stream type",
+    ):
+        Manifest(
+            recipes=(Recipe(0, (StageSpec(shared_id),)),),
+            streams=(Stream(0, shared_id, 0),),
+        )
+
+
 @pytest.mark.parametrize(
     "specification_url",
     [

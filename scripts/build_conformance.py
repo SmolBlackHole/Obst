@@ -557,6 +557,36 @@ def _replace_manifest(
     return committed + terminal
 
 
+def _dual_role_extension_container(encoded: bytes) -> bytes:
+    manifest = _raw_manifest()
+    encoded_manifest = _manifest_bytes(encoded)
+    offsets = _manifest_offsets(manifest)
+    body = bytearray(encoded_manifest[ManifestHeader.size :])
+    stage_entry_start = (
+        offsets.extension_ids[_IdentityStage.extension_id]
+        - extension_declaration.size
+        - ManifestHeader.size
+    )
+    stage_entry_end = offsets.extensions_end - ManifestHeader.size
+    removed_size = stage_entry_end - stage_entry_start
+    del body[stage_entry_start:stage_entry_end]
+    recipe_stage_offset = (
+        offsets.recipe_stage_offsets[0][0] - ManifestHeader.size - removed_size
+    )
+    struct.pack_into("<I", body, recipe_stage_offset, 0)
+    dual_role_manifest = _manifest_with_body(
+        encoded_manifest,
+        bytes(body),
+        extension_count=1,
+    )
+    return _replace_manifest(
+        encoded,
+        dual_role_manifest,
+        recipe_count=1,
+        stream_count=1,
+    )
+
+
 def _used_unknown_stage_container(raw: bytes) -> bytes:
     offsets = _manifest_offsets(_raw_manifest())
     assert len(_UNKNOWN_STAGE_ID) == len(_IdentityStage.extension_id)
@@ -1061,6 +1091,13 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         "invalid_structure",
         extension_rule,
     )
+    reject(
+        "extension-id-dual-role",
+        _dual_role_extension_container(raw),
+        ("extension", "identifier", "stage-stream-role"),
+        "invalid_structure",
+        extension_rule,
+    )
 
     url_container = _specification_url_container()
     url_offsets = _manifest_offsets(_specification_url_manifest())
@@ -1342,6 +1379,13 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         ((0, 0, 0, b"first"), (0, 1, 0, b"second")),
     )
     second_chunk_offset = _chunk_offsets(two_chunks)[1]
+    reject(
+        "complete-chunk-suffix-removed",
+        two_chunks[:second_chunk_offset],
+        ("chunk", "terminal-commit", "complete-suffix", "truncation"),
+        "truncated",
+        terminal_rule,
+    )
     reject(
         "chunk-sequence-gap",
         _mutate_committed_record(

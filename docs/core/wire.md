@@ -107,7 +107,8 @@ instead of synchronizing a separate `CHUNK_HEADER_SIZE` constant with a layout.
 
 `container.py` uses the typed records for the outer header, chunks and terminal
 commitment. It validates declared recipe and stream counts from
-`ContainerHeader` before requesting variable-size manifest bytes.
+`ContainerHeader`, then reads the fixed `ManifestHeader` and validates its body
+size and Extension count before requesting the variable-size manifest body.
 
 `manifest.py` uses `ManifestHeader` and the declaration layouts while a
 bounds-checked `Cursor` consumes variable-length manifest data. Its encoder

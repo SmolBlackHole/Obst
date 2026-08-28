@@ -223,16 +223,15 @@ class ContainerHeader:
     manifest_size: int
     stream_count: int
     recipe_count: int
-    version: FormatVersion = format_version
 
     magic: ClassVar[bytes] = b"OBST"
     size: ClassVar[int] = _container_header_layout.size
+    version: ClassVar[FormatVersion] = format_version
 
     def __post_init__(self) -> None:
         uint32.require("manifest_size", self.manifest_size)
         uint32.require("stream_count", self.stream_count)
         uint32.require("recipe_count", self.recipe_count)
-        _require_format_version(self.version)
 
     def encode(self) -> bytes:
         """Encode this header with canonical flags, reserved fields and CRC."""
@@ -507,8 +506,3 @@ def _require_hash(name: str, value: object) -> None:
         raise TypeError(f"{name} must be bytes")
     if len(value) != BLAKE2S_128_SIZE:
         raise ValueError(f"{name} must contain exactly {BLAKE2S_128_SIZE} bytes")
-
-
-def _require_format_version(value: object) -> None:
-    if not isinstance(value, FormatVersion):
-        raise TypeError("version must be a FormatVersion")

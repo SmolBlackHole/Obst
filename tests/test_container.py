@@ -81,6 +81,16 @@ class _HeaderOnlyReader:
         return self._header
 
 
+class _RecordingReader:
+    def __init__(self, data: bytes) -> None:
+        self._source = io.BytesIO(data)
+        self.requested_sizes: list[int] = []
+
+    def read(self, size: int = -1, /) -> bytes:
+        self.requested_sizes.append(size)
+        return self._source.read(size)
+
+
 class _SwitchableFailingWriter:
     def __init__(self) -> None:
         self.data = bytearray()
@@ -234,6 +244,19 @@ def test_container_reader_rejects_declared_counts_before_reading_manifest(
         ContainerReader(source, limits=limits)
 
     assert source.requested_sizes == [ContainerHeader.size]
+
+
+def test_extension_count_is_checked_before_manifest_body_read() -> None:
+    encoded = write_container(raw_manifest(), b"payload")
+    source = _RecordingReader(encoded)
+
+    with pytest.raises(ResourceLimitError, match="extensions"):
+        ContainerReader(
+            source,
+            limits=ResourceLimits(max_extensions=0),
+        )
+
+    assert source.requested_sizes == [ContainerHeader.size, ManifestHeader.size]
 
 
 @pytest.mark.parametrize("removed_bytes", [1, 5, 47, TerminalCommit.size])
@@ -1306,6 +1329,60 @@ def test_writer_rejects_oversized_manifest_before_publishing_bytes() -> None:
         )
 
     assert target.getvalue() == b""
+
+
+def test_writer_reserves_terminal_commit_before_publishing_header() -> None:
+    manifest = raw_manifest()
+    complete = write_container(manifest, b"")
+    target = io.BytesIO()
+
+    writer = ContainerWriter(
+        target,
+        manifest,
+        limits=ResourceLimits(max_container_bytes=len(complete)),
+    )
+    summary = writer.finish()
+
+    assert target.getvalue() == complete
+    assert summary.encoded_size == len(complete)
+
+    refused_target = io.BytesIO()
+    with pytest.raises(ResourceLimitError) as error:
+        ContainerWriter(
+            refused_target,
+            manifest,
+            limits=ResourceLimits(max_container_bytes=len(complete) - 1),
+        )
+    assert error.value.resource == "container_bytes"
+    assert error.value.observed == len(complete)
+    assert refused_target.getvalue() == b""
+
+
+def test_writer_reserves_terminal_commit_before_publishing_chunk() -> None:
+    manifest = raw_manifest()
+    registry = _stage_registry()
+    chunk = _encode_for_manifest(
+        manifest,
+        registry,
+        stream_id=0,
+        sequence=0,
+        data=b"payload",
+    )
+    complete = write_container(manifest, b"payload", registry=registry)
+    target = io.BytesIO()
+    writer = ContainerWriter(
+        target,
+        manifest,
+        limits=ResourceLimits(max_container_bytes=len(complete) - 1),
+    )
+    prefix = target.getvalue()
+
+    with pytest.raises(ResourceLimitError) as error:
+        writer.write_chunk(chunk)
+
+    assert error.value.resource == "container_bytes"
+    assert error.value.observed == len(complete)
+    assert target.getvalue() == prefix
 
 
 def test_writer_refuses_chunk_count_before_publishing_rejected_chunk() -> None:

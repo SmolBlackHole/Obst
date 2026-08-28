@@ -157,10 +157,18 @@ class Manifest:
                     f"{stream.default_recipe_id}"
                 )
 
-        referenced_ids = {stream.stream_type for stream in self.streams}
-        referenced_ids.update(
+        stream_type_ids = {stream.stream_type for stream in self.streams}
+        stage_ids = {
             stage.stage_id for recipe in self.recipes for stage in recipe.stages
-        )
+        }
+        shared_ids = stream_type_ids & stage_ids
+        if shared_ids:
+            extension_id = min(shared_ids)
+            raise ValueError(
+                "extension id cannot identify both a Stage and a stream type: "
+                f"{extension_id}"
+            )
+        referenced_ids = stream_type_ids | stage_ids
         declared_by_id = {
             declaration.extension_id: declaration for declaration in self.extensions
         }

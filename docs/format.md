@@ -209,7 +209,9 @@ validation rules requires a new positive version after `@`.
 
 The table contains both stream-type and pipeline-Stage identifiers. References
 below are zero-based indexes into this table. Identity is the complete
-identifier, including its version.
+identifier, including its version. The sets of identifiers referenced as
+stream types and as Stages are disjoint: one identifier cannot serve both
+roles in the same manifest.
 
 A non-empty specification URL has an ASCII scheme followed by `:` and an
 optional suffix. The scheme begins with an ASCII letter and continues with
