@@ -72,7 +72,7 @@ class ResourceLimitError(ObstError):
 
 
 class ProviderRejectedError(Exception):
-    """A stage provider deliberately rejected parameters or payload bytes."""
+    """A provider deliberately rejected authoritative parameters or bytes."""
 
     def __init__(self, reason: str) -> None:
         if type(reason) is not str:

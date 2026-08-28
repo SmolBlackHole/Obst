@@ -30,12 +30,11 @@ from obst.core import (
     require_stage_output_size,
 )
 from obst.core.registry import ExtensionRegistry, ExtensionRegistryBuilder
-from obst_defaults.codecs.raw import RawExtension
-from obst_defaults.codecs.zlib import (
-    ZlibDictionaryExtension,
-    ZlibExtension,
+from tests.support_extensions import (
+    CompressionExtension,
+    DeltaExtension,
+    IdentityExtension,
 )
-from obst_defaults.transforms.delta8 import Delta8Extension
 
 _CUSTOM_STAGE_ID = "org.example/identity@1"
 _CUSTOM_STAGE_DESCRIPTOR = ExtensionDescriptor(
@@ -250,13 +249,12 @@ class _NonCallablePackagerExtension:
 @pytest.mark.parametrize(
     ("extension", "stage_id"),
     (
-        (RawExtension(), "obst.raw@1"),
-        (Delta8Extension(), "obst.delta8@1"),
-        (ZlibExtension(), "obst.zlib@1"),
-        (ZlibDictionaryExtension(), "obst.zlib@2"),
+        (IdentityExtension(), IdentityExtension.extension_id),
+        (DeltaExtension(), DeltaExtension.extension_id),
+        (CompressionExtension(), CompressionExtension.extension_id),
     ),
 )
-def test_direct_registry_construction_exposes_first_party_capabilities(
+def test_direct_registry_construction_exposes_neutral_test_capabilities(
     extension: Extension,
     stage_id: str,
 ) -> None:
@@ -401,7 +399,7 @@ def test_registry_exposes_packager_without_preparing_it() -> None:
 
 
 def test_runtime_registry_exposes_only_pure_capability_lookups() -> None:
-    registry = ExtensionRegistry((RawExtension(),))
+    registry = ExtensionRegistry((IdentityExtension(),))
 
     assert not hasattr(registry, "register")
     assert not hasattr(registry, "extensions")
@@ -411,12 +409,12 @@ def test_runtime_registry_exposes_only_pure_capability_lookups() -> None:
     assert not hasattr(registry, "interpret_stream_metadata")
 
 
-def test_first_party_and_third_party_extensions_share_registration() -> None:
-    builder = ExtensionRegistryBuilder((RawExtension(),))
+def test_independent_extensions_share_one_registration_path() -> None:
+    builder = ExtensionRegistryBuilder((IdentityExtension(),))
     builder.register(_IdentityEncoderExtension())
     registry = builder.build()
 
-    assert registry.can_encode("obst.raw@1")
+    assert registry.can_encode(IdentityExtension.extension_id)
     assert registry.can_encode(_CUSTOM_STAGE_ID)
 
 

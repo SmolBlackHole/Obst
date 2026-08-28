@@ -235,12 +235,13 @@ malformed-input and output-limit cases:
 obst plugins test adaptive-zlib
 ```
 
-The suite lives in packaged `index.json` and `.hex` resources. It verifies
-known decoding and local round trips without demanding one canonical encoder
-choice. Regenerate the checked-in artifacts from the repository root with:
+The suite lives in one packaged `index.json` with inline hexadecimal bytes. It
+verifies known decoding and local round trips without demanding one canonical
+encoder choice. Regenerate the checked-in catalog from the repository root
+with:
 
 ```console
-python scripts/build_plugin_conformance.py
+python scripts/build_conformance.py
 ```
 
 ## Trust boundary
@@ -268,6 +269,5 @@ plugin_adaptive_zlib/
         conformance.py
         conformance_vectors/
             index.json
-            vectors/*.hex
         extension.py
 ```

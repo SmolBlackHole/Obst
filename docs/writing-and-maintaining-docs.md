@@ -247,18 +247,21 @@ keeping checked-off items.
 ## Keep examples honest
 
 - Run commands against the checked-in CLI.
-- Import neutral runtime names from `obst.core`, first-party implementation
-  names from `obst_defaults` and example-plugin names from their own package.
+- Import neutral runtime names from `obst.core`. Plugin-owned documentation and
+  executable examples belong with that plugin and import its package there.
 - Mark illustrative IDs and stages as examples when OBST does not ship them.
 - Preserve binary literals, identifiers, URLs and measured output exactly.
 - Write measured quantities and counts with numerals, such as `8 MiB`, `1 byte`
   and `2 streams`, instead of spelling out the number.
 - Do not present roadmap behavior as a runnable example.
 
-Documentation tests parse public `python` fences and resolve every imported
-`obst.*` and `obst_defaults.*` module and name. Ordinary fragments are not
-executed, so they must still be reviewed for truthful behavior, safe bounds
-and complete surrounding context.
+Runtime documentation tests parse public `python` fences and resolve every
+imported `obst.*` module and name. Plugin-specific examples remain
+non-executable while their documentation still lives in the central tree;
+moving those pages and executable checks into their owning distributions is a
+separate documentation-ownership pass. Ordinary fragments are not executed,
+so they must still be reviewed for truthful behavior, safe bounds and complete
+surrounding context.
 
 ### Executable canonical examples
 

@@ -8,9 +8,11 @@ from obst.conformance.catalog import (
 from obst.conformance.model import (
     ConformanceCaseKind,
     ConformanceCaseResult,
+    ConformanceReport,
     ConformanceSuite,
     ContainerRecoveryCase,
-    PluginConformanceReport,
+    ContainerStructuralOutcome,
+    ContainerStructureCase,
     PortableConformanceCase,
     RecoveredStreamExpectation,
     StageBindRejectionCase,
@@ -25,8 +27,7 @@ from obst.conformance.model import (
 )
 from obst.conformance.runner import (
     ConformanceError,
-    check_plugin_conformance,
-    check_stage_conformance,
+    run_conformance_suite,
 )
 
 __all__ = [
@@ -34,9 +35,11 @@ __all__ = [
     "ConformanceCaseKind",
     "ConformanceCaseResult",
     "ConformanceError",
+    "ConformanceReport",
     "ConformanceSuite",
     "ContainerRecoveryCase",
-    "PluginConformanceReport",
+    "ContainerStructuralOutcome",
+    "ContainerStructureCase",
     "PortableConformanceCase",
     "RecoveredStreamExpectation",
     "StageBindRejectionCase",
@@ -48,8 +51,7 @@ __all__ = [
     "StreamMetadataCase",
     "StreamMetadataRejectionCase",
     "case_extension_id",
-    "check_plugin_conformance",
-    "check_stage_conformance",
     "load_conformance_suite",
+    "run_conformance_suite",
     "write_conformance_suite",
 ]

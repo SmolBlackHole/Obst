@@ -8,9 +8,11 @@ from typing import cast
 
 from obst.conformance.model import (
     ConformanceCaseResult,
+    ConformanceReport,
     ConformanceSuite,
     ContainerRecoveryCase,
-    PluginConformanceReport,
+    ContainerStructuralOutcome,
+    ContainerStructureCase,
     PortableConformanceCase,
     StageBindRejectionCase,
     StageDecodeRejectionCase,
@@ -22,13 +24,21 @@ from obst.conformance.model import (
     case_extension_id,
 )
 from obst.core.container import ContainerReader
-from obst.core.errors import ObstError
+from obst.core.errors import (
+    CorruptContainerError,
+    InvalidContainerError,
+    ObstError,
+    ProviderRejectedError,
+    TruncatedContainerError,
+    UnsupportedVersionError,
+)
 from obst.core.extensions import (
     Extension,
-    ExtensionKind,
     StageParameterEncoder,
     StreamMetadataEncoder,
+    provider_rejection_resource_limit,
 )
+from obst.core.inspection import inspect_container
 from obst.core.model import Recipe, StageSpec
 from obst.core.pipeline import RecipeDecoder, RecipeEncoder
 from obst.core.registry import (
@@ -44,48 +54,27 @@ class ConformanceError(ObstError):
     """A portable suite or its claimed coverage violates the contract."""
 
 
-def check_stage_conformance(
-    extension: Extension,
-    case: StageKnownAnswerCase,
-) -> None:
-    """Check one Stage known-answer case against one Extension object."""
-    registry = ExtensionRegistry((extension,))
-    capabilities = registry.capabilities()
-    if (
-        len(capabilities) != 1
-        or capabilities[0].kind is not ExtensionKind.STAGE
-        or capabilities[0].extension_id != case.extension_id
-    ):
-        provided = ", ".join(item.extension_id for item in capabilities) or "<none>"
-        raise ConformanceError(
-            f"case names {case.extension_id}, extension provides {provided}"
-        )
+def run_conformance_suite(
+    suite: ConformanceSuite,
+    extensions: tuple[Extension, ...] = (),
+    *,
+    dependencies: tuple[Extension, ...] = (),
+) -> ConformanceReport:
+    """Run one static suite against explicit owned and dependency Extensions."""
+    if type(suite) is not ConformanceSuite:
+        raise TypeError("suite must be an exact ConformanceSuite")
+    if type(extensions) is not tuple:
+        raise TypeError("extensions must be a tuple")
+    if type(dependencies) is not tuple:
+        raise TypeError("dependencies must be a tuple")
     try:
-        _check_stage_known_answer(registry, case)
-    except ConformanceError:
-        raise
+        owned_registry = ExtensionRegistry(extensions)
+        registry = ExtensionRegistry((*extensions, *dependencies))
     except Exception as exc:
         raise ConformanceError(
-            f"known-answer check failed: {type(exc).__name__}: {exc}"
+            f"cannot compose conformance registry: {type(exc).__name__}: {exc}"
         ) from exc
-
-
-def check_plugin_conformance(
-    plugin_name: str,
-    registry: ExtensionRegistry,
-    suite: ConformanceSuite,
-    *,
-    owned_capabilities: tuple[ExtensionCapability, ...] | None = None,
-) -> PluginConformanceReport:
-    """Run one static suite against an explicitly composed capability snapshot."""
-    if suite.plugin_name != plugin_name:
-        raise ConformanceError(
-            f"suite belongs to plugin {suite.plugin_name}, not {plugin_name}"
-        )
-    owned = (
-        registry.capabilities() if owned_capabilities is None else owned_capabilities
-    )
-    _validate_suite_coverage(suite, owned, registry)
+    _validate_suite_coverage(suite, owned_registry.capabilities(), registry)
     results: list[ConformanceCaseResult] = []
     for case in suite.cases:
         try:
@@ -110,7 +99,7 @@ def check_plugin_conformance(
                     None,
                 )
             )
-    return PluginConformanceReport(plugin_name, tuple(results))
+    return ConformanceReport(tuple(results))
 
 
 def _validate_suite_coverage(
@@ -205,6 +194,8 @@ def _check_case(
         _check_stream_metadata(registry, case)
     elif type(case) is StreamMetadataRejectionCase:
         _check_stream_metadata_rejection(registry, case)
+    elif type(case) is ContainerStructureCase:
+        _check_container_structure(case)
     else:
         assert type(case) is ContainerRecoveryCase
         _check_container_recovery(registry, case)
@@ -274,7 +265,7 @@ def _check_stage_bind_rejection(
 ) -> None:
     parameter_decoder = registry.get_stage_parameter_decoder(case.extension_id)
     if parameter_decoder is not None:
-        _require_rejection(
+        _require_provider_rejection(
             lambda: parameter_decoder.decode_parameters(case.parameters),
             "parameter decoder accepted rejected parameters",
         )
@@ -285,13 +276,13 @@ def _check_stage_bind_rejection(
             raise ConformanceError("parameter interpreter did not report an error")
     if "encode" in case.directions:
         encoder_provider = registry.require_encoder_provider(case.extension_id)
-        _require_rejection(
+        _require_provider_rejection(
             lambda: encoder_provider.bind_encoder(case.parameters),
             "encoder accepted rejected parameters",
         )
     if "decode" in case.directions:
         decoder_provider = registry.require_decoder_provider(case.extension_id)
-        _require_rejection(
+        _require_provider_rejection(
             lambda: decoder_provider.bind_decoder(case.parameters),
             "decoder accepted rejected parameters",
         )
@@ -303,7 +294,7 @@ def _check_stage_decode_rejection(
 ) -> None:
     provider = registry.require_decoder_provider(case.extension_id)
     bound = provider.bind_decoder(case.parameters)
-    _require_rejection(
+    _require_provider_rejection(
         lambda: bound.decode(
             case.encoded,
             max_output_size=case.max_output_size,
@@ -320,23 +311,25 @@ def _check_stage_output_limit(
         bound_encoder = registry.require_encoder_provider(
             case.extension_id
         ).bind_encoder(case.parameters)
-        _require_rejection(
-            lambda: bound_encoder.encode(
+        _require_output_limit(
+            lambda maximum: bound_encoder.encode(
                 case.data,
-                max_output_size=case.max_output_size,
+                max_output_size=maximum,
             ),
-            "encoder exceeded the declared output limit",
+            case.max_output_size,
+            "encoder",
         )
         return
     bound_decoder = registry.require_decoder_provider(case.extension_id).bind_decoder(
         case.parameters
     )
-    _require_rejection(
-        lambda: bound_decoder.decode(
+    _require_output_limit(
+        lambda maximum: bound_decoder.decode(
             case.data,
-            max_output_size=case.max_output_size,
+            max_output_size=maximum,
         ),
-        "decoder exceeded the declared output limit",
+        case.max_output_size,
+        "decoder",
     )
 
 
@@ -370,7 +363,7 @@ def _check_stream_metadata_rejection(
     decoder = registry.get_stream_metadata_decoder(case.extension_id)
     if decoder is None:
         raise ConformanceError("stream metadata decoder is unavailable")
-    _require_rejection(
+    _require_provider_rejection(
         lambda: decoder.decode_metadata(case.metadata),
         "stream metadata decoder accepted rejected metadata",
     )
@@ -400,16 +393,105 @@ def _check_container_recovery(
             )
 
 
-def _require_rejection(operation: Callable[[], object], message: str) -> None:
+_STRUCTURAL_OUTCOMES: dict[type[InvalidContainerError], ContainerStructuralOutcome] = {
+    InvalidContainerError: ContainerStructuralOutcome.INVALID_STRUCTURE,
+    CorruptContainerError: ContainerStructuralOutcome.CORRUPT,
+    TruncatedContainerError: ContainerStructuralOutcome.TRUNCATED,
+    UnsupportedVersionError: ContainerStructuralOutcome.UNSUPPORTED_VERSION,
+}
+
+
+def _check_container_structure(case: ContainerStructureCase) -> None:
+    try:
+        inspection = inspect_container(ContainerReader(io.BytesIO(case.container)))
+    except InvalidContainerError as exc:
+        if case.outcome is ContainerStructuralOutcome.ACCEPT:
+            raise ConformanceError(
+                f"container was rejected as {type(exc).__name__}: {exc}"
+            ) from exc
+        try:
+            actual = _STRUCTURAL_OUTCOMES[type(exc)]
+        except KeyError as classification_error:
+            raise ConformanceError(
+                f"unclassified structural rejection {type(exc).__name__}: {exc}"
+            ) from classification_error
+        if actual is not case.outcome:
+            raise ConformanceError(
+                f"container rejection was {actual.value}, expected {case.outcome.value}"
+            ) from exc
+        return
+    if case.outcome is not ContainerStructuralOutcome.ACCEPT:
+        raise ConformanceError(f"container was accepted, expected {case.outcome.value}")
+    if inspection.missing_required_stages != case.missing_required_stages:
+        raise ConformanceError(
+            "missing required Stages differ: "
+            f"got {inspection.missing_required_stages}, "
+            f"expected {case.missing_required_stages}"
+        )
+
+
+def _require_provider_rejection(
+    operation: Callable[[], object],
+    message: str,
+) -> None:
     try:
         operation()
-    except Exception:
+    except ProviderRejectedError as rejection:
+        if type(rejection) is not ProviderRejectedError:
+            raise ConformanceError(
+                "provider used a specialized rejection for an invalid-input case"
+            ) from rejection
         return
+    except Exception as exc:
+        raise ConformanceError(
+            f"provider crashed instead of rejecting input: {type(exc).__name__}: {exc}"
+        ) from exc
     raise ConformanceError(message)
+
+
+def _require_output_limit(
+    operation: Callable[[int | None], bytes],
+    maximum: int,
+    direction: str,
+) -> None:
+    try:
+        unbounded = operation(None)
+    except Exception as exc:
+        raise ConformanceError(
+            f"{direction} failed without an output ceiling: {type(exc).__name__}: {exc}"
+        ) from exc
+    if len(unbounded) <= maximum:
+        raise ConformanceError(
+            f"{direction} output has {len(unbounded)} bytes and does not exceed "
+            f"the test ceiling {maximum}"
+        )
+    try:
+        operation(maximum)
+    except ProviderRejectedError as rejection:
+        resource_limit = provider_rejection_resource_limit(rejection)
+        if resource_limit is None:
+            raise ConformanceError(
+                f"{direction} rejected the input without a structured output limit"
+            ) from rejection
+        if resource_limit.maximum != maximum:
+            raise ConformanceError(
+                f"{direction} reported maximum {resource_limit.maximum}, "
+                f"expected {maximum}"
+            ) from rejection
+        if resource_limit.observed <= maximum:
+            raise ConformanceError(
+                f"{direction} reported non-exceeding output size "
+                f"{resource_limit.observed}"
+            ) from rejection
+        return
+    except Exception as exc:
+        raise ConformanceError(
+            f"{direction} crashed under its output ceiling: {type(exc).__name__}: {exc}"
+        ) from exc
+    raise ConformanceError(f"{direction} exceeded the declared output limit")
 
 
 __all__ = [
     "ConformanceError",
-    "check_plugin_conformance",
-    "check_stage_conformance",
+    "run_conformance_suite",
 ]

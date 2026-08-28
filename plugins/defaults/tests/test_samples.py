@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-
 from obst.core import (
     ContainerReader,
     ExtensionRegistry,
@@ -14,6 +13,7 @@ from obst.core import (
     StageSpec,
     materialize_stream,
 )
+
 from obst_defaults.carriers import publish_package
 from obst_defaults.carriers.filesystem import (
     FilesystemPublisherSession,

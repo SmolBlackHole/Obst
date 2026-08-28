@@ -76,9 +76,9 @@ There are no parameters to interpret.
 ## Conformance
 
 At minimum, a conforming implementation verifies `empty -> empty` and
-`00 ff -> 00 ff` in both directions. The complete RAW container vector lives in
-[`minimal-raw.hex`](../../../conformance/containers/0.1-apple/golden/minimal-raw.hex). Stage-level
-tests cover parameter rejection, output budgets and byte identity.
+`00 ff -> 00 ff` in both directions. The `raw-known-answer` case lives in the
+[`obst-defaults` conformance catalog](../../../plugins/defaults/src/obst_defaults/conformance_vectors/index.json).
+Stage-level tests cover parameter rejection, output budgets and byte identity.
 
 ## Python reference implementation
 

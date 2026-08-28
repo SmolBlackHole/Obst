@@ -5,6 +5,7 @@ from __future__ import annotations
 import unicodedata
 from typing import Protocol, runtime_checkable
 
+from obst.core.errors import ProviderRejectedError
 from obst.core.extensions import (
     ExtensionDescriptor,
     ExtensionKind,
@@ -12,6 +13,7 @@ from obst.core.extensions import (
     InspectionInterpretation,
     StreamProfileExtension,
 )
+
 from obst_defaults.files.errors import FileProfileError
 from obst_defaults.files.models import FileMaterialization, PortableFileMetadata
 
@@ -90,16 +92,17 @@ class FileExtension:
         try:
             name = metadata.decode("utf-8")
         except UnicodeDecodeError as exc:
-            raise profile_error(
-                self.extension_id,
-                "file metadata is not valid UTF-8",
-            ) from exc
-        if unicodedata.normalize("NFC", name) != name:
-            raise profile_error(
-                self.extension_id,
-                "file metadata is not normalized as NFC",
-            )
-        return PortableFileMetadata(normalize_file_name(self.extension_id, name))
+            raise ProviderRejectedError("file metadata is not valid UTF-8") from exc
+        try:
+            if unicodedata.normalize("NFC", name) != name:
+                raise profile_error(
+                    self.extension_id,
+                    "file metadata is not normalized as NFC",
+                )
+            normalized = normalize_file_name(self.extension_id, name)
+        except FileProfileError as exc:
+            raise ProviderRejectedError(exc.reason) from exc
+        return PortableFileMetadata(normalized)
 
     def encode_file_name(self, name: str, /) -> bytes:
         """Author file metadata for the regular-file source adapter."""
@@ -107,7 +110,11 @@ class FileExtension:
 
     def plan_file(self, metadata: bytes, /) -> FileMaterialization:
         """Plan one portable regular file from canonical metadata."""
-        return FileMaterialization(self.decode_metadata(metadata).name)
+        try:
+            decoded = self.decode_metadata(metadata)
+        except ProviderRejectedError as exc:
+            raise profile_error(self.extension_id, exc.reason) from exc
+        return FileMaterialization(decoded.name)
 
     def interpret_metadata(
         self,
@@ -116,8 +123,8 @@ class FileExtension:
     ) -> InspectionInterpretation:
         """Interpret file metadata without changing its authoritative bytes."""
         try:
-            name = self.plan_file(metadata).name
-        except FileProfileError as exc:
+            name = self.decode_metadata(metadata).name
+        except ProviderRejectedError as exc:
             return InspectionInterpretation(error=exc.reason)
         return InspectionInterpretation(
             label=name,

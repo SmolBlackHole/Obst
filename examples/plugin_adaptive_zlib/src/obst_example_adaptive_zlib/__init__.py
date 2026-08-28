@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from obst.core import Extension
+
 from obst_example_adaptive_zlib.commands import (
     AdaptivePackCommand,
     obst_commands,
@@ -11,8 +13,6 @@ from obst_example_adaptive_zlib.extension import (
     AdaptiveZlibExtension,
     AdaptiveZlibParameters,
 )
-
-from obst.core import Extension
 
 
 def obst_extensions() -> tuple[Extension, ...]:

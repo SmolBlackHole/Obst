@@ -24,7 +24,7 @@ from obst.core import (
     materialize_stream,
 )
 from obst.core.io import read_exact, write_all
-from obst_defaults.codecs.raw import RawExtension
+from tests.support_extensions import IdentityExtension as RawExtension
 
 
 def _stage_registry() -> ExtensionRegistry:

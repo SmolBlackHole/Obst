@@ -27,7 +27,7 @@ Start with the [project README](../README.md) if you have not met the fruit yet.
 | [Anatomy of an OBST container](anatomy.md)                         | understand the container             |
 | [Binary format](format.md) and [contracts](contracts/)             | implement a reader or writer         |
 | [CLI installation guide](cli.md#install-and-identify-the-format)   | install the Python packages          |
-| [Conformance](conformance.md) and [vector corpus](../conformance/) | check independent interoperability   |
+| [Conformance](conformance.md) and [format corpus](../src/obst/conformance/corpus/) | check independent interoperability |
 | [Core API](core/)                                                  | use the Python library               |
 | [Extension system](extensions/)                                    | build or ship an extension           |
 | [Portable file adapter](extensions/files.md)                       | package or extract regular files     |
@@ -45,7 +45,7 @@ Start with the [project README](../README.md) if you have not met the fruit yet.
 | [Anatomy](anatomy.md)            | Conceptual relationship between headers, manifest, streams, recipes and chunks |
 | [Binary format](format.md)       | Normative framing, fields, limits and validation rules                         |
 | [Conformance](conformance.md)    | Independent reconstruction evidence and coverage boundaries                    |
-| [Vector corpus](../conformance/) | Golden, valid and invalid language-neutral container cases                     |
+| [Format corpus](../src/obst/conformance/corpus/) | Valid and invalid language-neutral container cases                  |
 | [Design](design.md)              | Rationale for implemented architecture and ownership boundaries                |
 | [CLI](cli.md)                    | Commands, output modes and filesystem safety                                   |
 | [Runtime errors](errors.md)      | Python exceptions, CLI error kinds, exit codes and negative examples           |

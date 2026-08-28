@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Protocol, cast
 
 import pytest
-
 from obst.core import (
     BYTES_STREAM_TYPE,
     BinaryWriter,
@@ -20,6 +19,7 @@ from obst.core import (
     RecipeSpec,
     StageSpec,
 )
+
 from obst_defaults.carriers import (
     CarrierError,
     CarrierStateError,

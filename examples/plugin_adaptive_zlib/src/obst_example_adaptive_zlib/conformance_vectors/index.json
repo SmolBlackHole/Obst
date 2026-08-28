@@ -3,36 +3,36 @@
         {
             "canonical_encoding": false,
             "encoded": {
-                "path": "vectors/adaptive-known-answer.encoded.hex",
+                "hex": "0100789c737474727276363004414500158002d1",
                 "sha256": "d725774e6cc5d0f1b7cd51d16e8c15d72163f1eb8b33d56a3f0bb69db5265f61"
             },
             "extension_id": "org.example/adaptive-zlib@1",
             "id": "adaptive-known-answer",
             "kind": "stage-known-answer",
             "logical": {
-                "path": "vectors/adaptive-known-answer.logical.hex",
+                "hex": "41304131423042314330433121",
                 "sha256": "d6d14b9c6d2d26e6528e2c6d0fbd44e65dabbbedf6a62fa786a405bbb93dadb9"
             },
             "parameters": {
-                "path": "vectors/adaptive-known-answer.parameters.hex",
+                "hex": "060700",
                 "sha256": "82df725e0c48281d54d2bd7f5ee20642c3933aa5cf365cd161af879659fbe69b"
             }
         },
         {
             "canonical_encoding": false,
             "encoded": {
-                "path": "vectors/adaptive-dictionary-known-answer.encoded.hex",
+                "hex": "000178bb25a4052f2b46e6181a1870a10918720100da970b94",
                 "sha256": "12dd37f29282ee7364b179c3463575a2497a9532581b3f30295179f0f662a4e5"
             },
             "extension_id": "org.example/adaptive-zlib@1",
             "id": "adaptive-dictionary-known-answer",
             "kind": "stage-known-answer",
             "logical": {
-                "path": "vectors/adaptive-dictionary-known-answer.logical.hex",
+                "hex": "73656e736f723a76616c75653d3130300a73656e736f723a76616c75653d3130310a",
                 "sha256": "422aa1ff597923cec7e2fee42e95d0ac5cfd93ed4cf104d2fea93ef804b1e66c"
             },
             "parameters": {
-                "path": "vectors/adaptive-dictionary-known-answer.parameters.hex",
+                "hex": "060001000d73656e736f723a76616c75653d",
                 "sha256": "71428ada8a020a631aff9c9e09b65c522d105800b29cdfab6648fb9071f0dad1"
             }
         },
@@ -67,7 +67,7 @@
             },
             "kind": "stage-parameters",
             "parameters": {
-                "path": "vectors/adaptive-parameters.parameters.hex",
+                "hex": "060700",
                 "sha256": "82df725e0c48281d54d2bd7f5ee20642c3933aa5cf365cd161af879659fbe69b"
             }
         },
@@ -80,13 +80,13 @@
             "id": "adaptive-parameters-rejected",
             "kind": "stage-bind-rejection",
             "parameters": {
-                "path": "vectors/adaptive-parameters-rejected.parameters.hex",
+                "hex": "",
                 "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
             }
         },
         {
             "encoded": {
-                "path": "vectors/adaptive-payload-rejected.encoded.hex",
+                "hex": "00",
                 "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
             },
             "extension_id": "org.example/adaptive-zlib@1",
@@ -94,13 +94,13 @@
             "kind": "stage-decode-rejection",
             "max_output_size": 1024,
             "parameters": {
-                "path": "vectors/adaptive-payload-rejected.parameters.hex",
+                "hex": "060700",
                 "sha256": "82df725e0c48281d54d2bd7f5ee20642c3933aa5cf365cd161af879659fbe69b"
             }
         },
         {
             "data": {
-                "path": "vectors/adaptive-encode-limit.data.hex",
+                "hex": "78",
                 "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
             },
             "direction": "encode",
@@ -109,13 +109,13 @@
             "kind": "stage-output-limit",
             "max_output_size": 0,
             "parameters": {
-                "path": "vectors/adaptive-encode-limit.parameters.hex",
+                "hex": "060700",
                 "sha256": "82df725e0c48281d54d2bd7f5ee20642c3933aa5cf365cd161af879659fbe69b"
             }
         },
         {
             "data": {
-                "path": "vectors/adaptive-decode-limit.data.hex",
+                "hex": "0100789c737474727276363004414500158002d1",
                 "sha256": "d725774e6cc5d0f1b7cd51d16e8c15d72163f1eb8b33d56a3f0bb69db5265f61"
             },
             "direction": "decode",
@@ -124,11 +124,10 @@
             "kind": "stage-output-limit",
             "max_output_size": 0,
             "parameters": {
-                "path": "vectors/adaptive-decode-limit.parameters.hex",
+                "hex": "060700",
                 "sha256": "82df725e0c48281d54d2bd7f5ee20642c3933aa5cf365cd161af879659fbe69b"
             }
         }
     ],
-    "plugin": "adaptive-zlib",
-    "schema_version": 1
+    "schema_version": 2
 }

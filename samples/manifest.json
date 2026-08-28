@@ -1,6 +1,6 @@
 {
     "schema_version": 1,
-    "generated_by": "scripts/build_samples.py",
+    "generated_by": "plugins/defaults/scripts/build_samples.py",
     "image_license": {
         "name": "Unsplash License",
         "url": "https://unsplash.com/license",

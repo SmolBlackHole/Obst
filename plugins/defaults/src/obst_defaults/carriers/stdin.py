@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from obst.core.extensions import BoundCarrierReader, ExtensionDescriptor, ExtensionKind
 from obst.core.io import BinaryReader
+
 from obst_defaults.carriers import (
     CarrierError,
     CarrierLifecycleState,

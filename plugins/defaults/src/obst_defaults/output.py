@@ -12,6 +12,7 @@ from obst.cli import (
     format_count,
     format_size,
 )
+
 from obst_defaults.carriers import PublicationCleanupIssue
 from obst_defaults.files import FileExtractionCleanupIssue, FileExtractionResult
 

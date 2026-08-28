@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import zlib as stdlib_zlib
 from typing import cast
 
 import pytest
@@ -24,13 +23,6 @@ from obst.core import (
     inspect_container,
 )
 from obst.core.extensions import ExtensionKind
-from obst_defaults.codecs.zlib import (
-    ZlibDictionaryExtension,
-    ZlibDictionaryParameters,
-)
-
-ZLIB_DICTIONARY_STAGE_ID = ZlibDictionaryExtension.extension_id
-_ZLIB_DICTIONARY = ZlibDictionaryExtension()
 
 _CUSTOM_STAGE_ID = "org.example/interpretation@1"
 _CUSTOM_DESCRIPTOR = ExtensionDescriptor()
@@ -67,25 +59,6 @@ def _inspect_stage_parameters(
         ),
     )
     return inspection.recipes[0].stages[0].parameters
-
-
-def test_zlib_dictionary_parameter_interpreter_reports_identity_not_contents() -> None:
-    dictionary = b"common-prefix:"
-    interpretation = _inspect_stage_parameters(
-        StageSpec(
-            ZLIB_DICTIONARY_STAGE_ID,
-            _ZLIB_DICTIONARY.encode_parameters(ZlibDictionaryParameters(9, dictionary)),
-        ),
-        _ZLIB_DICTIONARY,
-    )
-
-    assert interpretation is not None
-    assert interpretation.error is None
-    assert {field.name: field.value for field in interpretation.fields} == {
-        "compression_level": 9,
-        "dictionary_size": len(dictionary),
-        "dictionary_adler32": f"{stdlib_zlib.adler32(dictionary) & 0xFFFFFFFF:08x}",
-    }
 
 
 def test_interpreter_return_values_are_checked_during_inspection() -> None:

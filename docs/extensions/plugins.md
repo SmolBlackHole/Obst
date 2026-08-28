@@ -161,7 +161,7 @@ untrusted labels before styling them.
 
 ### Conformance contribution
 
-An Extension plugin publishes a static portable suite under the same name:
+A distribution may publish a static portable suite under a plugin name:
 
 ```toml
 [project.entry-points."obst.conformance"]
@@ -182,10 +182,10 @@ def obst_conformance() -> ConformanceSuite:
     )
 ```
 
-The package includes `conformance_vectors/index.json` plus the hexadecimal
-files referenced by that catalog. Catalog schema `1` owns stable case IDs,
-case kinds, Extension IDs, SHA-256 digests and expected portable behavior.
-The generic writer can generate those checked-in artifacts deterministically:
+The package includes one `conformance_vectors/index.json`. Catalog schema `2`
+owns stable case IDs, case kinds, Extension IDs, canonical inline hexadecimal
+bytes, SHA-256 digests and expected portable behavior. The generic writer can
+generate that checked-in catalog deterministically:
 
 ```python
 from obst.conformance import write_conformance_suite
@@ -198,13 +198,21 @@ rejected parameters and payloads, output ceilings, stream metadata,
 metadata rejection and optional complete-container recovery. Cases store data,
 not pytest modules, Python exception names or arbitrary test callbacks.
 
-Every wire-visible Stage and stream-profile ID returned by the Extension
-factory must have positive coverage in the suite. Runtime-only carriers and
-packagers have no language-neutral wire vectors because their request and
-publication values are provider-specific. Their lifecycle behavior remains in
-the plugin's own ordinary tests. A plugin may still include a complete
-container case that exercises runtime composition through its wire-visible
+The `obst.extensions`, `obst.commands` and `obst.conformance` contributions
+are independent. A format corpus may therefore be conformance-only, while a
+runtime-only carrier or packager needs no meaningless wire suite. When one
+plugin name contributes both a suite and wire-visible Stage or stream-profile
+providers, the runner requires positive coverage for every such provider. The
+distribution owns that generator, its artifacts and its ordinary
+implementation tests. Runtime lifecycle behavior remains in the
+distribution's ordinary tests. A suite may also include a complete container
+case that exercises explicitly supplied dependencies through wire-visible
 contracts.
+
+`ConformanceSuite` stores only portable cases. The selected plugin name remains
+entry-point and CLI context; it is not serialized into the catalog. Direct
+callers and the plugin manager both execute suites through
+`run_conformance_suite()`.
 
 ## Discover and inspect without loading
 
@@ -278,9 +286,10 @@ report = manager.test("example")
 assert report.passed
 ```
 
-The manager loads that plugin's Extension contribution and static suite,
-validates the Extensions through an isolated registry, then runs the portable
-cases through [`obst.conformance`](../conformance.md#plugin-extension-suites).
+The manager loads the static suite and the target's Extension contribution
+when one exists, validates those Extensions through an isolated registry, then
+runs the portable cases through
+[`obst.conformance`](../conformance.md#plugin-extension-suites).
 The renderer-neutral report lists every case ID, kind, optional Extension ID,
 pass state and failure text.
 

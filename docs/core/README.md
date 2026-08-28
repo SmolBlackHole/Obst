@@ -12,14 +12,14 @@ filenames, database rows, object-store keys or application values.
 
 - [OBST core API](#obst-core-api)
 	- [Table of contents](#table-of-contents)
-	- [Package and recover bytes in memory](#package-and-recover-bytes-in-memory)
+	- [Write and recover bytes in memory](#write-and-recover-bytes-in-memory)
 	- [Choose a guide](#choose-a-guide)
 	- [Public boundary](#public-boundary)
 
-## Package and recover bytes in memory
+## Write and recover bytes in memory
 
-This complete example uses the public core contracts, explicitly selected RAW
-and fixed-packager extensions, and 2 in-memory binary endpoints:
+This complete example uses only the public runtime contracts, one local
+identity Stage and 2 in-memory binary endpoints:
 
 > [!WARNING]
 > **Executable documentation:** The following Python block runs during tests
@@ -27,40 +27,93 @@ and fixed-packager extensions, and 2 in-memory binary endpoints:
 
 ```python
 from io import BytesIO
+from typing import Self
 
 from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
+    ContainerWriter,
+    ExtensionDescriptor,
+    ExtensionKind,
     ExtensionRegistry,
-    LogicalStreamDescriptor,
-    LogicalStreamSource,
-    RecipeSpec,
+    Manifest,
+    Recipe,
     StageSpec,
+    Stream,
+    encode_chunk_once,
     materialize_stream,
+    require_no_parameters,
+    require_stage_output_size,
 )
-from obst_defaults.codecs import RawExtension
-from obst_defaults.packagers import FixedPackageRequest, FixedPackagerExtension
+
+
+class IdentityExtension:
+    extension_id = "org.example/identity@1"
+    kind = ExtensionKind.STAGE
+    descriptor = ExtensionDescriptor(
+        display_name="Identity",
+        summary="Return one chunk unchanged.",
+        specification_url="https://example.org/obst/identity-v1",
+    )
+
+    def bind_encoder(self, parameters: bytes, /) -> Self:
+        require_no_parameters(self.extension_id, parameters)
+        return self
+
+    def bind_decoder(self, parameters: bytes, /) -> Self:
+        require_no_parameters(self.extension_id, parameters)
+        return self
+
+    def encode(
+        self,
+        data: bytes,
+        /,
+        *,
+        max_output_size: int | None,
+    ) -> bytes:
+        require_stage_output_size(
+            self.extension_id,
+            len(data),
+            max_output_size=max_output_size,
+            operation="encode",
+        )
+        return data
+
+    def decode(
+        self,
+        data: bytes,
+        /,
+        *,
+        max_output_size: int | None,
+    ) -> bytes:
+        require_stage_output_size(
+            self.extension_id,
+            len(data),
+            max_output_size=max_output_size,
+            operation="decode",
+        )
+        return data
 
 payload = b"OBST is bytes before it becomes fruit."
-raw = RawExtension()
-fixed = FixedPackagerExtension()
-registry = ExtensionRegistry((raw, fixed))
-recipe = RecipeSpec((StageSpec(raw.extension_id, b""),))
-source = LogicalStreamSource.from_bytes(
-    LogicalStreamDescriptor(
-        stream_type=BYTES_STREAM_TYPE,
-        metadata=b"",
-        default_recipe=recipe,
-    ),
-    payload,
-    chunk_size=64 * 1024,
+identity = IdentityExtension()
+registry = ExtensionRegistry((identity,))
+manifest = Manifest(
+    recipes=(Recipe(0, (StageSpec(identity.extension_id),)),),
+    streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
 )
 
 target = BytesIO()
-operation = registry.require_packager_provider(fixed.extension_id).prepare_package(
-    FixedPackageRequest(registry=registry, sources=(source,))
+writer = ContainerWriter(target, manifest)
+writer.write_chunk(
+    encode_chunk_once(
+        payload,
+        stream_id=0,
+        sequence=0,
+        recipe=manifest.recipe(0),
+        registry=registry,
+    )
 )
-operation.write_to(target)
+writer.finish()
 
 reader = ContainerReader(BytesIO(target.getvalue()))
 assert materialize_stream(reader, stream_id=0, registry=registry) == payload

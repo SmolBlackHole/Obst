@@ -314,9 +314,10 @@ def _run_plugin_management(
         )
         report = manager.test(args.name, tuple(args.plugin))
         rendered = (
-            render_plugin_conformance_json(report)
+            render_plugin_conformance_json(args.name, report)
             if args.json
             else render_plugin_conformance_human(
+                args.name,
                 report,
                 style=HumanOutputStyle.for_stream(sys.stdout),
             )

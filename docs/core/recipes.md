@@ -30,31 +30,75 @@ Encoding follows declaration order. Decoding walks the same recipe backward:
 > with the current process privileges. It is not sandboxed.
 
 ```python
+from typing import Self
+
 from obst.core import (
+    ExtensionDescriptor,
+    ExtensionKind,
     ExtensionRegistry,
     Recipe,
     ResourceLimits,
     StageSpec,
     decode_recipe,
     encode_recipe,
+    require_no_parameters,
+    require_stage_output_size,
 )
-from obst_defaults.codecs import ZlibExtension, ZlibParameters
 
-zlib = ZlibExtension()
-registry = ExtensionRegistry((zlib,))
+
+class ReverseExtension:
+    extension_id = "org.example/reverse@1"
+    kind = ExtensionKind.STAGE
+    descriptor = ExtensionDescriptor(
+        display_name="Reverse",
+        summary="Reverse the bytes in one chunk.",
+        specification_url="https://example.org/obst/reverse-v1",
+    )
+
+    def bind_encoder(self, parameters: bytes, /) -> Self:
+        require_no_parameters(self.extension_id, parameters)
+        return self
+
+    def bind_decoder(self, parameters: bytes, /) -> Self:
+        require_no_parameters(self.extension_id, parameters)
+        return self
+
+    def encode(
+        self,
+        data: bytes,
+        /,
+        *,
+        max_output_size: int | None,
+    ) -> bytes:
+        require_stage_output_size(
+            self.extension_id,
+            len(data),
+            max_output_size=max_output_size,
+            operation="encode",
+        )
+        return data[::-1]
+
+    def decode(
+        self,
+        data: bytes,
+        /,
+        *,
+        max_output_size: int | None,
+    ) -> bytes:
+        return self.encode(data, max_output_size=max_output_size)
+
+
+reverse = ReverseExtension()
+registry = ExtensionRegistry((reverse,))
 recipe = Recipe(
     0,
-    (
-        StageSpec(
-            zlib.extension_id,
-            zlib.encode_parameters(ZlibParameters(9)),
-        ),
-    ),
+    (StageSpec(reverse.extension_id),),
 )
 limits = ResourceLimits(max_intermediate_bytes=1024 * 1024)
 logical = b"banana" * 100
 
 encoded = encode_recipe(logical, recipe, registry, limits=limits)
+assert encoded == logical[::-1]
 recovered = decode_recipe(
     encoded,
     recipe,

@@ -28,6 +28,7 @@ from obst.core.packaging import (
 )
 from obst.core.registry import ExtensionContribution, ExtensionRegistry
 from obst.core.streams import ChunkDecoder
+
 from obst_defaults.cleanup import close_all
 from obst_defaults.files.errors import FileArchiveError, FileProfileError
 from obst_defaults.files.models import (

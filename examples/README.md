@@ -28,7 +28,7 @@ The script does not depend on the current working directory. Once OBST is
 installed, its absolute path works from anywhere:
 
 ```bash
-python /path/to/Obst/examples/api_walkthrough.py
+python /path/to/Obst/plugins/defaults/examples/api_walkthrough.py
 ```
 
 It prints structural counts and finishes with:

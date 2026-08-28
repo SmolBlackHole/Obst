@@ -7,17 +7,17 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from obst_example_adaptive_zlib import (
-    AdaptiveZlibExtension,
-    AdaptiveZlibParameters,
-)
-
 from obst.core import (
     ExtensionRegistry,
     Recipe,
     RecipeDecoder,
     RecipeEncoder,
     StageSpec,
+)
+
+from obst_example_adaptive_zlib import (
+    AdaptiveZlibExtension,
+    AdaptiveZlibParameters,
 )
 
 _CHUNK_SIZE = 64 * 1024

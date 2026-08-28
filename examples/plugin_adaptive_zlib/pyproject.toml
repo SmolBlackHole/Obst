@@ -11,6 +11,18 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = ["obst"]
 
+[project.optional-dependencies]
+dev = [
+    "isort>=5.13",
+    "mypy>=1.14",
+    "pyright>=1.1.411",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-timeout>=2.3",
+    "ruff>=0.9",
+    "setuptools>=77",
+]
+
 [project.urls]
 Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/examples/plugin_adaptive_zlib/README.md"
 
@@ -27,7 +39,48 @@ adaptive-zlib = "obst_example_adaptive_zlib:obst_commands"
 where = ["src"]
 
 [tool.setuptools.package-data]
-obst_example_adaptive_zlib = [
-    "conformance_vectors/*.json",
-    "conformance_vectors/vectors/*.hex",
+obst_example_adaptive_zlib = ["py.typed", "conformance_vectors/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "distribution: build and inspect the adaptive distribution",
+    "timeout(seconds): maximum test duration",
 ]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["src", "tests", "scripts", "compare_samples.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "UP", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+py_version = 314
+src_paths = ["src", "tests", "scripts", "compare_samples.py"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = [
+    "src/obst_example_adaptive_zlib",
+    "tests",
+    "scripts",
+    "compare_samples.py",
+]
+
+[tool.pyright]
+include = ["src", "tests", "scripts", "compare_samples.py"]
+exclude = ["build", "dist", "**/__pycache__", "**/.*", ".venv"]
+pythonVersion = "3.14"
+typeCheckingMode = "strict"
+
+[tool.coverage.run]
+source = ["obst_example_adaptive_zlib"]
+omit = ["*/tests/*", "*/venv/*", "*/.venv/*", "*/site-packages/*"]

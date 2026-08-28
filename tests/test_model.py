@@ -31,7 +31,7 @@ from obst.core.errors import (
 )
 from obst.core.manifest import decode_manifest, encode_manifest
 from obst.core.wire import ManifestHeader, uint32
-from obst_defaults.codecs.raw import RawExtension
+from tests.support_extensions import IdentityExtension as RawExtension
 
 _METADATA_STREAM_TYPE = "org.example/data@1"
 _PROPERTY_STAGE_IDS = ("org.example/alpha@1", "org.example/beta@2")

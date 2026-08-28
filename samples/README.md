@@ -33,10 +33,11 @@ Rebuild the containers and manifest from the repository root after installing
 the package:
 
 ```bash
-python scripts/build_samples.py
+python plugins/defaults/scripts/build_samples.py
 ```
 
 The rebuild must recover the same logical files, but its encoded container bytes
 need not match the checked-in samples. The `obst.zlib@1` contract permits
 different conforming zlib backends to produce different representations. Exact
-portable byte vectors live in [`conformance/`](../conformance/README.md).
+portable format vectors live in the packaged
+[`obst.conformance` corpus](../src/obst/conformance/corpus/).

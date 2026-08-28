@@ -10,6 +10,19 @@ license = "MPL-2.0"
 requires-python = ">=3.14"
 dependencies = ["obst==0.1.0"]
 
+[project.optional-dependencies]
+dev = [
+    "hypothesis>=6.165",
+    "isort>=5.13",
+    "mypy>=1.14",
+    "pyright>=1.1.411",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-timeout>=2.3",
+    "ruff>=0.9",
+    "setuptools>=77",
+]
+
 [project.urls]
 Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/docs/extensions/README.md"
 
@@ -27,7 +40,43 @@ where = ["src"]
 include = ["obst_defaults*"]
 
 [tool.setuptools.package-data]
-obst_defaults = [
-    "conformance_vectors/*.json",
-    "conformance_vectors/vectors/*.hex",
+obst_defaults = ["py.typed", "conformance_vectors/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "distribution: build and inspect the defaults distribution",
+    "timeout(seconds): maximum test duration",
 ]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["src", "tests", "scripts", "examples"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "UP", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+py_version = 314
+src_paths = ["src", "tests", "scripts", "examples"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src/obst_defaults", "tests", "scripts", "examples"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts", "examples"]
+exclude = ["build", "dist", "**/__pycache__", "**/.*", ".venv"]
+pythonVersion = "3.14"
+typeCheckingMode = "strict"
+
+[tool.coverage.run]
+source = ["obst_defaults"]
+omit = ["*/tests/*", "*/venv/*", "*/.venv/*", "*/site-packages/*"]

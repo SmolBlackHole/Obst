@@ -13,9 +13,8 @@ from obst.cli import CliContext
 from obst.conformance import (
     ConformanceSuite,
     StageKnownAnswerCase,
-    case_extension_id,
 )
-from obst.core import Extension, ExtensionRegistry
+from obst.core import Extension
 from obst.plugins import (
     COMMAND_ENTRY_POINT_GROUP,
     CONFORMANCE_ENTRY_POINT_GROUP,
@@ -26,9 +25,7 @@ from obst.plugins import (
     PluginManager,
     PluginStateError,
 )
-from obst_defaults.bundle import obst_extensions
-from obst_defaults.codecs.raw import RawExtension
-from obst_defaults.conformance import obst_conformance
+from tests.support_extensions import IdentityExtension as RawExtension
 
 _NOT_CALLABLE = 7
 
@@ -61,7 +58,6 @@ def exploding_plugin_factory() -> tuple[Extension, ...]:
 
 def valid_conformance_factory() -> ConformanceSuite:
     return ConformanceSuite(
-        "valid",
         (
             StageKnownAnswerCase(
                 "raw-known-answer",
@@ -77,7 +73,6 @@ def valid_conformance_factory() -> ConformanceSuite:
 
 def failing_conformance_factory() -> ConformanceSuite:
     return ConformanceSuite(
-        "valid",
         (
             StageKnownAnswerCase(
                 "raw-known-answer",
@@ -787,56 +782,7 @@ def test_plugin_conformance_reports_case_failures_and_bad_contracts(
         manager.test("valid")
 
 
-def test_extension_plugin_without_conformance_is_rejected_during_discovery(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    with pytest.raises(PluginDiscoveryError, match="must also publish"):
-        _discover(
-            monkeypatch,
-            tmp_path,
-            extensions=(
-                _entry_point(
-                    "valid",
-                    f"{__name__}:valid_plugin_factory",
-                    EXTENSION_ENTRY_POINT_GROUP,
-                ),
-            ),
-            auto_conformance=False,
-        )
-
-
-def test_first_party_bundle_uses_the_same_plugin_and_conformance_contracts() -> None:
-    extensions = obst_extensions()
-    registry = ExtensionRegistry(extensions)
-
-    assert tuple(capability.extension_id for capability in registry.capabilities()) == (
-        "obst.delta8@1",
-        "obst.file@1",
-        "obst.filesystem@1",
-        "obst.fixed@1",
-        "obst.memory@1",
-        "obst.raw@1",
-        "obst.stdin@1",
-        "obst.zlib@1",
-        "obst.zlib@2",
-    )
-    suite = obst_conformance()
-    assert suite.plugin_name == "obst-defaults"
-    assert {
-        extension_id
-        for case in suite.cases
-        if (extension_id := case_extension_id(case)) is not None
-    } == {
-        "obst.delta8@1",
-        "obst.file@1",
-        "obst.raw@1",
-        "obst.zlib@1",
-        "obst.zlib@2",
-    }
-
-
-def test_first_party_plugin_passes_its_published_conformance_cases(
+def test_extension_plugin_without_conformance_can_run_but_not_be_tested(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -845,22 +791,16 @@ def test_first_party_plugin_passes_its_published_conformance_cases(
         tmp_path,
         extensions=(
             _entry_point(
-                "obst-defaults",
-                "obst_defaults.bundle:obst_extensions",
+                "valid",
+                f"{__name__}:valid_plugin_factory",
                 EXTENSION_ENTRY_POINT_GROUP,
             ),
         ),
-        conformance=(
-            _entry_point(
-                "obst-defaults",
-                "obst_defaults.conformance:obst_conformance",
-                CONFORMANCE_ENTRY_POINT_GROUP,
-            ),
-        ),
+        auto_conformance=False,
     )
 
-    report = manager.test("obst-defaults")
+    runtime = manager.runtime(additional=("valid",))
+    assert runtime.registry.can_decode(RawExtension.extension_id)
 
-    assert report.passed is True
-    assert len(report.cases) == 26
-    assert report.cases[0].case_id == "raw-known-answer"
+    with pytest.raises(PluginConformanceError, match="does not publish"):
+        manager.test("valid")

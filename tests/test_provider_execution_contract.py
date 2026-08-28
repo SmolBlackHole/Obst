@@ -11,14 +11,10 @@ from obst.core import (
     ExtensionContractError,
     ExtensionDescriptor,
     ExtensionRegistry,
-    LogicalStreamDescriptor,
-    LogicalStreamSource,
     Manifest,
     MissingStageError,
-    PipelineError,
     ProviderRejectedError,
     Recipe,
-    RecipeSpec,
     ResourceLimitError,
     ResourceLimits,
     StageSpec,
@@ -30,16 +26,11 @@ from obst.core import (
 )
 from obst.core.extensions import ExtensionKind
 from obst.core.pipeline import RecipeDecoder, RecipeEncoder
-from obst_defaults.packagers.fixed import (
-    FixedPackageRequest,
-    FixedPackagerExtension,
-)
 
 _FIRST_STAGE_ID = "org.example/first@1"
 _SECOND_STAGE_ID = "org.example/second@1"
 _MISSING_STAGE_ID = "org.example/missing@1"
 _UNUSED_STAGE_ID = "org.example/unused@1"
-_REJECTING_STAGE_ID = "org.example/rejecting@1"
 
 
 class _TracingStage:
@@ -108,19 +99,6 @@ class _ExplodingUnusedStage:
 
     def bind_decoder(self, parameters: bytes, /) -> _TracingDecoder:
         raise AssertionError("unused recipe decoder was bound")
-
-
-class _RejectingStage:
-    extension_id = _REJECTING_STAGE_ID
-    descriptor = ExtensionDescriptor()
-    kind = ExtensionKind.STAGE
-
-    def __init__(self, events: list[str]) -> None:
-        self._events = events
-
-    def bind_encoder(self, parameters: bytes, /) -> _TracingEncoder:
-        self._events.append("bind_encoder")
-        raise ProviderRejectedError("parameters rejected during preflight")
 
 
 class _BytesSubclass(bytes):
@@ -353,33 +331,6 @@ def test_decode_does_not_bind_provider_for_unused_recipe() -> None:
         f"{_FIRST_STAGE_ID}:bind_decoder",
         f"{_FIRST_STAGE_ID}:decode",
     ]
-
-
-def test_encoder_parameter_preflight_happens_before_container_header_write() -> None:
-    events: list[str] = []
-    registry = ExtensionRegistry((_RejectingStage(events),))
-    source = LogicalStreamSource.from_bytes(
-        LogicalStreamDescriptor(
-            BYTES_STREAM_TYPE,
-            b"",
-            RecipeSpec((StageSpec(_REJECTING_STAGE_ID, b"invalid"),)),
-        ),
-        b"payload",
-        chunk_size=len(b"payload"),
-    )
-    target = io.BytesIO()
-
-    with pytest.raises(PipelineError) as caught:
-        FixedPackagerExtension().prepare_package(
-            FixedPackageRequest(registry, (source,))
-        ).write_to(target)
-
-    assert caught.value.stage_id == _REJECTING_STAGE_ID
-    assert caught.value.direction == "encode"
-    assert caught.value.phase == "bind"
-    assert caught.value.reason == "parameters rejected during preflight"
-    assert events == ["bind_encoder"]
-    assert target.getvalue() == b""
 
 
 def test_provider_rejection_subclass_is_a_contract_failure() -> None:

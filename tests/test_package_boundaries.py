@@ -210,13 +210,3 @@ def test_public_core_exposes_directional_recipe_and_chunk_sessions() -> None:
     assert core.ChunkEncoder.__module__ == "obst.core.streams"
     assert core.ChunkDecoder.__module__ == "obst.core.streams"
     assert not hasattr(core, "ContainerDecoder")
-
-
-def test_concrete_extensions_do_not_access_private_resource_budgets() -> None:
-    extension_root = _PROJECT_ROOT / "plugins" / "defaults" / "src" / "obst_defaults"
-    source = "\n".join(
-        path.read_text(encoding="utf-8") for path in extension_root.rglob("*.py")
-    )
-
-    assert "ResourceBudget" not in source
-    assert "._operation_budget" not in source

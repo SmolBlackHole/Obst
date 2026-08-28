@@ -7,11 +7,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import cast
 
-from obst_example_adaptive_zlib.extension import (
-    AdaptiveZlibExtension,
-    AdaptiveZlibParameters,
-)
-
 from obst.cli import CliCommandError, CliContext
 from obst.cli.commands import EXIT_PLUGIN, EXIT_SUCCESS
 from obst.core import (
@@ -29,6 +24,11 @@ from obst.core import (
     StageSpec,
     Stream,
     inspect_container,
+)
+
+from obst_example_adaptive_zlib.extension import (
+    AdaptiveZlibExtension,
+    AdaptiveZlibParameters,
 )
 
 _RAW_STAGE_ID = "obst.raw@1"

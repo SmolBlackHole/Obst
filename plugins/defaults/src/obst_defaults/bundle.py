@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from obst.core import Extension
+
 from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
 from obst_defaults.carriers.memory import MemoryCarrierExtension
 from obst_defaults.carriers.stdin import StdinCarrierExtension

@@ -390,5 +390,6 @@ golden vectors shared across implementations.
 The pytest-independent
 [`obst.conformance`](../conformance.md#plugin-extension-suites) runner checks
 static known answers, parameters, rejected inputs and output limits without
-discovering plugin-owned test modules. Its narrow `check_stage_conformance()`
-helper checks one `StageKnownAnswerCase` directly.
+discovering plugin-owned test modules. A provider repository can load its
+`ConformanceSuite` and pass its explicit Extension objects directly to
+`run_conformance_suite()`; the plugin manager invokes the same public runner.

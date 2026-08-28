@@ -16,9 +16,9 @@ from typing import cast
 from obst.cli.commands import CliCommand, CliContext
 from obst.conformance import (
     ConformanceError,
+    ConformanceReport,
     ConformanceSuite,
-    PluginConformanceReport,
-    check_plugin_conformance,
+    run_conformance_suite,
 )
 from obst.core.errors import ExtensionError, ObstError
 from obst.core.extensions import Extension
@@ -61,6 +61,15 @@ class PluginLoadError(PluginError):
         self.plugin_name = plugin_name
         self.reason = reason
         super().__init__(f"cannot load plugin {plugin_name}: {reason}")
+
+
+class PluginActivationError(PluginError):
+    """A discovered plugin has no runtime contribution to activate."""
+
+    def __init__(self, plugin_name: str, reason: str) -> None:
+        self.plugin_name = plugin_name
+        self.reason = reason
+        super().__init__(f"cannot enable plugin {plugin_name}: {reason}")
 
 
 class PluginConformanceError(PluginError):
@@ -194,18 +203,6 @@ class PluginManager:
             extension_entry = extension_entries.get(name)
             command_entry = command_entries.get(name)
             conformance_entry = conformance_entries.get(name)
-            if extension_entry is not None and conformance_entry is None:
-                raise PluginDiscoveryError(
-                    name,
-                    f"plugins that publish {EXTENSION_ENTRY_POINT_GROUP} must also "
-                    f"publish {CONFORMANCE_ENTRY_POINT_GROUP}",
-                )
-            if conformance_entry is not None and extension_entry is None:
-                raise PluginDiscoveryError(
-                    name,
-                    f"{CONFORMANCE_ENTRY_POINT_GROUP} requires a matching "
-                    f"{EXTENSION_ENTRY_POINT_GROUP} contribution",
-                )
             entries = tuple(
                 entry
                 for entry in (extension_entry, command_entry, conformance_entry)
@@ -252,6 +249,11 @@ class PluginManager:
     def enable(self, name: str) -> PluginStatus:
         """Persistently enable one installed plugin without loading its code."""
         plugin = self._require_installed(name)
+        if plugin.extension_entry_point is None and plugin.command_entry_point is None:
+            raise PluginActivationError(
+                name,
+                "plugin publishes no Extension or command contribution",
+            )
         if name not in self._enabled:
             enabled = self._enabled | {name}
             _write_enabled_plugins(self._state_path, enabled)
@@ -317,7 +319,7 @@ class PluginManager:
         self,
         name: str,
         additional: Iterable[str] = (),
-    ) -> PluginConformanceReport:
+    ) -> ConformanceReport:
         """Run one plugin's explicitly published portable conformance cases."""
         plugin = self._require_installed(name)
         entry_point = plugin.conformance_entry_point
@@ -327,7 +329,7 @@ class PluginManager:
                 f"plugin does not publish {CONFORMANCE_ENTRY_POINT_GROUP}",
             )
         owned_extensions = self._load_extensions(plugin)
-        extensions = list(owned_extensions)
+        dependencies: list[Extension] = []
         selected = {name}
         for dependency_name in additional:
             _validate_plugin_name(dependency_name)
@@ -335,22 +337,13 @@ class PluginManager:
                 continue
             selected.add(dependency_name)
             dependency = self._require_installed(dependency_name)
-            extensions.extend(self._load_extensions(dependency))
-        try:
-            owned_registry = ExtensionRegistry(owned_extensions)
-            registry = ExtensionRegistry(tuple(extensions))
-        except ExtensionError as exc:
-            raise PluginConformanceError(
-                name,
-                f"extension registry rejected the selected plugin set: {exc}",
-            ) from exc
+            dependencies.extend(self._load_extensions(dependency))
         suite = _load_conformance_suite(name, entry_point)
         try:
-            return check_plugin_conformance(
-                name,
-                registry,
+            return run_conformance_suite(
                 suite,
-                owned_capabilities=owned_registry.capabilities(),
+                owned_extensions,
+                dependencies=tuple(dependencies),
             )
         except ConformanceError as exc:
             raise PluginConformanceError(name, str(exc)) from exc
@@ -680,6 +673,7 @@ __all__ = [
     "CONFORMANCE_ENTRY_POINT_GROUP",
     "EXTENSION_ENTRY_POINT_GROUP",
     "PLUGIN_STATE_SCHEMA_VERSION",
+    "PluginActivationError",
     "PluginConformanceError",
     "PluginDiscoveryError",
     "PluginError",

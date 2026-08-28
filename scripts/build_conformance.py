@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import io
-import json
 import struct
 import zlib
 from dataclasses import dataclass
+from itertools import pairwise
 from pathlib import Path
 from typing import Literal, cast
 
+from obst.conformance import (
+    ConformanceSuite,
+    ContainerStructuralOutcome,
+    ContainerStructureCase,
+    write_conformance_suite,
+)
 from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerWriter,
@@ -23,6 +29,13 @@ from obst.core import (
     encode_chunk_once,
     format_version,
 )
+from obst.core.errors import ProviderRejectedError
+from obst.core.extensions import (
+    ExtensionDescriptor,
+    ExtensionKind,
+    require_no_parameters,
+    require_stage_output_size,
+)
 from obst.core.wire import (
     ChunkHeader,
     ContainerHeader,
@@ -34,13 +47,9 @@ from obst.core.wire import (
     stream_declaration,
     uint32,
 )
-from obst_defaults.codecs.raw import RawExtension
-from obst_defaults.codecs.zlib import ZlibExtension, ZlibParameters
-from obst_defaults.transforms.delta8 import Delta8Extension
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFORMANCE_ROOT = ROOT / "conformance"
-INDEX_PATH = CONFORMANCE_ROOT / "index.json"
+CONFORMANCE_ROOT = ROOT / "src" / "obst" / "conformance" / "corpus"
 
 type ChunkInput = tuple[int, int, int, bytes]
 type VectorCategory = Literal["golden", "valid", "invalid"]
@@ -50,6 +59,113 @@ _MATRIX_STAGE_ID = "org.example/alpha@1"
 _MATRIX_STREAM_TYPE = "org.example/bravo@1"
 _UNKNOWN_STAGE_ID = "test.foo@1"
 _SPECIFICATION_URL = "https://example.org/specs/raw-v1"
+
+
+class _IdentityStage:
+    extension_id = "test.raw@1"
+    kind = ExtensionKind.STAGE
+    descriptor = ExtensionDescriptor(
+        display_name="Conformance identity",
+        specification_url="https://example.org/obst/conformance/identity-v1",
+    )
+
+    def bind_encoder(self, parameters: bytes, /) -> _IdentityStage:
+        require_no_parameters(self.extension_id, parameters)
+        return self
+
+    def encode(
+        self,
+        data: bytes,
+        /,
+        *,
+        max_output_size: int | None,
+    ) -> bytes:
+        require_stage_output_size(
+            self.extension_id,
+            len(data),
+            max_output_size=max_output_size,
+            operation="encode",
+        )
+        return data
+
+
+class _DeltaStage:
+    extension_id = "test.delta8@1"
+    kind = ExtensionKind.STAGE
+    descriptor = ExtensionDescriptor(
+        display_name="Conformance delta",
+        specification_url="https://example.org/obst/conformance/delta-v1",
+    )
+
+    def bind_encoder(self, parameters: bytes, /) -> _DeltaStage:
+        require_no_parameters(self.extension_id, parameters)
+        return self
+
+    def encode(
+        self,
+        data: bytes,
+        /,
+        *,
+        max_output_size: int | None,
+    ) -> bytes:
+        require_stage_output_size(
+            self.extension_id,
+            len(data),
+            max_output_size=max_output_size,
+            operation="encode",
+        )
+        if not data:
+            return b""
+        output = bytearray((data[0],))
+        output.extend(
+            (current - previous) & 0xFF for previous, current in pairwise(data)
+        )
+        return bytes(output)
+
+
+@dataclass(frozen=True, slots=True)
+class _ZlibParameters:
+    level: int
+
+
+@dataclass(frozen=True, slots=True)
+class _BoundZlibEncoder:
+    level: int
+
+    def encode(
+        self,
+        data: bytes,
+        /,
+        *,
+        max_output_size: int | None,
+    ) -> bytes:
+        output = zlib.compress(data, self.level)
+        require_stage_output_size(
+            _ZlibStage.extension_id,
+            len(output),
+            max_output_size=max_output_size,
+            operation="encode",
+        )
+        return output
+
+
+class _ZlibStage:
+    extension_id = "test.zlib@1"
+    kind = ExtensionKind.STAGE
+    descriptor = ExtensionDescriptor(
+        display_name="Conformance zlib",
+        specification_url="https://example.org/obst/conformance/zlib-v1",
+    )
+
+    def encode_parameters(self, value: _ZlibParameters, /) -> bytes:
+        if type(value) is not _ZlibParameters or not 0 <= value.level <= 9:
+            raise ProviderRejectedError("compression level must be between 0 and 9")
+        return bytes((value.level,))
+
+    def bind_encoder(self, parameters: bytes, /) -> _BoundZlibEncoder:
+        if len(parameters) != 1 or not 0 <= parameters[0] <= 9:
+            raise ProviderRejectedError("invalid conformance zlib parameters")
+        return _BoundZlibEncoder(parameters[0])
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +198,7 @@ class ManifestOffsets:
 
 
 def _registry() -> ExtensionRegistry:
-    return ExtensionRegistry((RawExtension(), Delta8Extension(), ZlibExtension()))
+    return ExtensionRegistry((_IdentityStage(), _DeltaStage(), _ZlibStage()))
 
 
 def _write_container(
@@ -112,7 +228,7 @@ def _raw_manifest(
     stream_id: int = 0,
 ) -> Manifest:
     return Manifest(
-        recipes=(Recipe(recipe_id, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(recipe_id, (StageSpec(_IdentityStage.extension_id),)),),
         streams=(Stream(stream_id, BYTES_STREAM_TYPE, recipe_id),),
     )
 
@@ -139,7 +255,7 @@ def _mixed_empty_chunks_container() -> bytes:
 
 
 def _empty_zlib_chunk_container() -> bytes:
-    zlib_extension = ZlibExtension()
+    zlib_extension = _ZlibStage()
     manifest = Manifest(
         recipes=(
             Recipe(
@@ -147,7 +263,7 @@ def _empty_zlib_chunk_container() -> bytes:
                 (
                     StageSpec(
                         zlib_extension.extension_id,
-                        zlib_extension.encode_parameters(ZlibParameters(6)),
+                        zlib_extension.encode_parameters(_ZlibParameters(6)),
                     ),
                 ),
             ),
@@ -158,16 +274,16 @@ def _empty_zlib_chunk_container() -> bytes:
 
 
 def _delta8_zlib_container() -> bytes:
-    zlib_extension = ZlibExtension()
+    zlib_extension = _ZlibStage()
     manifest = Manifest(
         recipes=(
             Recipe(
                 0,
                 (
-                    StageSpec(Delta8Extension.extension_id),
+                    StageSpec(_DeltaStage.extension_id),
                     StageSpec(
                         zlib_extension.extension_id,
-                        zlib_extension.encode_parameters(ZlibParameters(6)),
+                        zlib_extension.encode_parameters(_ZlibParameters(6)),
                     ),
                 ),
             ),
@@ -192,8 +308,8 @@ def _delta8_zlib_container() -> bytes:
 def _multi_stream_container() -> bytes:
     manifest = Manifest(
         recipes=(
-            Recipe(0, (StageSpec(RawExtension.extension_id),)),
-            Recipe(1, (StageSpec(Delta8Extension.extension_id),)),
+            Recipe(0, (StageSpec(_IdentityStage.extension_id),)),
+            Recipe(1, (StageSpec(_DeltaStage.extension_id),)),
         ),
         streams=(
             Stream(0, BYTES_STREAM_TYPE, 0, metadata=b"left"),
@@ -230,10 +346,10 @@ def _sparse_ids_container() -> bytes:
 
 def _specification_url_manifest() -> Manifest:
     return Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, (StageSpec(_IdentityStage.extension_id),)),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
         extensions=(
-            ExtensionDeclaration(RawExtension.extension_id, _SPECIFICATION_URL),
+            ExtensionDeclaration(_IdentityStage.extension_id, _SPECIFICATION_URL),
         ),
     )
 
@@ -256,7 +372,7 @@ def _maximum_ids_container() -> bytes:
 def _unused_unknown_stage_container() -> bytes:
     manifest = Manifest(
         recipes=(
-            Recipe(0, (StageSpec(RawExtension.extension_id),)),
+            Recipe(0, (StageSpec(_IdentityStage.extension_id),)),
             Recipe(1, (StageSpec("org.example/missing@1"),)),
         ),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
@@ -443,11 +559,11 @@ def _replace_manifest(
 
 def _used_unknown_stage_container(raw: bytes) -> bytes:
     offsets = _manifest_offsets(_raw_manifest())
-    assert len(_UNKNOWN_STAGE_ID) == len(RawExtension.extension_id)
+    assert len(_UNKNOWN_STAGE_ID) == len(_IdentityStage.extension_id)
     return _mutate_manifest_body(
         raw,
         (
-            offsets.extension_ids[RawExtension.extension_id],
+            offsets.extension_ids[_IdentityStage.extension_id],
             _UNKNOWN_STAGE_ID.encode("ascii"),
         ),
     )
@@ -539,7 +655,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "golden",
             raw,
             ("raw", "terminal-commit"),
-            (RawExtension.extension_id,),
+            (_IdentityStage.extension_id,),
             _success_expectation((0, b"hello")),
         ),
         _vector(
@@ -547,7 +663,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _delta8_zlib_container(),
             ("delta8", "zlib", "multi-stage", "multiple-chunks"),
-            (Delta8Extension.extension_id, ZlibExtension.extension_id),
+            (_DeltaStage.extension_id, _ZlibStage.extension_id),
             _success_expectation((0, logical_delta)),
         ),
         _vector(
@@ -563,7 +679,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _empty_raw_chunk_container(),
             ("empty-chunk", "raw", "zero-length-payload"),
-            (RawExtension.extension_id,),
+            (_IdentityStage.extension_id,),
             _success_expectation((0, b"")),
         ),
         _vector(
@@ -571,7 +687,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _mixed_empty_chunks_container(),
             ("empty-chunk", "multiple-chunks", "sequence"),
-            (RawExtension.extension_id,),
+            (_IdentityStage.extension_id,),
             _success_expectation((0, b"middle")),
         ),
         _vector(
@@ -579,7 +695,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _empty_zlib_chunk_container(),
             ("empty-chunk", "zlib", "nonempty-encoded-payload"),
-            (ZlibExtension.extension_id,),
+            (_ZlibStage.extension_id,),
             _success_expectation((0, b"")),
         ),
         _vector(
@@ -587,7 +703,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _multi_stream_container(),
             ("multiple-streams", "interleaved", "recipe-switch"),
-            (Delta8Extension.extension_id, RawExtension.extension_id),
+            (_DeltaStage.extension_id, _IdentityStage.extension_id),
             _success_expectation((0, b"ABCD"), (1, b"123456")),
         ),
         _vector(
@@ -603,7 +719,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _maximum_ids_container(),
             ("maximum-u32", "recipe-id", "stream-id"),
-            (RawExtension.extension_id,),
+            (_IdentityStage.extension_id,),
             _success_expectation((uint32.maximum, b"maximum ids")),
         ),
         _vector(
@@ -619,7 +735,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _unused_unknown_stage_container(),
             ("unknown-stage", "unused-recipe"),
-            (RawExtension.extension_id,),
+            (_IdentityStage.extension_id,),
             _success_expectation((0, b"known")),
         ),
         _vector(
@@ -880,7 +996,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         )
 
     raw_offsets = _manifest_offsets(_raw_manifest())
-    raw_id_offset = raw_offsets.extension_ids[RawExtension.extension_id]
+    raw_id_offset = raw_offsets.extension_ids[_IdentityStage.extension_id]
     reject(
         "extension-id-uppercase",
         _mutate_manifest_body(raw, (raw_id_offset, b"O")),
@@ -893,7 +1009,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         _mutate_manifest_body(
             raw,
             (
-                raw_id_offset + len(RawExtension.extension_id) - 1,
+                raw_id_offset + len(_IdentityStage.extension_id) - 1,
                 b"0",
             ),
         ),
@@ -948,7 +1064,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
 
     url_container = _specification_url_container()
     url_offsets = _manifest_offsets(_specification_url_manifest())
-    url_offset = url_offsets.extension_urls[RawExtension.extension_id]
+    url_offset = url_offsets.extension_urls[_IdentityStage.extension_id]
     colon_offset = _SPECIFICATION_URL.index(":")
     reject(
         "specification-url-whitespace",
@@ -1384,7 +1500,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "invalid",
             logical_hash,
             ("chunk", "logical-hash", "recovery"),
-            (RawExtension.extension_id,),
+            (_IdentityStage.extension_id,),
             _recovery_rejection(stream_id=0, classification="corrupt"),
         )
     )
@@ -1412,7 +1528,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "invalid",
             bytes(logical_size),
             ("chunk", "logical-size", "recovery"),
-            (RawExtension.extension_id,),
+            (_IdentityStage.extension_id,),
             _recovery_rejection(stream_id=0, classification="decode_failure"),
         )
     )
@@ -1430,58 +1546,36 @@ def _definitions() -> tuple[VectorDefinition, ...]:
     return definitions
 
 
-def build_vectors() -> dict[str, bytes]:
-    """Return every checked-in vector by its POSIX relative path."""
-    return {definition.path: definition.encoded for definition in _definitions()}
-
-
-def build_index(vectors: dict[str, bytes]) -> dict[str, object]:
-    """Return the language-neutral catalog for the generated vector bytes."""
-    definitions = _definitions()
-    return {
-        "schema_version": 2,
-        "format": format_version.label,
-        "encoding": "ASCII hexadecimal; whitespace is insignificant",
-        "vectors": [
-            {
-                "id": definition.vector_id,
-                "category": definition.category,
-                "path": definition.path,
-                "sha256": hashlib.sha256(vectors[definition.path]).hexdigest(),
-                "features": list(definition.features),
-                "required_extensions": list(definition.required_extensions),
-                "expected": definition.expected,
-            }
-            for definition in definitions
-        ],
+def build_suite() -> ConformanceSuite:
+    """Return the package-owned structural format corpus."""
+    outcomes = {
+        "invalid_structure": ContainerStructuralOutcome.INVALID_STRUCTURE,
+        "corrupt": ContainerStructuralOutcome.CORRUPT,
+        "truncated": ContainerStructuralOutcome.TRUNCATED,
+        "unsupported_version": ContainerStructuralOutcome.UNSUPPORTED_VERSION,
     }
-
-
-def _hex_document(data: bytes) -> str:
-    encoded = data.hex()
-    return (
-        "\n".join(
-            encoded[offset : offset + 64] for offset in range(0, len(encoded), 64)
+    cases: list[ContainerStructureCase] = []
+    for definition in _definitions():
+        structural = cast(JsonObject, definition.expected["structural"])
+        if structural["result"] == "accept":
+            outcome = ContainerStructuralOutcome.ACCEPT
+            missing = definition.required_extensions
+        else:
+            outcome = outcomes[cast(str, structural["classification"])]
+            missing = ()
+        cases.append(
+            ContainerStructureCase(
+                definition.vector_id,
+                definition.encoded,
+                outcome,
+                missing,
+            )
         )
-        + "\n"
-    )
+    return ConformanceSuite(tuple(cases))
 
 
 def main() -> None:
-    vectors = build_vectors()
-    containers_root = CONFORMANCE_ROOT / "containers"
-    for target in containers_root.rglob("*.hex"):
-        relative_path = target.relative_to(CONFORMANCE_ROOT).as_posix()
-        if relative_path not in vectors:
-            target.unlink()
-    for relative_path, data in vectors.items():
-        target = CONFORMANCE_ROOT / relative_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(_hex_document(data), encoding="ascii")
-    INDEX_PATH.write_text(
-        json.dumps(build_index(vectors), indent="\t", sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    write_conformance_suite(build_suite(), CONFORMANCE_ROOT)
 
 
 if __name__ == "__main__":

@@ -8,20 +8,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from scripts.documentation_graph import discover_markdown_pages
 
-from obst.core import ExtensionDescriptor
-from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
-from obst_defaults.carriers.memory import MemoryCarrierExtension
-from obst_defaults.carriers.stdin import StdinCarrierExtension
-from obst_defaults.codecs.raw import RawExtension
-from obst_defaults.codecs.zlib import (
-    ZlibDictionaryExtension,
-    ZlibExtension,
-)
-from obst_defaults.files import FileExtension
-from obst_defaults.packagers import FixedPackagerExtension
-from obst_defaults.transforms.delta8 import Delta8Extension
+from scripts.documentation_graph import discover_markdown_pages
 
 ROOT = Path(__file__).parents[1]
 DISCOVERED_MARKDOWN = tuple(
@@ -36,24 +24,10 @@ PUBLIC_DOCUMENTS = tuple(
     if path in {ROOT / "README.md", ROOT / "ROADMAP.md"}
     or path.is_relative_to(ROOT / "docs")
 )
-FIRST_PARTY_DESCRIPTORS = (
-    RawExtension.descriptor,
-    ZlibExtension.descriptor,
-    ZlibDictionaryExtension.descriptor,
-    Delta8Extension.descriptor,
-    FileExtension.descriptor,
-)
-FIRST_PARTY_RUNTIME_DESCRIPTORS = (
-    FilesystemCarrierExtension.descriptor,
-    MemoryCarrierExtension.descriptor,
-    StdinCarrierExtension.descriptor,
-    FixedPackagerExtension.descriptor,
-)
 _MARKDOWN_LINK = re.compile(r"!?\[[^]]*]\(([^)]+)\)")
 _MARKDOWN_HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*#*$")
 _PARENT_LINK = re.compile(r"^Parent: \[[^]]+]\(([^)]+)\)$")
 _URL_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
-_REPOSITORY_SPECIFICATION_PREFIX = "https://github.com/SmolBlackHole/Obst/blob/main/"
 _TABLE_OF_CONTENTS_HEADING = "## Table of contents"
 _UNSUPPORTED_MERMAID_RENDERER = re.compile(
     r"(?:layout\s*:\s*elk|defaultRenderer\s*:\s*['\"]?elk)",
@@ -147,36 +121,6 @@ EXECUTABLE_PYTHON_EXAMPLES = tuple(
 
 def _document_id(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
-
-
-@pytest.mark.parametrize("descriptor", FIRST_PARTY_DESCRIPTORS)
-def test_first_party_specification_url_targets_local_contract(
-    descriptor: ExtensionDescriptor,
-) -> None:
-    url = descriptor.specification_url
-    assert url is not None
-    assert url.startswith(_REPOSITORY_SPECIFICATION_PREFIX)
-
-    relative_path = url.removeprefix(_REPOSITORY_SPECIFICATION_PREFIX)
-    assert relative_path.startswith("docs/contracts/")
-    assert (ROOT / relative_path).is_file()
-
-
-@pytest.mark.parametrize("descriptor", FIRST_PARTY_RUNTIME_DESCRIPTORS)
-def test_first_party_specification_url_targets_local_extension_page(
-    descriptor: ExtensionDescriptor,
-) -> None:
-    url = descriptor.specification_url
-    assert url is not None
-    assert url.startswith(_REPOSITORY_SPECIFICATION_PREFIX)
-
-    relative_path = url.removeprefix(_REPOSITORY_SPECIFICATION_PREFIX)
-    page, _, fragment = relative_path.partition("#")
-    assert page.startswith("docs/extensions/")
-    target = ROOT / page
-    assert target.is_file()
-    if fragment:
-        assert fragment in _heading_anchors(target)
 
 
 @pytest.mark.parametrize("document", PUBLIC_DOCUMENTS, ids=_document_id)
@@ -325,9 +269,7 @@ def test_public_python_examples_parse_and_use_real_project_imports(
 
 
 def _is_project_import(module: str) -> bool:
-    return module in {"obst", "obst_defaults"} or module.startswith(
-        ("obst.", "obst_defaults.")
-    )
+    return module == "obst" or module.startswith("obst.")
 
 
 def test_public_docs_include_canonical_executable_examples() -> None:

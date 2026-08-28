@@ -13,13 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = (
     "src",
-    "plugins/defaults/src",
-    "plugins/defaults/tests",
     "tests",
     "scripts",
-    "examples/api_walkthrough.py",
-    "examples/plugin_adaptive_zlib/compare_samples.py",
-    "examples/plugin_adaptive_zlib/src",
 )
 
 
@@ -60,7 +55,7 @@ def main() -> None:
     run_isort(("--check-only", *TARGETS))
     run_module(("mypy",))
     run_module(("pyright",))
-    run_module(("pytest",))
+    run_module(("pytest", "-m", "not distribution"))
 
 
 if __name__ == "__main__":

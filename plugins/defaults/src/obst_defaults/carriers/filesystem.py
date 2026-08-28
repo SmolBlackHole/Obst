@@ -16,6 +16,7 @@ from obst.core.extensions import (
     ExtensionKind,
 )
 from obst.core.io import BinaryReader, BinaryWriter
+
 from obst_defaults.carriers import (
     CarrierError,
     CarrierLifecycleState,

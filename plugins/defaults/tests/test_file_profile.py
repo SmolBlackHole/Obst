@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from typing import BinaryIO, cast
 
 import pytest
-
 from obst.core import (
     Extension,
     ExtensionContractError,
@@ -17,6 +16,7 @@ from obst.core import (
     StageSpec,
 )
 from obst.core.extensions import ExtensionKind
+
 from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.files import (
     FileArchiveError,

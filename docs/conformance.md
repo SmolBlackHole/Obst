@@ -105,17 +105,18 @@ implementation-independent byte format, not serialized Python architecture.
 
 ## Portable vector corpus
 
-The public [`conformance/`](../conformance/) corpus turns format behavior into
-small reusable artifacts. It contains exact Golden Vectors, valid containers
-whose stored representation need not be reproduced and isolated invalid
-containers rejected at a declared validation phase.
+The `obst` distribution ships its language-neutral
+[format corpus](../src/obst/conformance/corpus/) inside the public
+`obst.conformance` package. It contains complete valid and invalid containers
+for framing, manifest semantics, sequencing, integrity and missing-capability
+behavior. Its `obst-format` entry point exposes those same resources through
+the ordinary plugin conformance path.
 
-The machine-readable catalog records vector digests, covered features, exact
-Extension IDs required for logical recovery, structural outcomes, capability
-availability, exact logical outputs and language-neutral rejection
-classifications. Structural acceptance is distinct from recovery, so a missing
-decoder remains a local capability result rather than container corruption. Its
-own [`README`](../conformance/README.md) is the authoritative vector catalog.
+The schema 2 catalog records stable case IDs, exact bytes, SHA-256 digests,
+structural outcomes and missing required Stage IDs. Structural acceptance is
+distinct from logical recovery, so a missing decoder remains a local
+capability result rather than container corruption. The corpus imports no
+production Extension provider.
 
 ## Reference conformance coverage
 
@@ -135,20 +136,19 @@ implementation and its execution evidence.
 
 ## Plugin extension suites
 
-Every Python plugin that publishes `obst.extensions` also publishes one
-matching `obst.conformance` contribution. The plugin distribution owns a
-static `ConformanceSuite` stored as package resources:
+A distribution may independently publish `obst.extensions`, `obst.commands`
+and `obst.conformance` contributions. A plugin with wire-visible providers can
+publish a static `ConformanceSuite` stored as its own package resources:
 
 ```text
 conformance_vectors/
     index.json
-    vectors/*.hex
 ```
 
-Catalog schema `1` records stable case IDs, closed case kinds, Extension IDs,
+Catalog schema 2 records stable case IDs, closed case kinds, Extension IDs,
 SHA-256 digests and expected language-neutral behavior. The generic loader
-rejects unknown fields, invalid identities, unsafe paths, missing artifacts or
-wrong digests before running a case. The suite may cover:
+rejects unknown fields, invalid identities, noncanonical inline hexadecimal
+bytes or wrong digests before running a case. The suite may cover:
 
 - known Stage encodings and optional canonical encoder output;
 - canonical Stage parameters and their inspection interpretation;
@@ -158,23 +158,34 @@ wrong digests before running a case. The suite may cover:
 - recovery of expected logical streams from one complete container.
 
 The portable suite contains data, not pytest modules, callbacks or Python
-exception names. Loading its entry-point factory and exercising its providers
-still executes trusted plugin code. The [plugin guide](extensions/plugins.md)
-owns publication, explicit dependency selection and that trust boundary.
+exception names. Each distribution stores the complete suite as one JSON file
+with canonical inline hexadecimal bytes. C++, Rust or any other implementation
+can consume it without importing or executing Python, while a package avoids a
+directory full of tiny generated files. Loading a suite's entry-point factory
+and exercising its providers still executes trusted plugin code. The [plugin
+guide](extensions/plugins.md) owns publication, explicit dependency selection
+and that trust boundary.
 
-`obst.conformance.load_conformance_suite()` loads a packaged suite and
-`write_conformance_suite()` writes it deterministically. First-party artifacts
-are regenerated with:
+`obst.conformance.load_conformance_suite()` loads a packaged suite,
+`write_conformance_suite()` writes it deterministically, and
+`run_conformance_suite()` executes it against explicit provider tuples. The
+plugin manager calls the same runner after the host explicitly selects a
+plugin. The suite stores no local plugin name; the selected entry point owns
+that context.
+
+Each distribution regenerates only its own artifacts:
 
 ```console
-python scripts/build_plugin_conformance.py
+python scripts/build_conformance.py
+python plugins/defaults/scripts/build_conformance.py
+python examples/plugin_adaptive_zlib/scripts/build_conformance.py
 ```
 
-The narrow `check_stage_conformance()` helper remains available for directly
-testing one `StageKnownAnswerCase` without plugin discovery. Runtime-only
-carriers and packagers have no portable wire vectors because their request and
-publication values are provider-specific; their lifecycle belongs in the
-plugin's ordinary tests.
+The first command owns only OBST structure. The other commands own their
+provider contracts and complete recovery cases. Runtime-only carriers and
+packagers need no meaningless wire suite because their request and publication
+values are provider-specific; their lifecycle belongs in their distribution's
+ordinary tests.
 
 ## Coverage boundary
 

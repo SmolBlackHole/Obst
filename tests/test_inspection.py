@@ -25,8 +25,8 @@ from obst.core import (
     require_no_parameters,
 )
 from obst.core.extensions import ExtensionKind
-from obst_defaults.codecs.raw import RawExtension
-from obst_defaults.codecs.zlib import ZlibExtension
+from tests.support_extensions import CompressionExtension as ZlibExtension
+from tests.support_extensions import IdentityExtension as RawExtension
 
 RAW_STAGE_ID = RawExtension.extension_id
 ZLIB_STAGE_ID = ZlibExtension.extension_id

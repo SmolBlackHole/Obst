@@ -12,7 +12,7 @@ from obst.cli.presentation import (
     format_count,
     format_size,
 )
-from obst.conformance import PluginConformanceReport
+from obst.conformance import ConformanceReport
 from obst.core.extensions import InspectionInterpretation
 from obst.core.inspection import (
     ContainerInspection,
@@ -175,7 +175,8 @@ def render_plugin_catalog_json(
 
 
 def render_plugin_conformance_human(
-    report: PluginConformanceReport,
+    plugin_name: str,
+    report: ConformanceReport,
     *,
     style: HumanOutputStyle = PLAIN_HUMAN_OUTPUT,
 ) -> str:
@@ -185,7 +186,7 @@ def render_plugin_conformance_human(
     styled_status = style.success(status) if report.passed else style.error(status)
     print(style.title("Plugin conformance"), file=output)
     print(
-        _human_field(style, "Plugin", escape_human_text(report.plugin_name)),
+        _human_field(style, "Plugin", escape_human_text(plugin_name)),
         file=output,
     )
     print(_human_field(style, "Result", styled_status), file=output)
@@ -193,24 +194,45 @@ def render_plugin_conformance_human(
     for case in report.cases:
         marker = "PASS" if case.passed else "FAIL"
         styled_marker = style.success(marker) if case.passed else style.error(marker)
+        print(file=output)
         print(
-            f"  {styled_marker}  {style.identifier(escape_human_text(case.case_id))}",
+            _human_field(
+                style,
+                "Case",
+                style.identifier(escape_human_text(case.case_id)),
+            ),
             file=output,
         )
-        details = case.kind.value
+        print(_human_field(style, "Result", styled_marker), file=output)
+        print(
+            _human_field(style, "Kind", escape_human_text(case.kind.value)),
+            file=output,
+        )
         if case.extension_id is not None:
-            details = f"{details} | {escape_human_text(case.extension_id)}"
-        print(f"        {details}", file=output)
+            print(
+                _human_field(
+                    style,
+                    "Extension",
+                    escape_human_text(case.extension_id),
+                ),
+                file=output,
+            )
         if case.error is not None:
-            print(f"        {escape_human_text(case.error)}", file=output)
+            print(
+                _human_field(style, "Error", escape_human_text(case.error)),
+                file=output,
+            )
     return output.getvalue()
 
 
-def render_plugin_conformance_json(report: PluginConformanceReport) -> str:
+def render_plugin_conformance_json(
+    plugin_name: str,
+    report: ConformanceReport,
+) -> str:
     """Render one plugin's portable conformance report as stable JSON."""
     document = {
         "schema_version": PLUGIN_CONFORMANCE_JSON_SCHEMA_VERSION,
-        "plugin": report.plugin_name,
+        "plugin": plugin_name,
         "passed": report.passed,
         "cases": [
             {

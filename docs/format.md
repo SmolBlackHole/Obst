@@ -356,20 +356,19 @@ The expected error classes are:
 
 ## Conformance vectors
 
-The public [`conformance/`](../conformance/) corpus separates 3 categories:
+The packaged [format corpus](../src/obst/conformance/corpus/) separates 2
+categories:
 
-- Golden Vectors require exact reproduction by the Python reference writer;
-- valid vectors require structural acceptance, followed by the cataloged
-  recovery or missing-capability result; and
+- valid vectors require structural acceptance and the cataloged
+  missing-capability result; and
 - invalid vectors require rejection at the cataloged structural or recovery
   phase under a language-neutral classification.
 
-The minimal RAW container is the exact Golden Vector. The multi-chunk Delta8
-plus zlib vector is decode-only because conforming zlib encoders may choose
-different representations. Catalog schema 2 separates structural validation
-from logical recovery so an unavailable Stage is never confused with a corrupt
-container. The machine-readable catalog owns paths, SHA-256, feature tags,
-required Extension IDs, phased outcomes, logical outputs and rejection rules.
+Catalog schema 2 separates structural validation from provider-owned logical
+recovery so an unavailable Stage is never confused with a corrupt container.
+The machine-readable catalog owns exact bytes, SHA-256 digests, structural
+outcomes and missing Extension IDs. Stage and profile bytes live in suites
+owned by the distributions that implement those contracts.
 
 The generated corpus covers every field of the 4 fixed records, truncation at
 each record boundary, manifest ordering and reference rules, representative

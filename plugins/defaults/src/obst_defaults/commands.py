@@ -20,6 +20,7 @@ from obst.core.model import StageSpec
 from obst.core.packaging import RecipeSpec
 from obst.core.registry import ExtensionRegistry
 from obst.plugins import PluginLoadError
+
 from obst_defaults.carriers import (
     CarrierError,
     PublicationReceipt,

@@ -25,6 +25,9 @@ dev = [
 [project.scripts]
 obst = "obst.cli.main:main"
 
+[project.entry-points."obst.conformance"]
+obst-format = "obst.format_conformance:obst_conformance"
+
 [project.urls]
 Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/docs/README.md"
 
@@ -32,14 +35,21 @@ Documentation = "https://github.com/SmolBlackHole/Obst/blob/main/docs/README.md"
 where = ["src"]
 include = ["obst*"]
 
+[tool.setuptools.package-data]
+obst = ["py.typed", "conformance/corpus/*.json"]
+
 [tool.pytest.ini_options]
-testpaths = ["tests", "plugins/defaults/tests"]
-pythonpath = ["src", "plugins/defaults/src", "."]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = [
+    "distribution: build and install one distribution in isolation",
+    "timeout(seconds): maximum test duration",
+]
 
 [tool.ruff]
 target-version = "py314"
 line-length = 88
-src = ["src", "plugins/defaults/src", "plugins/defaults/tests", "tests"]
+src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "B", "UP", "RUF"]
@@ -51,35 +61,17 @@ quote-style = "double"
 profile = "black"
 line_length = 88
 py_version = 314
-src_paths = ["src", "plugins/defaults/src", "tests", "plugins/defaults/tests"]
+src_paths = ["src", "tests", "scripts"]
 
 [tool.mypy]
 python_version = "3.14"
 strict = true
-mypy_path = ["src", "plugins/defaults/src", "examples/plugin_adaptive_zlib/src"]
-files = [
-    "src/obst",
-    "plugins/defaults/src",
-    "plugins/defaults/tests",
-    "tests",
-    "scripts",
-    "examples/api_walkthrough.py",
-    "examples/plugin_adaptive_zlib/compare_samples.py",
-    "examples/plugin_adaptive_zlib/src",
-]
+mypy_path = ["src"]
+files = ["src/obst", "tests", "scripts"]
 exclude = ["obst_lab"]
 
 [tool.pyright]
-include = [
-    "src",
-    "plugins/defaults/src",
-    "plugins/defaults/tests",
-    "tests",
-    "scripts",
-    "examples/api_walkthrough.py",
-    "examples/plugin_adaptive_zlib/compare_samples.py",
-    "examples/plugin_adaptive_zlib/src",
-]
+include = ["src", "tests", "scripts"]
 exclude = [
     "obst_lab",
     "build",
@@ -89,16 +81,12 @@ exclude = [
     "**/.*",
     ".venv",
 ]
-extraPaths = [
-    "src",
-    "plugins/defaults/src",
-    "examples/plugin_adaptive_zlib/src",
-]
+extraPaths = ["src"]
 pythonVersion = "3.14"
 typeCheckingMode = "strict"
 
 [tool.coverage.run]
-source = ["obst", "obst_defaults"]
+source = ["obst"]
 omit = ["*/tests/*", "*/venv/*", "*/.venv/*", "*/site-packages/*"]
 
 [tool.coverage.report]

@@ -9,7 +9,6 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
-
 from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
@@ -27,6 +26,7 @@ from obst.core import (
     encode_chunk_once,
 )
 from obst.core.extensions import ExtensionKind
+
 from obst_defaults.carriers import (
     PublicationReceipt,
     PublishedPackage,

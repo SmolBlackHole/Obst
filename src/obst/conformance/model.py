@@ -13,7 +13,6 @@ from obst.core.model import validate_extension_id
 type StageDirection = Literal["encode", "decode"]
 
 _CASE_ID_PATTERN = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,126}[a-z0-9])?")
-_PLUGIN_NAME_PATTERN = re.compile(r"[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?")
 
 
 class ConformanceCaseKind(StrEnum):
@@ -26,7 +25,18 @@ class ConformanceCaseKind(StrEnum):
     STAGE_OUTPUT_LIMIT = "stage-output-limit"
     STREAM_METADATA = "stream-metadata"
     STREAM_METADATA_REJECTION = "stream-metadata-rejection"
+    CONTAINER_STRUCTURE = "container-structure"
     CONTAINER_RECOVERY = "container-recovery"
+
+
+class ContainerStructuralOutcome(StrEnum):
+    """Portable structural result expected for complete container bytes."""
+
+    ACCEPT = "accept"
+    INVALID_STRUCTURE = "invalid_structure"
+    CORRUPT = "corrupt"
+    TRUNCATED = "truncated"
+    UNSUPPORTED_VERSION = "unsupported_version"
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,6 +177,34 @@ class StreamMetadataRejectionCase:
 
 
 @dataclass(frozen=True, slots=True)
+class ContainerStructureCase:
+    """Complete OBST bytes with one exact expected structural outcome."""
+
+    case_id: str
+    container: bytes
+    outcome: ContainerStructuralOutcome
+    missing_required_stages: tuple[str, ...] = ()
+    kind: ClassVar[ConformanceCaseKind] = ConformanceCaseKind.CONTAINER_STRUCTURE
+
+    def __post_init__(self) -> None:
+        _validate_case_id(self.case_id)
+        _require_bytes("container", self.container)
+        if type(self.outcome) is not ContainerStructuralOutcome:
+            raise TypeError("outcome must be an exact ContainerStructuralOutcome")
+        _validate_extension_ids(
+            "missing_required_stages",
+            self.missing_required_stages,
+        )
+        if (
+            self.outcome is not ContainerStructuralOutcome.ACCEPT
+            and self.missing_required_stages
+        ):
+            raise ValueError(
+                "rejected container cases cannot declare missing required stages"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class RecoveredStreamExpectation:
     """Expected logical bytes for one stream in a complete container vector."""
 
@@ -218,6 +256,7 @@ type PortableConformanceCase = (
     | StageOutputLimitCase
     | StreamMetadataCase
     | StreamMetadataRejectionCase
+    | ContainerStructureCase
     | ContainerRecoveryCase
 )
 
@@ -228,17 +267,11 @@ class _ExtensionCase(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class ConformanceSuite:
-    """One plugin-owned immutable corpus of portable Extension cases."""
+    """One immutable distribution-owned corpus of portable cases."""
 
-    plugin_name: str
     cases: tuple[PortableConformanceCase, ...]
 
     def __post_init__(self) -> None:
-        if (
-            type(self.plugin_name) is not str
-            or _PLUGIN_NAME_PATTERN.fullmatch(self.plugin_name) is None
-        ):
-            raise ValueError("plugin_name must be a canonical lowercase plugin name")
         if type(self.cases) is not tuple:
             raise TypeError("cases must be a tuple")
         allowed = (
@@ -249,6 +282,7 @@ class ConformanceSuite:
             StageOutputLimitCase,
             StreamMetadataCase,
             StreamMetadataRejectionCase,
+            ContainerStructureCase,
             ContainerRecoveryCase,
         )
         if any(type(case) not in allowed for case in self.cases):
@@ -270,10 +304,9 @@ class ConformanceCaseResult:
 
 
 @dataclass(frozen=True, slots=True)
-class PluginConformanceReport:
-    """Renderer-neutral result of testing one installed plugin suite."""
+class ConformanceReport:
+    """Renderer-neutral result of executing one conformance suite."""
 
-    plugin_name: str
     cases: tuple[ConformanceCaseResult, ...]
 
     @property
@@ -284,7 +317,7 @@ class PluginConformanceReport:
 
 def case_extension_id(case: PortableConformanceCase) -> str | None:
     """Return the directly tested Extension ID, if the case owns one."""
-    if type(case) is ContainerRecoveryCase:
+    if type(case) in {ContainerStructureCase, ContainerRecoveryCase}:
         return None
     return cast(_ExtensionCase, case).extension_id
 
@@ -316,21 +349,37 @@ def _require_non_negative_integer(name: str, value: object) -> None:
 def _validate_directions(directions: object) -> None:
     if type(directions) is not tuple or not directions:
         raise TypeError("directions must be a non-empty tuple")
-    if any(direction not in ("encode", "decode") for direction in directions):
+    typed_directions = cast(tuple[object, ...], directions)
+    if any(direction not in ("encode", "decode") for direction in typed_directions):
         raise ValueError("directions may contain only encode and decode")
     canonical = tuple(
-        direction for direction in ("encode", "decode") if direction in directions
+        direction for direction in ("encode", "decode") if direction in typed_directions
     )
-    if directions != canonical:
+    if typed_directions != canonical:
         raise ValueError("directions must be canonical and unique")
+
+
+def _validate_extension_ids(name: str, values: object) -> None:
+    if type(values) is not tuple:
+        raise TypeError(f"{name} must be a tuple")
+    typed_values = cast(tuple[object, ...], values)
+    if any(type(value) is not str for value in typed_values):
+        raise TypeError(f"{name} must contain exact strings")
+    extension_ids = cast(tuple[str, ...], typed_values)
+    for extension_id in extension_ids:
+        validate_extension_id(extension_id)
+    if tuple(sorted(set(extension_ids))) != extension_ids:
+        raise ValueError(f"{name} must be sorted and unique")
 
 
 __all__ = [
     "ConformanceCaseKind",
     "ConformanceCaseResult",
+    "ConformanceReport",
     "ConformanceSuite",
     "ContainerRecoveryCase",
-    "PluginConformanceReport",
+    "ContainerStructuralOutcome",
+    "ContainerStructureCase",
     "PortableConformanceCase",
     "RecoveredStreamExpectation",
     "StageBindRejectionCase",

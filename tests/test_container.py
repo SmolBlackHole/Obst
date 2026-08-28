@@ -47,15 +47,9 @@ from obst.core.wire import (
     ManifestHeader,
     TerminalCommit,
 )
-from obst_defaults.codecs.raw import RawExtension
-from obst_defaults.codecs.zlib import ZlibExtension
-from obst_defaults.transforms.delta8 import Delta8Extension
+from tests.support_extensions import CompressionExtension as ZlibExtension
+from tests.support_extensions import IdentityExtension as RawExtension
 
-CONFORMANCE_ROOT = (
-    Path(__file__).parents[1] / "conformance" / "containers" / "0.1-apple"
-)
-RAW_GOLDEN = CONFORMANCE_ROOT / "golden" / "minimal-raw.hex"
-DELTA8_ZLIB_GOLDEN = CONFORMANCE_ROOT / "valid" / "delta8-zlib-multichunk.hex"
 _DEFAULT_MANIFEST_CEILING = cast(int, DEFAULT_RESOURCE_LIMITS.max_manifest_bytes)
 _DEFAULT_CHUNK_CEILING = cast(
     int,
@@ -202,31 +196,6 @@ def _encode_for_manifest(
         sequence=sequence,
         recipe=manifest.recipe(selected_recipe_id),
         registry=registry,
-    )
-
-
-def test_raw_container_matches_v0_golden_vector() -> None:
-    encoded = write_container(raw_manifest(), b"hello")
-
-    assert encoded == bytes.fromhex(RAW_GOLDEN.read_text(encoding="ascii"))
-    assert (
-        materialize_stream(ContainerReader(io.BytesIO(encoded)), 0, _stage_registry())
-        == b"hello"
-    )
-
-
-def test_delta8_zlib_golden_vector_recovers_multiple_chunks() -> None:
-    encoded = bytes.fromhex(DELTA8_ZLIB_GOLDEN.read_text(encoding="ascii"))
-    registry = ExtensionRegistry((Delta8Extension(), ZlibExtension()))
-    reader = ContainerReader(io.BytesIO(encoded))
-
-    assert tuple(stage.stage_id for stage in reader.manifest.recipes[0].stages) == (
-        Delta8Extension.extension_id,
-        ZlibExtension.extension_id,
-    )
-    assert (
-        materialize_stream(ContainerReader(io.BytesIO(encoded)), 0, registry)
-        == bytes(range(96)) + b"OBST" * 8
     )
 
 
