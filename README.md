@@ -398,7 +398,7 @@ python -m venv .venv
 # Windows PowerShell
 .venv\Scripts\Activate.ps1
 
-python -m pip install -e ".[dev]" -e ./plugins/defaults
+python -m pip install -e ".[dev]" -e ./plugins/defaults -e ./examples/plugin_adaptive_zlib
 obst plugins enable obst-defaults
 python scripts/quality.py
 ```

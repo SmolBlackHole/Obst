@@ -27,14 +27,17 @@ jobs:
               with:
                   python-version: "3.14"
                   cache: pip
-                  cache-dependency-path: pyproject.toml
+                  cache-dependency-path: |
+                      pyproject.toml
+                      plugins/defaults/pyproject.toml
+                      examples/plugin_adaptive_zlib/pyproject.toml
 
-            - name: Install runtime development dependencies
+            - name: Install workspace development dependencies
               run: |
                   python -m pip install --upgrade pip
-                  python -m pip install -e ".[dev]"
+                  python -m pip install -e ".[dev]" -e ./plugins/defaults -e ./examples/plugin_adaptive_zlib
 
-            - name: Run runtime quality checks
+            - name: Run workspace quality checks
               run: python scripts/quality.py
 
     defaults:

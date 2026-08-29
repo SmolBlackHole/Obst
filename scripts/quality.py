@@ -39,9 +39,8 @@ def run_module(
     arguments: Sequence[str],
     *,
     cwd: Path = ROOT,
-    environment: dict[str, str] | None = None,
 ) -> None:
-    run((sys.executable, "-m", *arguments), cwd=cwd, environment=environment)
+    run((sys.executable, "-m", *arguments), cwd=cwd)
 
 
 def run_isort(arguments: Sequence[str]) -> None:
@@ -51,17 +50,6 @@ def run_isort(arguments: Sequence[str]) -> None:
     environment = os.environ.copy()
     environment["PYTHONUTF8"] = "1"
     run((str(executable), *arguments), environment=environment)
-
-
-def workspace_environment(workspace: Path) -> dict[str, str]:
-    environment = os.environ.copy()
-    source_paths = (workspace / "src", ROOT / "src")
-    existing = environment.get("PYTHONPATH")
-    if existing:
-        environment["PYTHONPATH"] = os.pathsep.join((*map(str, source_paths), existing))
-    else:
-        environment["PYTHONPATH"] = os.pathsep.join(map(str, source_paths))
-    return environment
 
 
 def main() -> None:
@@ -86,7 +74,6 @@ def main() -> None:
         run_module(
             ("pytest", "-m", "not distribution"),
             cwd=workspace,
-            environment=workspace_environment(workspace),
         )
 
 
