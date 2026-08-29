@@ -164,6 +164,8 @@ def render_inspection_human(
         file=output,
     )
     print(f"\n{style.heading('Stage capabilities')}", file=output)
+    if not inspection.stage_capabilities:
+        print(f"  {style.muted('none')}", file=output)
     for stage in inspection.stage_capabilities:
         availability = "available" if stage.decoder_available else "missing"
         label = (
@@ -342,6 +344,8 @@ def _format_compression(stored_size: int, original_size: int) -> str:
 
 
 def _format_recipe(recipe: InspectedRecipe) -> str:
+    if not recipe.stages:
+        return "identity (no stages)"
     return " -> ".join(_format_stage(stage) for stage in recipe.stages)
 
 

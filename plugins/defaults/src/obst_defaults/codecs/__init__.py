@@ -1,6 +1,5 @@
 """Shipped reversible codec extensions."""
 
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import (
     ZlibDictionaryExtension,
     ZlibDictionaryParameters,
@@ -9,7 +8,6 @@ from obst_defaults.codecs.zlib import (
 )
 
 __all__ = [
-    "RawExtension",
     "ZlibDictionaryExtension",
     "ZlibDictionaryParameters",
     "ZlibExtension",

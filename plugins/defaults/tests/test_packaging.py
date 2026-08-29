@@ -31,7 +31,6 @@ from obst.core import (
 )
 from obst.core.extensions import ExtensionKind
 
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import ZlibExtension
 from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
@@ -40,7 +39,7 @@ from obst_defaults.packagers.fixed import (
 from obst_defaults.transforms.delta8 import Delta8Extension
 from support_resources import accounting as _accounting
 
-_RAW = RecipeSpec((StageSpec(RawExtension.extension_id),))
+_IDENTITY = RecipeSpec(())
 _DELTA_ZLIB = RecipeSpec(
     (
         StageSpec(Delta8Extension.extension_id),
@@ -51,7 +50,7 @@ _CUSTOM_STREAM_TYPE = "org.example/records@1"
 
 
 def _stage_registry() -> ExtensionRegistry:
-    return ExtensionRegistry((RawExtension(), Delta8Extension(), ZlibExtension()))
+    return ExtensionRegistry((Delta8Extension(), ZlibExtension()))
 
 
 def _source(
@@ -59,7 +58,7 @@ def _source(
     *,
     stream_type: str = BYTES_STREAM_TYPE,
     metadata: bytes = b"",
-    recipe: RecipeSpec = _RAW,
+    recipe: RecipeSpec = _IDENTITY,
     chunk_size: int = 4,
 ) -> LogicalStreamSource:
     return LogicalStreamSource.from_bytes(
@@ -167,7 +166,7 @@ def test_packager_writes_each_chunk_before_requesting_the_next() -> None:
         assert len(target.getvalue()) > size_before_second
 
     source = LogicalStreamSource(
-        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _RAW),
+        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _IDENTITY),
         chunks(),
         max_chunk_bytes=len(b"second"),
     )
@@ -194,7 +193,7 @@ def test_packager_rejects_invalid_chunk_type_after_claiming_source() -> None:
         yield cast(bytes, bytearray(b"mutable"))
 
     source = LogicalStreamSource(
-        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _RAW),
+        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _IDENTITY),
         invalid_chunks(),
         max_chunk_bytes=len(b"mutable"),
     )
@@ -215,7 +214,7 @@ def test_packager_refuses_declared_chunk_limit_before_consuming_source() -> None
         yield b"oversized"
 
     source = LogicalStreamSource(
-        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _RAW),
+        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _IDENTITY),
         chunks(),
         max_chunk_bytes=9,
     )
@@ -334,7 +333,11 @@ def test_packager_rejects_a_missing_stage_before_publishing_the_header() -> None
 
 
 def test_packager_stage_budget_spans_all_source_chunks() -> None:
-    source = _source(b"ab", chunk_size=1)
+    source = _source(
+        b"ab",
+        recipe=RecipeSpec((StageSpec(Delta8Extension.extension_id),)),
+        chunk_size=1,
+    )
 
     with pytest.raises(ResourceLimitError) as error:
         _package(
@@ -432,7 +435,6 @@ def test_packager_serializes_only_available_specification_urls() -> None:
         for extension in result.manifest.extensions
     }
     assert specification_urls == {
-        RawExtension.extension_id: RawExtension.descriptor.specification_url,
         _CUSTOM_STREAM_TYPE: None,
     }
 
@@ -454,7 +456,6 @@ def test_runtime_extension_ids_never_enter_the_manifest() -> None:
 
     registry = ExtensionRegistry(
         (
-            RawExtension(),
             RuntimeCarrier(),
             RuntimePackager(),
         )
@@ -464,7 +465,7 @@ def test_runtime_extension_ids_never_enter_the_manifest() -> None:
 
     assert tuple(
         extension.extension_id for extension in result.manifest.extensions
-    ) == (BYTES_STREAM_TYPE, RawExtension.extension_id)
+    ) == (BYTES_STREAM_TYPE,)
 
 
 def test_registered_stream_profile_contributes_its_specification_url() -> None:
@@ -478,7 +479,6 @@ def test_registered_stream_profile_contributes_its_specification_url() -> None:
     profile = RecordsProfile()
     registry = ExtensionRegistry(
         (
-            RawExtension(),
             Delta8Extension(),
             ZlibExtension(),
             profile,

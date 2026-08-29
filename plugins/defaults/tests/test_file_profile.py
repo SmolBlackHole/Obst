@@ -13,11 +13,9 @@ from obst.core import (
     ExtensionRegistrationError,
     ExtensionRegistry,
     RecipeSpec,
-    StageSpec,
 )
 from obst.core.extensions import ExtensionKind
 
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.files import (
     FileArchiveError,
     FileArchiver,
@@ -31,8 +29,8 @@ _CUSTOM_FILE_ID = "org.example/file@1"
 _CUSTOM_FILE_DESCRIPTOR = ExtensionDescriptor(display_name="Example file")
 
 
-def _raw_recipe() -> RecipeSpec:
-    return RecipeSpec((StageSpec(RawExtension.extension_id),))
+def _identity_recipe() -> RecipeSpec:
+    return RecipeSpec(())
 
 
 def _archiver(*extensions: Extension) -> FileArchiver:
@@ -189,7 +187,7 @@ def test_file_archiver_uses_the_callers_profile_and_recipe_policy(
     path.write_bytes(b"payload")
     source_profile = _SourceOnlyFileProfile()
     archiver = _archiver(source_profile)
-    recipe = _raw_recipe()
+    recipe = _identity_recipe()
 
     with archiver.open_sources(
         (path,),
@@ -227,7 +225,7 @@ def test_file_source_cleanup_preserves_body_error_and_attempts_every_close(
         with archiver.open_sources(
             paths,
             source_profile_id=_CUSTOM_FILE_ID,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             raise RuntimeError("body failed")
 
@@ -259,7 +257,7 @@ def test_file_source_cleanup_reports_first_close_failure_after_success(
         with archiver.open_sources(
             paths,
             source_profile_id=_CUSTOM_FILE_ID,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             pass
 
@@ -278,7 +276,7 @@ def test_file_archiver_reports_a_missing_source_capability(tmp_path: Path) -> No
         with archiver.open_sources(
             (path,),
             source_profile_id=_CUSTOM_FILE_ID,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             pass
 
@@ -299,7 +297,7 @@ def test_file_source_rejects_a_non_bytes_provider_result(tmp_path: Path) -> None
         with archiver.open_sources(
             (path,),
             source_profile_id=_CUSTOM_FILE_ID,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             pass
 
@@ -318,7 +316,7 @@ def test_file_source_rejects_symbolic_links(tmp_path: Path) -> None:
         with archiver.open_sources(
             (link,),
             source_profile_id=_CUSTOM_FILE_ID,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             pass
 
@@ -349,7 +347,7 @@ def test_file_source_rejects_identity_change_during_open(
         with archiver.open_sources(
             (path,),
             source_profile_id=_CUSTOM_FILE_ID,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             pass
 
@@ -381,7 +379,7 @@ def test_file_source_cannot_misattribute_profile_errors(tmp_path: Path) -> None:
         with archiver.open_sources(
             (path,),
             source_profile_id=_CUSTOM_FILE_ID,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             pass
 

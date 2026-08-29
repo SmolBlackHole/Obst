@@ -10,6 +10,7 @@ from obst.core import (
     PipelineError,
     ProviderRejectedError,
     Recipe,
+    RecipeEncoder,
     ResourceLimitError,
     StageSpec,
     decode_recipe,
@@ -95,6 +96,38 @@ def test_recipe_execution_is_reversible_across_multiple_neutral_stages() -> None
         )
         == logical
     )
+
+
+def test_zero_stage_recipe_is_a_bounded_identity_without_providers() -> None:
+    recipe = Recipe(0, ())
+    registry = ExtensionRegistry(())
+    accounting = _accounting()
+    encoder = RecipeEncoder(registry, accounting=accounting)
+
+    assert encoder.encode(b"payload", recipe, max_output_size=7) == b"payload"
+    assert accounting.current(CoreResource.STAGE_EXECUTIONS) == 0
+    assert (
+        decode_recipe(
+            b"payload",
+            recipe,
+            registry,
+            expected_size=7,
+            accounting=_accounting(),
+        )
+        == b"payload"
+    )
+
+    with pytest.raises(PipelineError, match="recipe output contains 7 bytes"):
+        encoder.encode(b"payload", recipe, max_output_size=6)
+
+    with pytest.raises(PipelineError, match="decoded size mismatch"):
+        decode_recipe(
+            b"payload",
+            recipe,
+            registry,
+            expected_size=6,
+            accounting=_accounting(),
+        )
 
 
 def test_recipe_execution_enforces_intermediate_output_limits() -> None:

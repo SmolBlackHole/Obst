@@ -153,16 +153,17 @@ search history or the policy that selected it.
 An encoder may use one fixed Recipe, a heuristic or a bounded candidate search.
 It may optimize size, memory, encode time, decode time or flash usage. Every
 candidate still needs an exact round trip, resource bounds and deterministic
-selection. RAW remains correct when no transformation earns its cost.
+selection. The identity Recipe remains correct when no transformation earns
+its cost.
 
 ```text
-RAW | codec | transform -> codec
-              |
-              v
-        verify and score
-              |
-              v
-      selected Recipe bytes
+identity Recipe | codec | transform -> codec
+                         |
+                         v
+                   verify and score
+                         |
+                         v
+                 selected Recipe bytes
 ```
 
 Rejected candidates are diagnostics, not container data. Cleverness may also
@@ -281,5 +282,5 @@ publish progressively and cannot promise rollback. The
 [core guides](core/README.md) own individual operations.
 
 Plugin distributions own their provider documentation, vectors and tests.
-`obst.bytes@1` remains the sole core stream contract; RAW, zlib, Delta8,
+`obst.bytes@1` remains the sole core stream contract; zlib, Delta8,
 `obst.file@1`, Carriers, Packagers and archivers remain replaceable Extensions.

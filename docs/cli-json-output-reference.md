@@ -202,18 +202,6 @@ The trust warning remains on stderr. Stdout contains only the JSON document:
             "writer_available": false
         },
         {
-            "decoder_available": true,
-            "display_name": "RAW",
-            "encoder_available": true,
-            "id": "obst.raw@1",
-            "kind": "stage",
-            "parameter_decoder_available": false,
-            "parameter_encoder_available": false,
-            "parameter_interpreter_available": false,
-            "specification_url": "https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/raw.md",
-            "summary": "Identity stage for untransformed bytes."
-        },
-        {
             "display_name": "Standard input",
             "id": "obst.stdin@1",
             "kind": "carrier",

@@ -178,13 +178,6 @@ obst.delta8@1
   Summary         Modulo-256 delta transform over individual bytes.
   Specification   https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/delta8.md
 
-obst.raw@1
-  Name            RAW
-  Stage           encode yes, decode yes
-  Parameters      encode no, decode no, interpret no
-  Summary         Identity stage for untransformed bytes.
-  Specification   https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/raw.md
-
 obst.zlib@1
   Name            zlib
   Stage           encode yes, decode yes

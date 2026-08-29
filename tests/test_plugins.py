@@ -36,7 +36,7 @@ from obst.resources import (
     ResourceKind,
     ResourceUnit,
 )
-from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_extensions import IdentityExtension
 
 _NOT_CALLABLE = 7
 
@@ -52,11 +52,11 @@ class _StubDistribution:
 
 
 def valid_plugin_factory() -> tuple[Extension, ...]:
-    return (RawExtension(),)
+    return (IdentityExtension(),)
 
 
 def conflicting_plugin_factory() -> tuple[Extension, ...]:
-    return (RawExtension(),)
+    return (IdentityExtension(),)
 
 
 def empty_plugin_factory() -> tuple[Extension, ...]:
@@ -71,8 +71,8 @@ def valid_conformance_factory() -> ConformanceSuite:
     return ConformanceSuite(
         (
             StageKnownAnswerCase(
-                "raw-known-answer",
-                RawExtension.extension_id,
+                "identity-known-answer",
+                IdentityExtension.extension_id,
                 b"",
                 b"known bytes",
                 b"known bytes",
@@ -86,8 +86,8 @@ def failing_conformance_factory() -> ConformanceSuite:
     return ConformanceSuite(
         (
             StageKnownAnswerCase(
-                "raw-known-answer",
-                RawExtension.extension_id,
+                "identity-known-answer",
+                IdentityExtension.extension_id,
                 b"",
                 b"expected",
                 b"different",
@@ -102,7 +102,7 @@ def invalid_conformance_factory() -> tuple[object, ...]:
 
 class ExampleResource(ResourceKind):
     ITEMS = ResourceDefinition(
-        f"{RawExtension.extension_id}/items",
+        f"{IdentityExtension.extension_id}/items",
         8,
         "Items processed by the example plugin.",
         ResourceUnit.COUNT,
@@ -125,7 +125,7 @@ def valid_resource_factory() -> ResourceContribution:
         tuple(ExampleResource),
         (
             LimitProfile(
-                f"{RawExtension.extension_id}/strict",
+                f"{IdentityExtension.extension_id}/strict",
                 "Strict example limits.",
                 ((ExampleResource.ITEMS, 2),),
             ),
@@ -317,7 +317,7 @@ def test_selected_plugin_contributes_typed_resources_and_inert_profile(
     assert (
         runtime.resources.resource(str(ExampleResource.ITEMS)) is ExampleResource.ITEMS
     )
-    policy = runtime.resources.policy(f"{RawExtension.extension_id}/strict")
+    policy = runtime.resources.policy(f"{IdentityExtension.extension_id}/strict")
     assert policy.maximum(ExampleResource.ITEMS) == 2
     assert manager.status(plugin_name).resource_reference == (
         f"{__name__}:valid_resource_factory"
@@ -495,7 +495,7 @@ def test_one_shot_plugin_selection_loads_extensions_but_not_commands(
 
     runtime = manager.runtime(("one-shot",))
 
-    assert runtime.registry.can_decode(RawExtension.extension_id)
+    assert runtime.registry.can_decode(IdentityExtension.extension_id)
     assert manager.commands() == ()
 
 
@@ -793,8 +793,8 @@ def test_runtime_loads_enabled_plugins_and_explicit_additions_once(
     assert manager.runtime().registry.capabilities() == ()
     runtime = manager.runtime(("valid", "valid"))
     assert runtime.plugin_names == ("valid",)
-    assert runtime.registry.can_encode(RawExtension.extension_id)
-    assert runtime.registry.can_decode(RawExtension.extension_id)
+    assert runtime.registry.can_encode(IdentityExtension.extension_id)
+    assert runtime.registry.can_decode(IdentityExtension.extension_id)
 
 
 @pytest.mark.parametrize(
@@ -875,8 +875,8 @@ def test_plugin_conformance_is_explicit_and_renderer_neutral(
     report = manager.test("valid")
 
     assert report.passed is True
-    assert report.cases[0].case_id == "raw-known-answer"
-    assert report.cases[0].extension_id == RawExtension.extension_id
+    assert report.cases[0].case_id == "identity-known-answer"
+    assert report.cases[0].extension_id == IdentityExtension.extension_id
     assert report.cases[0].error is None
 
 
@@ -937,7 +937,7 @@ def test_extension_plugin_without_conformance_can_run_but_not_be_tested(
     )
 
     runtime = manager.runtime(additional=("valid",))
-    assert runtime.registry.can_decode(RawExtension.extension_id)
+    assert runtime.registry.can_decode(IdentityExtension.extension_id)
 
     with pytest.raises(PluginConformanceError, match="does not publish"):
         manager.test("valid")

@@ -9,7 +9,7 @@ they do not require use of the Python providers shipped here.
 
 ## Stage contracts
 
-See the [Stage contract index](stages/README.md) for RAW, Delta8 and both zlib
+See the [Stage contract index](stages/README.md) for Delta8 and both zlib
 contracts.
 
 ## Stream contracts

@@ -24,6 +24,10 @@ implementation, and [writing](writing.md) owns container framing.
 `decode_recipe()` applies their decoders in reverse order and requires the
 expected logical size:
 
+A Recipe may contain no Stages. That Zero-Stage Recipe is the canonical
+identity representation, needs no provider, and returns its input unchanged in
+both directions.
+
 ```python
 from obst.core import (
     ExtensionRegistry,

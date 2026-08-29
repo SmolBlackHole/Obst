@@ -70,6 +70,9 @@ recipes referenced by actual chunks. An unavailable stage in an unused recipe
 remains visible in `missing_declared_stages` but not in
 `missing_required_stages`.
 
+A used Zero-Stage Recipe requires no decoder. Its Stage capability list is
+empty and its Stage execution count is zero.
+
 ## Resource footprint
 
 `ContainerInspection.summary` contains container size, total declared logical

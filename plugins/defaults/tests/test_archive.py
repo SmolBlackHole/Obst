@@ -21,7 +21,6 @@ from obst.core import (
     RecipeSpec,
     ResourceAccounting,
     ResourceLimitError,
-    StageSpec,
     Stream,
     encode_chunk_once,
 )
@@ -36,7 +35,6 @@ from obst_defaults.carriers.filesystem import (
     FilesystemPublisherSession,
     FilesystemPublishRequest,
 )
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.files import (
     FileArchiveError,
     FileArchiver,
@@ -53,12 +51,12 @@ from obst_defaults.packagers.fixed import (
 from support_resources import accounting as _accounting
 
 
-def _raw_recipe() -> RecipeSpec:
-    return RecipeSpec((StageSpec(RawExtension.extension_id),))
+def _identity_recipe() -> RecipeSpec:
+    return RecipeSpec(())
 
 
 def _registry(extension: FileExtension) -> ExtensionRegistry:
-    return ExtensionRegistry((RawExtension(), extension))
+    return ExtensionRegistry((extension,))
 
 
 def _publish(
@@ -72,7 +70,7 @@ def _publish(
     with archiver.open_sources(
         source_paths,
         source_profile_id=FileExtension.extension_id,
-        recipe=_raw_recipe() if recipe is None else recipe,
+        recipe=_identity_recipe() if recipe is None else recipe,
         chunk_size=chunk_size,
     ) as sources:
         operation = FixedPackagerExtension().prepare_package(
@@ -154,10 +152,10 @@ def test_file_archiver_materializes_mixed_profile_ids(tmp_path: Path) -> None:
 
     standard = FileExtension()
     alternate = AlternateFileMaterializer()
-    registry = ExtensionRegistry((RawExtension(), standard, alternate))
+    registry = ExtensionRegistry((standard, alternate))
     archiver = FileArchiver(registry)
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, ()),),
         streams=(
             Stream(0, standard.extension_id, 0, standard.encode_file_name("a.txt")),
             Stream(1, alternate.extension_id, 0, b"alt:b.rar"),
@@ -192,7 +190,7 @@ def test_file_archiver_uses_only_the_recipe_supplied_by_its_caller(
     source = tmp_path / "apple.txt"
     source.write_bytes(b"red")
     extension = FileExtension()
-    recipe = _raw_recipe()
+    recipe = _identity_recipe()
     archiver = FileArchiver(_registry(extension))
 
     published = _publish(
@@ -217,7 +215,7 @@ def test_file_sources_read_from_the_handle_opened_during_planning(
     with archiver.open_sources(
         (source_path,),
         source_profile_id=extension.extension_id,
-        recipe=_raw_recipe(),
+        recipe=_identity_recipe(),
         chunk_size=4,
     ) as sources:
 
@@ -346,7 +344,7 @@ def test_sources_reject_duplicate_portable_basenames(tmp_path: Path) -> None:
         with archiver.open_sources(
             (first, second),
             source_profile_id=extension.extension_id,
-            recipe=_raw_recipe(),
+            recipe=_identity_recipe(),
         ):
             pass
 
@@ -623,7 +621,7 @@ def _write_profile_container(
     registry: ExtensionRegistry,
 ) -> None:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, ()),),
         streams=(Stream(0, stream_type, 0, metadata),),
     )
     with path.open("wb") as target:

@@ -28,14 +28,14 @@ it.** This repository contains both, but they are not the same thing.
 
 Read the layers from top to bottom:
 
-| Layer                 | Game example          | Telemetry example |
-| --------------------- | --------------------- | ----------------- |
-| Application semantics | Game state            | Telemetry model   |
-| Domain format         | SQLite                | MCAP              |
-| Logical bytes         | SQLite database bytes | MCAP bytes        |
-| **[OBST format](docs/format.md)** | **OBST** | **OBST** |
-| Storage or transport  | S3 object             | Flash             |
-| Actual transport      | HTTP over TCP         | Block device      |
+| Layer                             | Game example          | Telemetry example |
+| --------------------------------- | --------------------- | ----------------- |
+| Application semantics             | Game state            | Telemetry model   |
+| Domain format                     | SQLite                | MCAP              |
+| Logical bytes                     | SQLite database bytes | MCAP bytes        |
+| **[OBST format](docs/format.md)** | **OBST**              | **OBST**          |
+| Storage or transport              | S3 object             | Flash             |
+| Actual transport                  | HTTP over TCP         | Block device      |
 
 Applications and domain formats own meaning and produce logical bytes. OBST
 owns their reversible stored representation. Storage and transport own where
@@ -179,10 +179,10 @@ Some examples:
 - An already compressed image may benefit from absolutely nothing. That is
   completely fine.
 
-For the last case, the correct recipe is simply:
+For the last case, the correct Recipe is simply:
 
 ```text
-RAW
+identity (no Stages)
 ```
 
 Knowing when _not_ to transform data is part of the job.
@@ -202,7 +202,7 @@ One container may hold streams that have very little in common:
 ```text
 metadata.json       -> zlib
 measurements.bin    -> delta8 -> zlib
-photo.jpg           -> RAW
+photo.jpg           -> identity Recipe
 ```
 
 Existing formats do not have to stop being themselves and neither of us should
@@ -257,8 +257,8 @@ ordinary numeric equality is not enough.
 
 ## Can I extend it?
 
-Yes. `obst.bytes@1` is the one core stream contract; the shipped RAW, zlib,
-Delta8 and portable-file capabilities are ordinary Extensions from the
+Yes. `obst.bytes@1` is the one core stream contract; the shipped zlib, Delta8
+and portable-file capabilities are ordinary Extensions from the
 separately installed `obst-defaults` plugin. Third-party code uses the same
 registry and provider contracts. There is no first-party VIP entrance.
 
@@ -430,8 +430,8 @@ current draft, but compatibility has not frozen and intentional pre-freeze wire
 changes regenerate them.
 
 The runtime reads and writes chunked containers and inspects missing
-capabilities. The explicitly activated `obst-defaults` plugin supplies RAW,
-Delta8, zlib and portable-file tooling without a privileged loading path.
+capabilities. The explicitly activated `obst-defaults` plugin supplies Delta8,
+zlib and portable-file tooling without a privileged loading path.
 
 The reference implementation and first-party tooling are open source under the
 [Mozilla Public License 2.0](LICENSE).

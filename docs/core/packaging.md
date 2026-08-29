@@ -70,6 +70,9 @@ source = LogicalStreamSource.from_bytes(
 )
 ```
 
+Use `RecipeSpec(())` when the encoded payload should equal the logical bytes.
+That identity Recipe does not require a Stage provider.
+
 `LogicalStreamSource.from_bytes()` requires an explicit `chunk_size`. Chunking
 is packaging policy, not a decoder requirement or a core-owned default. The
 chosen size remains subject to `CoreResource.LOGICAL_CHUNK_BYTES` in the

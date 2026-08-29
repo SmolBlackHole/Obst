@@ -49,7 +49,7 @@ from obst.core.wire import (
 )
 from obst.resources import ResourcePolicy
 from tests.support_extensions import CompressionExtension as ZlibExtension
-from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_extensions import IdentityExtension
 from tests.support_resources import accounting as _accounting
 from tests.support_resources import policy as _policy
 
@@ -108,7 +108,7 @@ class _SwitchableFailingWriter:
 
 
 def _stage_registry() -> ExtensionRegistry:
-    return ExtensionRegistry((RawExtension(), ZlibExtension()))
+    return ExtensionRegistry((IdentityExtension(), ZlibExtension()))
 
 
 def first_chunk_offset(encoded: bytes | bytearray) -> int:
@@ -159,7 +159,9 @@ def rewrite_terminal_commit_hash(encoded: bytearray) -> None:
     rewrite_terminal_commit_crc(encoded)
 
 
-def raw_manifest(*, stage_id: str = RawExtension.extension_id) -> Manifest:
+def identity_stage_manifest(
+    *, stage_id: str = IdentityExtension.extension_id
+) -> Manifest:
     return Manifest(
         recipes=(Recipe(0, (StageSpec(stage_id),)),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
@@ -192,6 +194,33 @@ def write_container(
     return target.getvalue()
 
 
+def test_zero_stage_container_round_trip_needs_no_stage_registry() -> None:
+    manifest = Manifest(
+        recipes=(Recipe(0, ()),),
+        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+    )
+    registry = ExtensionRegistry(())
+    encoded = write_container(manifest, b"identity", registry=registry)
+
+    inspection = inspect_container(
+        ContainerReader(io.BytesIO(encoded), accounting=_accounting()),
+        registry=registry,
+    )
+
+    assert inspection.required_decoders_available
+    assert inspection.stage_capabilities == ()
+    assert inspection.resources.total_stage_count == 0
+    assert inspection.resources.stage_executions == 0
+    assert (
+        materialize_stream(
+            ContainerReader(io.BytesIO(encoded), accounting=_accounting()),
+            0,
+            registry,
+        )
+        == b"identity"
+    )
+
+
 def _encode_for_manifest(
     manifest: Manifest,
     registry: ExtensionRegistry,
@@ -216,7 +245,7 @@ def _encode_for_manifest(
 
 def test_container_reader_enforces_manifest_count_limits() -> None:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
         streams=(
             Stream(0, BYTES_STREAM_TYPE, 0),
             Stream(1, BYTES_STREAM_TYPE, 0),
@@ -242,7 +271,7 @@ def test_container_reader_rejects_declared_counts_before_reading_manifest(
     policy: ResourcePolicy,
     message: str,
 ) -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
     source = _HeaderOnlyReader(encoded[: ContainerHeader.size])
 
     with pytest.raises(ResourceLimitError, match=message):
@@ -252,7 +281,7 @@ def test_container_reader_rejects_declared_counts_before_reading_manifest(
 
 
 def test_extension_count_is_checked_before_manifest_body_read() -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
     source = _RecordingReader(encoded)
 
     with pytest.raises(ResourceLimitError, match="extensions"):
@@ -266,7 +295,7 @@ def test_extension_count_is_checked_before_manifest_body_read() -> None:
 
 @pytest.mark.parametrize("removed_bytes", [1, 5, 47, TerminalCommit.size])
 def test_truncated_terminal_commit_is_detected(removed_bytes: int) -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
 
     with pytest.raises(TruncatedContainerError):
         inspect_container(
@@ -280,7 +309,7 @@ def test_truncated_terminal_commit_is_detected(removed_bytes: int) -> None:
 def test_complete_chunk_suffix_removal_is_detected(
     removed_chunk_count: int,
 ) -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
     chunk_record_size = ChunkHeader.size + 4
     cut_offset = first_chunk_offset(encoded) + (
         (2 - removed_chunk_count) * chunk_record_size
@@ -384,7 +413,7 @@ def test_complete_chunk_suffix_removal_is_detected(
     ],
 )
 def test_container_header_mutation_matrix(mutation: _HeaderMutation) -> None:
-    encoded = bytearray(write_container(raw_manifest(), b"payload"))
+    encoded = bytearray(write_container(identity_stage_manifest(), b"payload"))
     encoded[mutation.offset : mutation.offset + len(mutation.replacement)] = (
         mutation.replacement
     )
@@ -497,7 +526,7 @@ def test_container_header_mutation_matrix(mutation: _HeaderMutation) -> None:
     ],
 )
 def test_chunk_header_mutation_matrix(mutation: _HeaderMutation) -> None:
-    encoded = bytearray(write_container(raw_manifest(), b"payload"))
+    encoded = bytearray(write_container(identity_stage_manifest(), b"payload"))
     chunk_offset = first_chunk_offset(encoded)
     offset = chunk_offset + mutation.offset
     encoded[offset : offset + len(mutation.replacement)] = mutation.replacement
@@ -513,7 +542,7 @@ def test_chunk_header_mutation_matrix(mutation: _HeaderMutation) -> None:
 
 
 def test_corrupt_chunk_payload_is_detected_without_decoding() -> None:
-    encoded = bytearray(write_container(raw_manifest(), b"payload"))
+    encoded = bytearray(write_container(identity_stage_manifest(), b"payload"))
     encoded[first_chunk_offset(encoded) + ChunkHeader.size] ^= 0xFF
 
     with pytest.raises(CorruptContainerError, match="payload checksum"):
@@ -523,7 +552,7 @@ def test_corrupt_chunk_payload_is_detected_without_decoding() -> None:
 
 
 def test_inspection_does_not_confuse_logical_size_with_integrity() -> None:
-    encoded = bytearray(write_container(raw_manifest(), b"payload"))
+    encoded = bytearray(write_container(identity_stage_manifest(), b"payload"))
     chunk_offset = first_chunk_offset(encoded)
     struct.pack_into("<Q", encoded, chunk_offset + 24, 8)
     rewrite_chunk_header_crc(encoded, chunk_offset)
@@ -547,7 +576,7 @@ def test_inspection_does_not_confuse_logical_size_with_integrity() -> None:
 
 
 def test_corrupt_manifest_is_detected() -> None:
-    encoded = bytearray(write_container(raw_manifest(), b"payload"))
+    encoded = bytearray(write_container(identity_stage_manifest(), b"payload"))
     encoded[ContainerHeader.size + ManifestHeader.size] ^= 0x01
 
     with pytest.raises(CorruptContainerError, match="manifest body checksum"):
@@ -558,13 +587,13 @@ def test_unknown_stage_keeps_container_inspectable() -> None:
     stage = _IdentityStage()
     registry = ExtensionRegistry(
         (
-            RawExtension(),
+            IdentityExtension(),
             ZlibExtension(),
             stage,
         )
     )
     encoded = write_container(
-        raw_manifest(stage_id=_IdentityStage.extension_id),
+        identity_stage_manifest(stage_id=_IdentityStage.extension_id),
         b"payload",
         registry=registry,
     )
@@ -589,7 +618,7 @@ def test_unknown_stage_keeps_container_inspectable() -> None:
 
 def test_bytes_stream_is_a_core_contract_without_registry_state() -> None:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0, b"preserve even if nonconforming"),),
     )
     target = io.BytesIO()
@@ -606,7 +635,7 @@ def test_bytes_stream_is_a_core_contract_without_registry_state() -> None:
 
 
 def test_reader_tracks_bytes_consumed_by_its_own_session() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
     reader = ContainerReader(io.BytesIO(encoded), accounting=_accounting())
 
     assert reader.bytes_consumed == first_chunk_offset(encoded)
@@ -622,7 +651,7 @@ def test_reader_tracks_bytes_consumed_by_its_own_session() -> None:
 
 
 def test_completed_reader_writer_and_inspection_share_one_summary() -> None:
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     registry = _stage_registry()
     target = io.BytesIO()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
@@ -669,7 +698,7 @@ def test_manifest_preflight_validates_all_recipe_parameters_before_encoding() ->
 def test_encoder_only_writer_and_decoder_only_reader_interoperate() -> None:
     writer_registry = ExtensionRegistry((_IdentityEncoderExtension(),))
     encoded = write_container(
-        raw_manifest(stage_id=_IdentityStage.extension_id),
+        identity_stage_manifest(stage_id=_IdentityStage.extension_id),
         b"payload",
         registry=writer_registry,
     )
@@ -685,7 +714,7 @@ def test_decode_rejects_wrong_implementation_registered_under_same_id() -> None:
     writer_registry = ExtensionRegistry((_XorStage(),))
     reader_registry = ExtensionRegistry((_WrongXorStage(),))
     encoded = write_container(
-        raw_manifest(stage_id=_XorStage.extension_id),
+        identity_stage_manifest(stage_id=_XorStage.extension_id),
         payload,
         registry=writer_registry,
     )
@@ -703,7 +732,7 @@ def test_decode_rejects_wrong_implementation_registered_under_same_id() -> None:
 
 
 def test_decode_rejects_tampered_logical_hash_after_inspection() -> None:
-    encoded = bytearray(write_container(raw_manifest(), b"payload"))
+    encoded = bytearray(write_container(identity_stage_manifest(), b"payload"))
     chunk_offset = first_chunk_offset(encoded)
     encoded[chunk_offset + 44] ^= 0xFF
     rewrite_chunk_header_crc(encoded, chunk_offset)
@@ -724,7 +753,7 @@ def test_decode_rejects_tampered_logical_hash_after_inspection() -> None:
 
 
 def test_declared_sizes_are_checked_before_payload_read() -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
     policy = _policy((CoreResource.ENCODED_CHUNK_BYTES, 3))
 
     with pytest.raises(ResourceLimitError, match="encoded_chunk_bytes"):
@@ -734,7 +763,7 @@ def test_declared_sizes_are_checked_before_payload_read() -> None:
 
 
 def test_container_byte_budget_accepts_exact_size_and_refuses_one_byte_less() -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
 
     inspection = inspect_container(
         ContainerReader(
@@ -757,7 +786,7 @@ def test_container_byte_budget_accepts_exact_size_and_refuses_one_byte_less() ->
 
 
 def test_trailing_probe_does_not_charge_committed_container_budget() -> None:
-    valid = write_container(raw_manifest(), b"payload")
+    valid = write_container(identity_stage_manifest(), b"payload")
     source = io.BytesIO(valid + b"x")
     reader = ContainerReader(
         source,
@@ -772,7 +801,7 @@ def test_trailing_probe_does_not_charge_committed_container_budget() -> None:
 
 
 def test_chunk_count_budget_accepts_exact_count_and_refuses_next_chunk() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
 
     assert (
         inspect_container(
@@ -796,7 +825,7 @@ def test_chunk_count_budget_accepts_exact_count_and_refuses_next_chunk() -> None
 
 
 def test_inspection_does_not_charge_logical_recovery_budget() -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
     refused_policy = _policy((CoreResource.LOGICAL_BYTES, 0))
 
     assert (
@@ -832,7 +861,7 @@ def test_inspection_does_not_charge_logical_recovery_budget() -> None:
 
 
 def test_successfully_consumed_reader_is_complete_and_single_use() -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
     reader = ContainerReader(io.BytesIO(encoded), accounting=_accounting())
 
     inspect_container(reader)
@@ -844,7 +873,7 @@ def test_successfully_consumed_reader_is_complete_and_single_use() -> None:
 
 
 def test_structural_reader_failure_is_terminal() -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
     reader = ContainerReader(io.BytesIO(encoded[:-1]), accounting=_accounting())
 
     with pytest.raises(TruncatedContainerError):
@@ -856,7 +885,7 @@ def test_structural_reader_failure_is_terminal() -> None:
 
 
 def test_abandoned_reader_iteration_cannot_be_restarted() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
     reader = ContainerReader(io.BytesIO(encoded), accounting=_accounting())
     chunks = cast(Generator[Chunk], reader.iter_chunks())
 
@@ -872,7 +901,7 @@ def test_abandoned_reader_iteration_cannot_be_restarted() -> None:
 
 
 def test_materialize_stream_enforces_combined_output_limit() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
 
     assert (
         materialize_stream(
@@ -897,7 +926,7 @@ def test_materialize_stream_enforces_combined_output_limit() -> None:
 
 
 def test_materialize_stream_reports_unknown_selection_before_consuming() -> None:
-    encoded = write_container(raw_manifest(), b"payload")
+    encoded = write_container(identity_stage_manifest(), b"payload")
     reader = ContainerReader(io.BytesIO(encoded), accounting=_accounting())
 
     with pytest.raises(UnknownStreamError) as error:
@@ -908,7 +937,7 @@ def test_materialize_stream_reports_unknown_selection_before_consuming() -> None
 
 
 def test_iter_decoded_chunks_is_bounded_streaming_api() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
 
     decoded = list(
         iter_decoded_chunks(
@@ -927,7 +956,7 @@ def test_iter_decoded_chunks_is_bounded_streaming_api() -> None:
 
 
 def test_chunk_decoder_needs_only_manifest_index_and_validated_chunks() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
     reader = ContainerReader(io.BytesIO(encoded), accounting=_accounting())
     chunks = tuple(reader.iter_chunks())
     decoder = ChunkDecoder(
@@ -958,7 +987,7 @@ def test_chunk_encoder_reuses_one_recipe_binding_across_chunks() -> None:
 
 def test_materialize_stream_skips_unselected_chunks_without_decode_budget() -> None:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
         streams=(
             Stream(0, BYTES_STREAM_TYPE, 0),
             Stream(1, BYTES_STREAM_TYPE, 0),
@@ -1001,7 +1030,7 @@ def test_materialize_stream_skips_unselected_chunks_without_decode_budget() -> N
 
 
 def test_recovery_stage_budget_spans_all_chunks() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
 
     with pytest.raises(ResourceLimitError) as error:
         list(
@@ -1021,7 +1050,7 @@ def test_recovery_stage_budget_spans_all_chunks() -> None:
 def test_chunk_recipe_override_uses_the_selected_recipe() -> None:
     manifest = Manifest(
         recipes=(
-            Recipe(0, (StageSpec(RawExtension.extension_id),)),
+            Recipe(0, (StageSpec(IdentityExtension.extension_id),)),
             Recipe(1, (StageSpec(ZlibExtension.extension_id, b"\x09"),)),
         ),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
@@ -1054,7 +1083,7 @@ def test_chunk_recipe_override_uses_the_selected_recipe() -> None:
 
 
 def test_writer_serializes_preencoded_chunk_without_a_stage_registry() -> None:
-    manifest = raw_manifest(stage_id=_IdentityStage.extension_id)
+    manifest = identity_stage_manifest(stage_id=_IdentityStage.extension_id)
     prepared = Chunk(
         stream_id=0,
         sequence=0,
@@ -1082,7 +1111,7 @@ def test_writer_serializes_preencoded_chunk_without_a_stage_registry() -> None:
 
 def test_writer_completion_is_single_use() -> None:
     target = io.BytesIO()
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     registry = _stage_registry()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
@@ -1118,7 +1147,7 @@ def test_writer_completion_is_single_use() -> None:
 
 def test_target_write_failure_leaves_writer_terminally_failed() -> None:
     target = _SwitchableFailingWriter()
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
     chunk = _encode_for_manifest(
         manifest,
@@ -1142,7 +1171,9 @@ def test_target_write_failure_leaves_writer_terminally_failed() -> None:
 
 def test_failed_finish_cannot_be_retried() -> None:
     target = _SwitchableFailingWriter()
-    writer = ContainerWriter(target, raw_manifest(), accounting=_accounting())
+    writer = ContainerWriter(
+        target, identity_stage_manifest(), accounting=_accounting()
+    )
     target.fail = True
 
     with pytest.raises(OSError, match="target write failed"):
@@ -1245,7 +1276,7 @@ def test_failed_finish_cannot_be_retried() -> None:
     ],
 )
 def test_terminal_commit_mutation_matrix(mutation: _HeaderMutation) -> None:
-    encoded = bytearray(write_container(raw_manifest(), b"payload"))
+    encoded = bytearray(write_container(identity_stage_manifest(), b"payload"))
     offset = terminal_commit_offset(encoded) + mutation.offset
     encoded[offset : offset + len(mutation.replacement)] = mutation.replacement
     if mutation.repair_checksum:
@@ -1258,7 +1289,7 @@ def test_terminal_commit_mutation_matrix(mutation: _HeaderMutation) -> None:
 
 
 def test_terminal_commit_rejects_trailing_bytes() -> None:
-    encoded = write_container(raw_manifest(), b"payload") + b"trailing"
+    encoded = write_container(identity_stage_manifest(), b"payload") + b"trailing"
 
     with pytest.raises(InvalidContainerError, match="trailing bytes"):
         inspect_container(
@@ -1267,7 +1298,7 @@ def test_terminal_commit_rejects_trailing_bytes() -> None:
 
 
 def test_terminal_commit_fields_bind_the_complete_preceding_container() -> None:
-    encoded = write_container(raw_manifest(), b"abcdefgh", chunk_size=4)
+    encoded = write_container(identity_stage_manifest(), b"abcdefgh", chunk_size=4)
     commit_offset = terminal_commit_offset(encoded)
     (
         magic,
@@ -1321,7 +1352,9 @@ def test_writer_rejects_invalid_chunk_references_and_sequences(
     message: str,
 ) -> None:
     target = io.BytesIO()
-    writer = ContainerWriter(target, raw_manifest(), accounting=_accounting())
+    writer = ContainerWriter(
+        target, identity_stage_manifest(), accounting=_accounting()
+    )
     header_size = len(target.getvalue())
 
     with pytest.raises(error_type, match=message):
@@ -1366,7 +1399,7 @@ def test_writer_rejects_chunks_above_its_size_limits(
 ) -> None:
     target = io.BytesIO()
     writer = ContainerWriter(
-        target, raw_manifest(), accounting=ResourceAccounting(policy)
+        target, identity_stage_manifest(), accounting=ResourceAccounting(policy)
     )
     header_size = len(target.getvalue())
 
@@ -1382,7 +1415,7 @@ def test_writer_rejects_oversized_manifest_before_publishing_bytes() -> None:
     with pytest.raises(ResourceLimitError, match="manifest_bytes"):
         ContainerWriter(
             target,
-            raw_manifest(),
+            identity_stage_manifest(),
             accounting=_accounting((CoreResource.MANIFEST_BYTES, 0)),
         )
 
@@ -1390,7 +1423,7 @@ def test_writer_rejects_oversized_manifest_before_publishing_bytes() -> None:
 
 
 def test_writer_reserves_terminal_commit_before_publishing_header() -> None:
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     complete = write_container(manifest, b"")
     target = io.BytesIO()
 
@@ -1417,7 +1450,7 @@ def test_writer_reserves_terminal_commit_before_publishing_header() -> None:
 
 
 def test_writer_reserves_terminal_commit_before_publishing_chunk() -> None:
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     registry = _stage_registry()
     chunk = _encode_for_manifest(
         manifest,
@@ -1445,7 +1478,7 @@ def test_writer_reserves_terminal_commit_before_publishing_chunk() -> None:
 
 def test_writer_refuses_chunk_count_before_publishing_rejected_chunk() -> None:
     target = io.BytesIO()
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     writer = ContainerWriter(
         target,
         manifest,
@@ -1470,7 +1503,7 @@ def test_writer_refuses_chunk_count_before_publishing_rejected_chunk() -> None:
 
 def test_writer_preflight_refuses_known_chunk_work_without_mutating_state() -> None:
     target = io.BytesIO()
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     writer = ContainerWriter(
         target,
         manifest,
@@ -1497,7 +1530,7 @@ def test_writer_preflight_refuses_known_chunk_work_without_mutating_state() -> N
 
 def test_writer_preflights_cumulative_terminal_totals_before_chunk_output() -> None:
     target = io.BytesIO()
-    manifest = raw_manifest()
+    manifest = identity_stage_manifest()
     writer = ContainerWriter(
         target,
         manifest,
@@ -1518,7 +1551,7 @@ def test_writer_preflights_cumulative_terminal_totals_before_chunk_output() -> N
 
 
 def test_chunk_size_limit_accepts_boundary_and_rejects_larger_value() -> None:
-    encoded = write_container(raw_manifest(), b"abcd")
+    encoded = write_container(identity_stage_manifest(), b"abcd")
 
     assert (
         materialize_stream(
@@ -1562,7 +1595,7 @@ def test_container_round_trip_through_real_file(tmp_path: Path) -> None:
     payload = bytes(range(256)) * 4
 
     with path.open("wb") as target:
-        manifest = raw_manifest()
+        manifest = identity_stage_manifest()
         registry = _stage_registry()
         writer = ContainerWriter(target, manifest, accounting=_accounting())
         for sequence, offset in enumerate(range(0, len(payload), 127)):
@@ -1589,16 +1622,16 @@ def test_value_objects_reject_mutable_bytes_and_collections() -> None:
     mutable_bytes = cast(bytes, mutable)
     mutable_stages = cast(
         tuple[StageSpec, ...],
-        [StageSpec(RawExtension.extension_id)],
+        [StageSpec(IdentityExtension.extension_id)],
     )
     mutable_recipes = cast(
         tuple[Recipe, ...],
-        [Recipe(0, (StageSpec(RawExtension.extension_id),))],
+        [Recipe(0, (StageSpec(IdentityExtension.extension_id),))],
     )
     mutable_streams = cast(tuple[Stream, ...], [Stream(0, BYTES_STREAM_TYPE, 0)])
 
     with pytest.raises(TypeError, match="stage parameters must be bytes"):
-        StageSpec(RawExtension.extension_id, mutable_bytes)
+        StageSpec(IdentityExtension.extension_id, mutable_bytes)
     with pytest.raises(TypeError, match="stream metadata must be bytes"):
         Stream(0, BYTES_STREAM_TYPE, 0, mutable_bytes)
     with pytest.raises(TypeError, match="encoded payload must be bytes"):
@@ -1620,7 +1653,7 @@ def test_value_objects_reject_mutable_bytes_and_collections() -> None:
         Manifest(mutable_recipes, (Stream(0, BYTES_STREAM_TYPE, 0),))
     with pytest.raises(TypeError, match="manifest streams must be a tuple"):
         Manifest(
-            (Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+            (Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
             mutable_streams,
         )
 

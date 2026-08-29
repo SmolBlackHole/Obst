@@ -16,7 +16,6 @@ from obst_defaults.bundle import obst_extensions
 from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
 from obst_defaults.carriers.memory import MemoryCarrierExtension
 from obst_defaults.carriers.stdin import StdinCarrierExtension
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import ZlibDictionaryExtension, ZlibExtension
 from obst_defaults.conformance import obst_conformance
 from obst_defaults.files import FileExtension
@@ -61,7 +60,6 @@ def test_published_suite_passes_with_the_published_extensions() -> None:
 @pytest.mark.parametrize(
     "descriptor",
     (
-        RawExtension.descriptor,
         ZlibExtension.descriptor,
         ZlibDictionaryExtension.descriptor,
         Delta8Extension.descriptor,

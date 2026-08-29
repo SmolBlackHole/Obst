@@ -28,7 +28,6 @@ from obst.core import (
     materialize_stream,
 )
 
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import (
     ZlibDictionaryExtension,
     ZlibDictionaryParameters,
@@ -39,12 +38,11 @@ from obst_defaults.transforms.delta8 import Delta8Extension
 from support_resources import accounting as _accounting
 
 _LOGICAL_STREAM_TYPE = "org.example/logical-bytes@1"
-_RAW = RawExtension()
 _DELTA8 = Delta8Extension()
 _ZLIB = ZlibExtension()
 _ZLIB_DICTIONARY = ZlibDictionaryExtension()
 _CONTAINER_RECIPES = (
-    Recipe(0, (StageSpec(RawExtension.extension_id),)),
+    Recipe(0, ()),
     Recipe(1, (StageSpec(Delta8Extension.extension_id),)),
     Recipe(2, (StageSpec(ZlibExtension.extension_id, b"\x06"),)),
     Recipe(
@@ -52,7 +50,6 @@ _CONTAINER_RECIPES = (
         (
             StageSpec(Delta8Extension.extension_id),
             StageSpec(ZlibExtension.extension_id, b"\x09"),
-            StageSpec(RawExtension.extension_id),
         ),
     ),
 )
@@ -61,7 +58,6 @@ _CONTAINER_RECIPES = (
 def _stage_registry() -> ExtensionRegistry:
     return ExtensionRegistry(
         (
-            _RAW,
             _DELTA8,
             _ZLIB,
             _ZLIB_DICTIONARY,
@@ -104,7 +100,6 @@ def _assert_recipe_reverse_law(data: bytes, recipe: Recipe) -> None:
 @pytest.mark.parametrize(
     ("extension", "expected_id"),
     [
-        (_RAW, "obst.raw@1"),
         (_DELTA8, "obst.delta8@1"),
         (_ZLIB, "obst.zlib@1"),
         (_ZLIB_DICTIONARY, "obst.zlib@2"),
@@ -123,7 +118,6 @@ def test_first_party_stage_owns_identity_and_capabilities(
 @pytest.mark.parametrize(
     ("extension", "parameters", "payload"),
     [
-        (_RAW, b"", bytes(range(256))),
         (_DELTA8, b"", bytes(range(256)) * 4),
         (_ZLIB, b"\x09", b"fruit" * 1024),
         (
@@ -212,7 +206,7 @@ def test_zlib_dictionary_extension_authors_its_parameter_bytes() -> None:
 
 @pytest.mark.parametrize(
     "stage_id",
-    [RawExtension.extension_id, Delta8Extension.extension_id],
+    [Delta8Extension.extension_id],
 )
 @settings(max_examples=40)
 @example(data=b"")
@@ -221,6 +215,15 @@ def test_zlib_dictionary_extension_authors_its_parameter_bytes() -> None:
 @given(data=st.binary(max_size=4096))
 def test_parameterless_stage_reverse_law(data: bytes, stage_id: str) -> None:
     _assert_recipe_reverse_law(data, Recipe(0, (StageSpec(stage_id),)))
+
+
+@settings(max_examples=40)
+@example(data=b"")
+@example(data=b"x")
+@example(data=bytes(range(256)))
+@given(data=st.binary(max_size=4096))
+def test_zero_stage_recipe_reverse_law(data: bytes) -> None:
+    _assert_recipe_reverse_law(data, Recipe(0, ()))
 
 
 @pytest.mark.parametrize("compression_level", range(10))
@@ -307,7 +310,6 @@ def test_composed_recipe_reverse_law(data: bytes, compression_level: int) -> Non
                     ZlibExtension.extension_id,
                     _ZLIB.encode_parameters(ZlibParameters(compression_level)),
                 ),
-                StageSpec(RawExtension.extension_id),
             ),
         ),
     )
@@ -407,13 +409,13 @@ def test_container_logical_dataset_reverse_law(
     inner_chunk_size=st.integers(min_value=1, max_value=64),
     outer_chunk_size=st.integers(min_value=1, max_value=128),
 )
-def test_raw_in_raw_is_opaque_until_explicit_reverse_traversal(
+def test_obst_in_obst_is_opaque_until_explicit_reverse_traversal(
     payload: bytes,
     inner_chunk_size: int,
     outer_chunk_size: int,
 ) -> None:
-    inner = _write_raw_container(payload, chunk_size=inner_chunk_size)
-    outer = _write_raw_container(inner, chunk_size=outer_chunk_size)
+    inner = _write_identity_container(payload, chunk_size=inner_chunk_size)
+    outer = _write_identity_container(inner, chunk_size=outer_chunk_size)
 
     inspection = inspect_container(
         ContainerReader(io.BytesIO(outer), accounting=_accounting())
@@ -435,9 +437,9 @@ def test_raw_in_raw_is_opaque_until_explicit_reverse_traversal(
     )
 
 
-def _write_raw_container(payload: bytes, *, chunk_size: int) -> bytes:
+def _write_identity_container(payload: bytes, *, chunk_size: int) -> bytes:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, ()),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()

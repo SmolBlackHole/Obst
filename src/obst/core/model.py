@@ -96,7 +96,7 @@ class ExtensionDeclaration:
 
 @dataclass(frozen=True, slots=True)
 class Recipe:
-    """A reusable linear processing pipeline."""
+    """A reusable, possibly empty linear processing pipeline."""
 
     recipe_id: int
     stages: tuple[StageSpec, ...]
@@ -104,8 +104,6 @@ class Recipe:
     def __post_init__(self) -> None:
         _require_tuple("recipe stages", self.stages, StageSpec)
         uint32.require("recipe_id", self.recipe_id)
-        if not self.stages:
-            raise ValueError("a recipe must contain at least one stage")
         if len(self.stages) > uint16.maximum:
             raise ValueError("a recipe cannot contain more than 65535 stages")
 

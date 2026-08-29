@@ -2,7 +2,7 @@
 
 Parent: [obst-defaults documentation](README.md)
 
-`obst-defaults` supplies three codec Stage Extensions. They use the ordinary
+`obst-defaults` supplies two codec Stage Extensions. They use the ordinary
 OBST Stage registry and binding contracts; there is no first-party execution
 path.
 
@@ -19,7 +19,6 @@ path.
 
 | Extension     | Purpose                                          | Contract                                               | Python provider           |
 | ------------- | ------------------------------------------------ | ------------------------------------------------------ | ------------------------- |
-| `obst.raw@1`  | Identity fallback                                | [RAW](contracts/stages/raw.md)                         | `RawExtension`            |
 | `obst.zlib@1` | zlib-wrapped DEFLATE without a preset dictionary | [zlib](contracts/stages/zlib.md)                       | `ZlibExtension`           |
 | `obst.zlib@2` | zlib-wrapped DEFLATE with a preset dictionary    | [zlib dictionary](contracts/stages/zlib-dictionary.md) | `ZlibDictionaryExtension` |
 
@@ -28,13 +27,12 @@ path.
 ```python
 from obst.core import ExtensionRegistry
 from obst_defaults.codecs import (
-    RawExtension,
     ZlibDictionaryExtension,
     ZlibExtension,
 )
 
 registry = ExtensionRegistry(
-    (RawExtension(), ZlibExtension(), ZlibDictionaryExtension())
+    (ZlibExtension(), ZlibDictionaryExtension())
 )
 ```
 

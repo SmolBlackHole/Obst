@@ -31,7 +31,6 @@ from obst_defaults.carriers.filesystem import (
     FilesystemPublisherSession,
     FilesystemPublishRequest,
 )
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
     FixedPackagerExtension,
@@ -39,20 +38,19 @@ from obst_defaults.packagers.fixed import (
 from obst_defaults.transforms.delta8 import Delta8Extension
 from support_resources import accounting as _accounting
 
-RAW_STAGE_ID = RawExtension.extension_id
 DELTA8_STAGE_ID = Delta8Extension.extension_id
 
-_RAW_RECIPE = RecipeSpec((StageSpec(RAW_STAGE_ID),))
-_DELTA_RAW_RECIPE = RecipeSpec(
+_IDENTITY_RECIPE = RecipeSpec(())
+_DOUBLE_DELTA_RECIPE = RecipeSpec(
     (
         StageSpec(DELTA8_STAGE_ID),
-        StageSpec(RAW_STAGE_ID),
+        StageSpec(DELTA8_STAGE_ID),
     )
 )
 
 
 def _registry() -> ExtensionRegistry:
-    return ExtensionRegistry((RawExtension(), Delta8Extension()))
+    return ExtensionRegistry((Delta8Extension(),))
 
 
 def _source(data: bytes, recipe: RecipeSpec) -> LogicalStreamSource:
@@ -79,8 +77,8 @@ def _fixed_operation(
 
 def test_packaging_stage_limit_spans_chunks_and_distinct_recipes() -> None:
     sources = (
-        _source(b"ab", _RAW_RECIPE),
-        _source(b"cd", _DELTA_RAW_RECIPE),
+        _source(b"ab", _IDENTITY_RECIPE),
+        _source(b"cd", _DOUBLE_DELTA_RECIPE),
     )
 
     with pytest.raises(ResourceLimitError) as caught:
@@ -100,8 +98,8 @@ def test_decoding_stage_limit_spans_chunks_and_distinct_recipes() -> None:
     _fixed_operation(
         registry,
         (
-            _source(b"ab", _RAW_RECIPE),
-            _source(b"cd", _DELTA_RAW_RECIPE),
+            _source(b"ab", _IDENTITY_RECIPE),
+            _source(b"cd", _DOUBLE_DELTA_RECIPE),
         ),
     ).write_to(target)
 

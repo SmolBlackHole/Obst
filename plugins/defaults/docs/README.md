@@ -9,7 +9,7 @@ boundary and generic Extension behavior.
 
 ## Part I: understand obst-defaults
 
-- [Codecs](codecs.md): RAW and zlib providers and parameter authoring.
+- [Codecs](codecs.md): zlib providers and parameter authoring.
 - [Transforms](transforms.md): the Delta8 provider and multi-Stage
   composition.
 - [Portable files](files/README.md): profile capabilities, file sources and

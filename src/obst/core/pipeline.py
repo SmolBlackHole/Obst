@@ -207,6 +207,7 @@ def _execute_encoder_recipe(
             direction="encode",
             max_output_size=stage_output_size,
         )
+    _validate_recipe_output(result, max_output_size=max_output_size)
     return result
 
 
@@ -514,6 +515,18 @@ def _validate_provider_output(
             f"{direction} execute",
             f"provider returned {len(result)} bytes above its "
             f"{max_output_size}-byte output ceiling",
+        )
+
+
+def _validate_recipe_output(
+    result: bytes,
+    *,
+    max_output_size: int | None,
+) -> None:
+    if max_output_size is not None and len(result) > max_output_size:
+        raise PipelineError(
+            f"encoded recipe output contains {len(result)} bytes above its "
+            f"{max_output_size}-byte output ceiling"
         )
 
 

@@ -26,7 +26,6 @@ from obst.core import (
 )
 from obst.core.extensions import ExtensionKind
 
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import (
     ZlibDictionaryExtension,
     ZlibDictionaryParameters,
@@ -37,7 +36,6 @@ from obst_defaults.transforms.delta8 import Delta8Extension
 from support_resources import accounting as _accounting
 from support_resources import policy as _policy
 
-RAW_STAGE_ID = RawExtension.extension_id
 DELTA8_STAGE_ID = Delta8Extension.extension_id
 ZLIB_STAGE_ID = ZlibExtension.extension_id
 ZLIB_DICTIONARY_STAGE_ID = ZlibDictionaryExtension.extension_id
@@ -52,7 +50,6 @@ _XOR_DESCRIPTOR = ExtensionDescriptor(
 )
 
 _FIRST_PARTY_STAGE_EXTENSIONS = (
-    RawExtension(),
     Delta8Extension(),
     _ZLIB,
     _ZLIB_DICTIONARY,
@@ -146,7 +143,7 @@ class _IdentityStage:
         return data
 
 
-@pytest.mark.parametrize("stage_id", [RAW_STAGE_ID, DELTA8_STAGE_ID])
+@pytest.mark.parametrize("stage_id", [DELTA8_STAGE_ID])
 @settings(max_examples=30)
 @given(parameters=st.binary(min_size=1, max_size=32))
 def test_parameterless_extensions_reject_every_nonempty_parameter_block(
@@ -270,7 +267,7 @@ def test_zlib_dictionary_parameter_encoder_rejects_invalid_values(
 @pytest.mark.parametrize(
     "recipe",
     [
-        Recipe(0, (StageSpec(RAW_STAGE_ID),)),
+        Recipe(0, ()),
         Recipe(1, (StageSpec(DELTA8_STAGE_ID),)),
         Recipe(2, (StageSpec(ZLIB_STAGE_ID, b"\x09"),)),
         Recipe(
@@ -488,19 +485,19 @@ def test_zlib_v2_rejects_a_different_dictionary() -> None:
 
 def test_encode_and_decode_enforce_the_same_intermediate_limit() -> None:
     registry = _stage_registry()
-    raw_recipe = Recipe(0, (StageSpec(RAW_STAGE_ID),))
+    identity_recipe = Recipe(0, ())
 
     with pytest.raises(ResourceLimitError, match="intermediate_bytes"):
         encode_recipe(
             b"too large",
-            raw_recipe,
+            identity_recipe,
             registry,
             accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 2)),
         )
     with pytest.raises(ResourceLimitError, match="intermediate_bytes"):
         decode_recipe(
             b"too large",
-            raw_recipe,
+            identity_recipe,
             registry,
             expected_size=9,
             accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 2)),
@@ -558,7 +555,7 @@ def test_executor_rejects_bytes_subclass_before_size_accounting() -> None:
 def test_stage_execution_budget_spans_complete_recipe() -> None:
     recipe = Recipe(
         0,
-        (StageSpec(RAW_STAGE_ID), StageSpec(DELTA8_STAGE_ID)),
+        (StageSpec(DELTA8_STAGE_ID), StageSpec(DELTA8_STAGE_ID)),
     )
 
     with pytest.raises(ResourceLimitError) as error:

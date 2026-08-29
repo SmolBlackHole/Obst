@@ -199,7 +199,7 @@ letter or digit. `.`, `_` and `-` are single separators and must be followed by
 at least one lowercase ASCII letter or digit. Adjacent separators are invalid,
 including two different separator characters. The version is a positive
 decimal integer without a leading zero: `@1` is valid, while `@0` and `@01` are
-not. Complete examples are `obst.raw@1`, `obst.bytes@1` and
+not. Complete examples are `obst.zlib@1`, `obst.bytes@1` and
 `org.example/custom-transform@2`.
 
 The `obst` namespace is reserved for contracts published as part of OBST.
@@ -232,7 +232,7 @@ Recipes have unique IDs and are sorted by `recipe_id`. Each entry starts with:
 | Size | Type | Field                   |
 | ---: | ---- | ----------------------- |
 |    4 | u32  | recipe ID               |
-|    2 | u16  | Stage count, at least 1 |
+|    2 | u16  | Stage count, `0..65535` |
 |    2 | u16  | reserved, `0`           |
 
 It is followed immediately by `stage_count` Stage entries in execution order:
@@ -246,6 +246,10 @@ It is followed immediately by `stage_count` Stage entries in execution order:
 Encoding executes Stages from first to last. Decoding executes their inverses
 from last to first. The referenced Stage contract owns and versions its opaque
 parameter bytes.
+
+A Recipe with zero Stages is the canonical identity representation. Its
+forward and reverse execution both return the input bytes unchanged, it needs
+no Stage provider, and it adds no Stage contract to the Extension table.
 
 The container format does not define Stage behavior. Provider distributions
 publish those contracts independently. The

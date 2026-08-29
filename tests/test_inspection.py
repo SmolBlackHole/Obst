@@ -26,10 +26,10 @@ from obst.core import (
 )
 from obst.core.extensions import ExtensionKind
 from tests.support_extensions import CompressionExtension as ZlibExtension
-from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_extensions import IdentityExtension
 from tests.support_resources import accounting as _accounting
 
-RAW_STAGE_ID = RawExtension.extension_id
+IDENTITY_STAGE_ID = IdentityExtension.extension_id
 ZLIB_STAGE_ID = ZlibExtension.extension_id
 
 _CUSTOM_STAGE_ID = "org.example/inspection-only@1"
@@ -93,7 +93,7 @@ def test_interpretation_policy_requires_canonical_extension_ids() -> None:
 def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
     manifest = Manifest(
         recipes=(
-            Recipe(0, (StageSpec(RAW_STAGE_ID),)),
+            Recipe(0, (StageSpec(IDENTITY_STAGE_ID),)),
             Recipe(1, (StageSpec(ZLIB_STAGE_ID, b"\x06"),)),
         ),
         streams=(
@@ -102,7 +102,7 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
         ),
     )
     target = io.BytesIO()
-    registry = ExtensionRegistry((RawExtension(), ZlibExtension()))
+    registry = ExtensionRegistry((IdentityExtension(), ZlibExtension()))
     writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
@@ -168,7 +168,7 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
     capabilities = {stage.stage_id: stage for stage in inspection.stage_capabilities}
     assert [
         (usage.recipe_id, usage.chunk_count)
-        for usage in capabilities[RAW_STAGE_ID].used_chunks_by_recipe
+        for usage in capabilities[IDENTITY_STAGE_ID].used_chunks_by_recipe
     ] == [(0, 1)]
     assert [
         (usage.recipe_id, usage.chunk_count)
@@ -179,13 +179,13 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
 def test_unused_unknown_stage_is_declared_but_not_required() -> None:
     manifest = Manifest(
         recipes=(
-            Recipe(0, (StageSpec(RAW_STAGE_ID),)),
+            Recipe(0, (StageSpec(IDENTITY_STAGE_ID),)),
             Recipe(1, (StageSpec(_CUSTOM_STAGE_ID),)),
         ),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     complete_writer_registry = ExtensionRegistry(
-        (RawExtension(), _IdentityEncoderStage())
+        (IdentityExtension(), _IdentityEncoderStage())
     )
     target = io.BytesIO()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
@@ -203,7 +203,7 @@ def test_unused_unknown_stage_is_declared_but_not_required() -> None:
 
     inspection = inspect_container(
         ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
-        registry=ExtensionRegistry((RawExtension(),)),
+        registry=ExtensionRegistry((IdentityExtension(),)),
     )
 
     assert inspection.missing_declared_stages == (_CUSTOM_STAGE_ID,)
@@ -436,10 +436,10 @@ def test_interpreter_member_access_uses_the_extension_error_boundary(
 def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> None:
     stream_type = "org.example/opaque-records@1"
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RAW_STAGE_ID),)),),
+        recipes=(Recipe(0, (StageSpec(IDENTITY_STAGE_ID),)),),
         streams=(Stream(0, stream_type, 0, b"application-owned metadata"),),
     )
-    registry = ExtensionRegistry((RawExtension(),))
+    registry = ExtensionRegistry((IdentityExtension(),))
     target = io.BytesIO()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
@@ -473,7 +473,7 @@ def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> Non
 
 def test_empty_stream_has_zero_chunk_resource_footprint() -> None:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RAW_STAGE_ID),)),),
+        recipes=(Recipe(0, (StageSpec(IDENTITY_STAGE_ID),)),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()
@@ -497,14 +497,14 @@ def test_resource_footprint_multiplies_chunks_by_recipe_stages() -> None:
             Recipe(
                 0,
                 (
-                    StageSpec(RAW_STAGE_ID),
+                    StageSpec(IDENTITY_STAGE_ID),
                     StageSpec(ZLIB_STAGE_ID, b"\x06"),
                 ),
             ),
         ),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
-    registry = ExtensionRegistry((RawExtension(), ZlibExtension()))
+    registry = ExtensionRegistry((IdentityExtension(), ZlibExtension()))
     target = io.BytesIO()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
     for sequence, payload in enumerate((b"first", b"second")):

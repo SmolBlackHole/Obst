@@ -48,5 +48,5 @@ See the [Stage guide](stages.md) for complete provider protocols and
 
 The separately distributed
 [`obst-defaults` codec guide](../../plugins/defaults/docs/codecs.md) documents
-its RAW and zlib providers. Those algorithms and parameter contracts are owned
+its zlib providers. Those algorithms and parameter contracts are owned
 and tested by that plugin, not by this generic runtime page.

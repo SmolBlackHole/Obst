@@ -19,14 +19,12 @@ from obst.core.wire import uint16, uint32
 
 @dataclass(frozen=True, slots=True)
 class RecipeSpec:
-    """A reusable stage chain before a manifest assigns its wire ID."""
+    """A reusable, possibly empty Stage chain before wire ID assignment."""
 
     stages: tuple[StageSpec, ...]
 
     def __post_init__(self) -> None:
         _validate_recipe_stages(self.stages)
-        if not self.stages:
-            raise ValueError("a recipe spec must contain at least one stage")
         if len(self.stages) > uint16.maximum:
             raise ValueError("a recipe spec cannot contain more than 65535 stages")
 

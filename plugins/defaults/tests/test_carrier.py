@@ -17,7 +17,6 @@ from obst.core import (
     LogicalStreamSource,
     PackageWriteOperation,
     RecipeSpec,
-    StageSpec,
 )
 
 from obst_defaults.carriers import (
@@ -40,14 +39,13 @@ from obst_defaults.carriers.memory import (
     MemoryReadRequest,
 )
 from obst_defaults.carriers.stdin import StdinCarrierExtension, StdinReadRequest
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
     FixedPackagerExtension,
 )
 from support_resources import accounting as _accounting
 
-_RAW = RecipeSpec((StageSpec(RawExtension.extension_id),))
+_IDENTITY = RecipeSpec(())
 
 
 def _filesystem_publisher(target: Path) -> FilesystemPublisherSession:
@@ -177,11 +175,11 @@ class _StringPublicationCarrier:
 
 
 def _stage_registry() -> ExtensionRegistry:
-    return ExtensionRegistry((RawExtension(),))
+    return ExtensionRegistry(())
 
 
 def _sources() -> tuple[LogicalStreamSource, ...]:
-    descriptor = LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"carrier-test", _RAW)
+    descriptor = LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"carrier-test", _IDENTITY)
     return (
         LogicalStreamSource.from_bytes(
             descriptor,
@@ -337,7 +335,7 @@ def test_streaming_failure_leaves_visible_prefix_and_closes_without_rollback() -
         raise RuntimeError("source failed")
 
     source = LogicalStreamSource(
-        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _RAW),
+        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _IDENTITY),
         failing_chunks(),
         max_chunk_bytes=len(b"visible"),
     )
@@ -393,7 +391,7 @@ def test_failed_package_never_publishes_partial_filesystem_destination(
         raise RuntimeError("source failed")
 
     source = LogicalStreamSource(
-        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _RAW),
+        LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", _IDENTITY),
         failing_chunks(),
         max_chunk_bytes=len(b"published only to the temporary target"),
     )

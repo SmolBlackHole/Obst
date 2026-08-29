@@ -50,7 +50,7 @@ explicit extension registry
     -> byte-identical logical streams
 ```
 
-The RAW, Delta8 and zlib extensions use the same public registry boundary as a
+The Delta8 and zlib extensions use the same public registry boundary as a
 third-party extension. `BytesIO` is the already opened binary endpoint; no
 carrier lifecycle is needed because the example owns the memory directly. The
 core never receives a path and writes no file.
@@ -71,16 +71,14 @@ obst plugins list
 obst plugins enable adaptive-zlib
 obst extensions
 obst plugins test adaptive-zlib
-obst adaptive-pack README.md -o readme-adaptive.obst --plugin obst-defaults
+obst adaptive-pack README.md -o readme-adaptive.obst
 ```
 
 Its encoder tries several byte layouts and preset dictionaries for each chunk;
 its decoder follows the recorded choice once. The plugin README owns that Stage
 contract, explains the trust boundary and includes an honest comparison against
 the existing sample containers. Its command contribution becomes visible only
-after `adaptive-zlib` is enabled. The one-shot `obst-defaults` addition supplies
-the independent RAW capability used by that command; it does not activate the
-defaults plugin or expose its commands.
+after `adaptive-zlib` is enabled and needs no capability from `obst-defaults`.
 
 ## Change it
 

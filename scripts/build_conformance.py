@@ -59,12 +59,12 @@ type JsonObject = dict[str, object]
 
 _MATRIX_STAGE_ID = "org.example/alpha@1"
 _MATRIX_STREAM_TYPE = "org.example/bravo@1"
-_UNKNOWN_STAGE_ID = "test.foo@1"
-_SPECIFICATION_URL = "https://example.org/specs/raw-v1"
+_UNKNOWN_STAGE_ID = "test.unknownx@1"
+_SPECIFICATION_URL = "https://example.org/specs/identity-v1"
 
 
 class _IdentityStage:
-    extension_id = "test.raw@1"
+    extension_id = "test.identity@1"
     kind = ExtensionKind.STAGE
     descriptor = ExtensionDescriptor(
         display_name="Conformance identity",
@@ -226,7 +226,7 @@ def _write_container(
     return target.getvalue()
 
 
-def _raw_manifest(
+def _identity_stage_manifest(
     *,
     recipe_id: int = 0,
     stream_id: int = 0,
@@ -237,19 +237,30 @@ def _raw_manifest(
     )
 
 
-def _raw_container(payload: bytes = b"hello") -> bytes:
-    manifest = _raw_manifest()
+def _zero_stage_manifest(
+    *,
+    recipe_id: int = 0,
+    stream_id: int = 0,
+) -> Manifest:
+    return Manifest(
+        recipes=(Recipe(recipe_id, ()),),
+        streams=(Stream(stream_id, BYTES_STREAM_TYPE, recipe_id),),
+    )
+
+
+def _identity_container(payload: bytes = b"hello") -> bytes:
+    manifest = _zero_stage_manifest()
     chunks = () if not payload else ((0, 0, 0, payload),)
     return _write_container(manifest, chunks)
 
 
-def _empty_raw_chunk_container() -> bytes:
-    return _write_container(_raw_manifest(), ((0, 0, 0, b""),))
+def _empty_identity_chunk_container() -> bytes:
+    return _write_container(_zero_stage_manifest(), ((0, 0, 0, b""),))
 
 
 def _mixed_empty_chunks_container() -> bytes:
     return _write_container(
-        _raw_manifest(),
+        _zero_stage_manifest(),
         (
             (0, 0, 0, b""),
             (0, 1, 0, b"middle"),
@@ -363,7 +374,7 @@ def _specification_url_container() -> bytes:
 
 
 def _maximum_ids_container() -> bytes:
-    manifest = _raw_manifest(
+    manifest = _identity_stage_manifest(
         recipe_id=uint32.maximum,
         stream_id=uint32.maximum,
     )
@@ -562,7 +573,7 @@ def _replace_manifest(
 
 
 def _dual_role_extension_container(encoded: bytes) -> bytes:
-    manifest = _raw_manifest()
+    manifest = _identity_stage_manifest()
     encoded_manifest = _manifest_bytes(encoded)
     offsets = _manifest_offsets(manifest)
     body = bytearray(encoded_manifest[ManifestHeader.size :])
@@ -592,7 +603,7 @@ def _dual_role_extension_container(encoded: bytes) -> bytes:
 
 
 def _used_unknown_stage_container(raw: bytes) -> bytes:
-    offsets = _manifest_offsets(_raw_manifest())
+    offsets = _manifest_offsets(_identity_stage_manifest())
     assert len(_UNKNOWN_STAGE_ID) == len(_IdentityStage.extension_id)
     return _mutate_manifest_body(
         raw,
@@ -683,13 +694,17 @@ def _vector(
 
 def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
     logical_delta = bytes(range(96)) + b"OBST" * 8
+    identity_stage = _write_container(
+        _identity_stage_manifest(),
+        ((0, 0, 0, b"hello"),),
+    )
     return (
         _vector(
-            "minimal-raw",
+            "minimal-identity",
             "golden",
             raw,
-            ("raw", "terminal-commit"),
-            (_IdentityStage.extension_id,),
+            ("identity-recipe", "zero-stages", "terminal-commit"),
+            (),
             _success_expectation((0, b"hello")),
         ),
         _vector(
@@ -703,17 +718,17 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         _vector(
             "empty-stream",
             "valid",
-            _raw_container(b""),
+            _identity_container(b""),
             ("empty-stream", "zero-chunks"),
             (),
             _success_expectation((0, b"")),
         ),
         _vector(
-            "empty-raw-chunk",
+            "empty-identity-chunk",
             "valid",
-            _empty_raw_chunk_container(),
-            ("empty-chunk", "raw", "zero-length-payload"),
-            (_IdentityStage.extension_id,),
+            _empty_identity_chunk_container(),
+            ("empty-chunk", "identity-recipe", "zero-length-payload"),
+            (),
             _success_expectation((0, b"")),
         ),
         _vector(
@@ -721,7 +736,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _mixed_empty_chunks_container(),
             ("empty-chunk", "multiple-chunks", "sequence"),
-            (_IdentityStage.extension_id,),
+            (),
             _success_expectation((0, b"middle")),
         ),
         _vector(
@@ -775,7 +790,7 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         _vector(
             "used-unknown-stage",
             "valid",
-            _used_unknown_stage_container(raw),
+            _used_unknown_stage_container(identity_stage),
             ("missing-capability", "unknown-stage", "used-recipe"),
             (_UNKNOWN_STAGE_ID,),
             _unavailable_expectation(
@@ -788,6 +803,10 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
 
 def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
     definitions: list[VectorDefinition] = []
+    identity_stage = _write_container(
+        _identity_stage_manifest(),
+        ((0, 0, 0, b"hello"),),
+    )
 
     def reject(
         vector_id: str,
@@ -910,7 +929,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "container-recipe-count",
             20,
             struct.pack("<I", 2),
-            "invalid_structure",
+            "truncated",
             ("recipe-count",),
             True,
         ),
@@ -1029,11 +1048,13 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             manifest_rule,
         )
 
-    raw_offsets = _manifest_offsets(_raw_manifest())
-    raw_id_offset = raw_offsets.extension_ids[_IdentityStage.extension_id]
+    identity_stage_offsets = _manifest_offsets(_identity_stage_manifest())
+    identity_id_offset = identity_stage_offsets.extension_ids[
+        _IdentityStage.extension_id
+    ]
     reject(
         "extension-id-uppercase",
-        _mutate_manifest_body(raw, (raw_id_offset, b"O")),
+        _mutate_manifest_body(identity_stage, (identity_id_offset, b"O")),
         ("extension", "identifier", "uppercase"),
         "invalid_structure",
         extension_rule,
@@ -1041,9 +1062,9 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
     reject(
         "extension-id-version-zero",
         _mutate_manifest_body(
-            raw,
+            identity_stage,
             (
-                raw_id_offset + len(_IdentityStage.extension_id) - 1,
+                identity_id_offset + len(_IdentityStage.extension_id) - 1,
                 b"0",
             ),
         ),
@@ -1053,7 +1074,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
     )
     reject(
         "extension-id-non-ascii",
-        _mutate_manifest_body(raw, (raw_id_offset, b"\xff")),
+        _mutate_manifest_body(identity_stage, (identity_id_offset, b"\xff")),
         ("extension", "identifier", "non-ascii"),
         "invalid_structure",
         extension_rule,
@@ -1097,7 +1118,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
     )
     reject(
         "extension-id-dual-role",
-        _dual_role_extension_container(raw),
+        _dual_role_extension_container(identity_stage),
         ("extension", "identifier", "stage-stream-role"),
         "invalid_structure",
         extension_rule,
@@ -1205,13 +1226,6 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         "recipe-reserved",
         _mutate_manifest_body(matrix, (recipe_1 + 6, struct.pack("<H", 1))),
         ("recipe", "reserved"),
-        "invalid_structure",
-        recipe_rule,
-    )
-    reject(
-        "recipe-zero-stages",
-        _mutate_manifest_body(matrix, (recipe_1 + 4, struct.pack("<H", 0))),
-        ("recipe", "zero-stages"),
         "invalid_structure",
         recipe_rule,
     )
@@ -1379,7 +1393,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         )
 
     two_chunks = _write_container(
-        _raw_manifest(),
+        _identity_stage_manifest(),
         ((0, 0, 0, b"first"), (0, 1, 0, b"second")),
     )
     second_chunk_offset = _chunk_offsets(two_chunks)[1]
@@ -1548,7 +1562,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "invalid",
             logical_hash,
             ("chunk", "logical-hash", "recovery"),
-            (_IdentityStage.extension_id,),
+            (),
             _recovery_rejection(stream_id=0, classification="corrupt"),
         )
     )
@@ -1576,7 +1590,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "invalid",
             bytes(logical_size),
             ("chunk", "logical-size", "recovery"),
-            (_IdentityStage.extension_id,),
+            (),
             _recovery_rejection(stream_id=0, classification="decode_failure"),
         )
     )
@@ -1585,7 +1599,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
 
 
 def _definitions() -> tuple[VectorDefinition, ...]:
-    raw = _raw_container()
+    raw = _identity_container()
     definitions = _valid_definitions(raw) + _invalid_definitions(raw)
     ids = [definition.vector_id for definition in definitions]
     paths = [definition.path for definition in definitions]

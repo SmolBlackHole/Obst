@@ -55,7 +55,6 @@ from obst.plugins import (
 
 from obst_defaults.carriers import CarrierError
 from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import (
     ZlibDictionaryExtension,
     ZlibDictionaryParameters,
@@ -216,16 +215,16 @@ def isolated_plugin_state(
 
 def _manifest(
     *,
-    stage_id: str = RawExtension.extension_id,
+    stage_id: str | None = None,
     specification_url: str | None = None,
 ) -> Manifest:
     extensions = (
         ()
-        if specification_url is None
+        if stage_id is None or specification_url is None
         else (ExtensionDeclaration(stage_id, specification_url),)
     )
     return Manifest(
-        recipes=(Recipe(0, (StageSpec(stage_id),)),),
+        recipes=(Recipe(0, () if stage_id is None else (StageSpec(stage_id),)),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
         extensions=extensions,
     )
@@ -236,8 +235,8 @@ def _container(
     *,
     codec: _ExplodingDecodeExtension | None = None,
 ) -> bytes:
-    extensions: list[StageExtension] = [RawExtension()]
-    stage_id = RawExtension.extension_id
+    extensions: list[StageExtension] = []
+    stage_id = None
     specification_url = None
     if codec is not None:
         extensions.append(codec)
@@ -327,8 +326,8 @@ def test_inspect_is_available_without_any_enabled_plugin(
     assert main(["inspect", str(path), "--json"]) == EXIT_SUCCESS
     document = json.loads(capsys.readouterr().out)
 
-    assert document["required_decoders_available"] is False
-    assert document["missing_required_stages"] == [RawExtension.extension_id]
+    assert document["required_decoders_available"] is True
+    assert document["missing_required_stages"] == []
 
 
 def test_inspect_reports_zlib_v2_decoder_as_available(
@@ -1086,11 +1085,7 @@ def test_extensions_command_reports_builtin_capability_inventory(
     capabilities = {item["id"]: item for item in document["extensions"]}
 
     assert document["schema_version"] == 3
-    assert capabilities[RawExtension.extension_id]["encoder_available"] is True
-    assert capabilities[RawExtension.extension_id]["decoder_available"] is True
-    assert (
-        capabilities[RawExtension.extension_id]["parameter_encoder_available"] is False
-    )
+    assert "obst.raw@1" not in capabilities
     assert (
         capabilities[ZlibExtension.extension_id]["parameter_encoder_available"] is True
     )
@@ -1130,14 +1125,14 @@ def test_human_extension_inventory_separates_capability_blocks(
     captured = capsys.readouterr()
 
     assert "\n\nobst.file@1" in captured.out
-    assert "\n\nobst.raw@1" in captured.out
+    assert "\n\nobst.zlib@1" in captured.out
     assert "Parameters      encode yes, decode yes, interpret yes" in captured.out
     assert "Metadata        encode yes, decode yes, interpret yes" in captured.out
     assert "Carrier         read yes, write no, publish yes" in captured.out
     assert "Carrier         read yes, write no, publish no" in captured.out
     assert "Packager        prepare yes" in captured.out
     assert (
-        "Specification   https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/raw.md"
+        "Specification   https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/zlib.md"
         in captured.out
     )
     assert (
@@ -1261,15 +1256,10 @@ def test_require_decodable_ignores_missing_stages_from_unused_recipes(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     codec = _ExplodingDecodeExtension()
-    registry = ExtensionRegistry(
-        (
-            RawExtension(),
-            codec,
-        )
-    )
+    registry = ExtensionRegistry((codec,))
     manifest = Manifest(
         recipes=(
-            Recipe(0, (StageSpec(RawExtension.extension_id),)),
+            Recipe(0, ()),
             Recipe(1, (StageSpec(_ExplodingDecodeExtension.extension_id),)),
         ),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),

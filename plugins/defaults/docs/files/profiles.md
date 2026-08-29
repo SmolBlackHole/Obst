@@ -39,9 +39,8 @@ Create one registry, then give that same snapshot to the file adapter and core
 operations:
 
 ```python
-from obst.core import ExtensionRegistry, RecipeSpec, StageSpec
+from obst.core import ExtensionRegistry, RecipeSpec
 from obst_defaults.carriers.memory import MemoryCarrierExtension
-from obst_defaults.codecs import RawExtension
 from obst_defaults.files import (
     FileArchiver,
     FileExtension,
@@ -49,12 +48,11 @@ from obst_defaults.files import (
 )
 from obst_defaults.packagers import FixedPackagerExtension
 
-raw = RawExtension()
 files = FileExtension()
 memory = MemoryCarrierExtension()
 fixed = FixedPackagerExtension()
-recipe = RecipeSpec((StageSpec(raw.extension_id),))
-registry = ExtensionRegistry((raw, files, memory, fixed))
+recipe = RecipeSpec(())
+registry = ExtensionRegistry((files, memory, fixed))
 archiver = FileArchiver(registry)
 
 assert archiver.can_source(files.extension_id)

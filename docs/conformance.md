@@ -174,6 +174,4 @@ The generated corpus is reproducible, but it is still generated and exercised
 by the reference project. Preserved cross-language execution against the full
 corpus remains open in the
 [current stabilization milestone](../ROADMAP.md#now-pre-public-stabilization).
-The same milestone owns the unresolved question raised by the near-clean-room
-writer: whether a zero-Stage Recipe should become the canonical identity
-representation.
+The corpus now pins the canonical Zero-Stage identity Recipe directly.

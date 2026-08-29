@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from obst.cli.commands import EXIT_PLUGIN, EXIT_SUCCESS
+from obst.cli.commands import EXIT_SUCCESS
 from obst.core import (
     ContainerReader,
     CoreResource,
@@ -305,10 +305,6 @@ def test_example_plugin_command_composes_another_plugins_stage(
     source.write_bytes(logical)
     output = tmp_path / "records.obst"
 
-    assert main(["adaptive-pack", str(source), "-o", str(output)]) == EXIT_PLUGIN
-    assert "obst.raw@1" in capsys.readouterr().err
-    assert not output.exists()
-
     assert (
         main(
             [
@@ -316,8 +312,6 @@ def test_example_plugin_command_composes_another_plugins_stage(
                 str(source),
                 "-o",
                 str(output),
-                "--plugin",
-                "obst-defaults",
             ]
         )
         == EXIT_SUCCESS
@@ -335,8 +329,6 @@ def test_example_plugin_command_composes_another_plugins_stage(
                 str(source),
                 "-o",
                 str(json_output),
-                "--plugin",
-                "obst-defaults",
                 "--json",
             ]
         )
@@ -350,13 +342,12 @@ def test_example_plugin_command_composes_another_plugins_stage(
         "container_size": json_output.stat().st_size,
         "chunks": 2,
     }
-    registry = manager.runtime(("obst-defaults",)).registry
+    registry = manager.runtime().registry
     reader = ContainerReader(BytesIO(output.read_bytes()), accounting=_accounting())
     inspection = inspect_container(reader, registry=registry)
     assert inspection.chunk_count == 2
     assert tuple(stage.stage_id for stage in inspection.manifest.recipes[0].stages) == (
         "org.example/adaptive-zlib@1",
-        "obst.raw@1",
     )
     recovery_reader = ContainerReader(
         BytesIO(output.read_bytes()), accounting=_accounting()

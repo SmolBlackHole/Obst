@@ -19,9 +19,6 @@ reproducible:
 
 - close the current parser, resource, plugin, carrier and filesystem hardening
   pass with focused regressions and a completely green quality gate;
-- decide whether a zero-Stage Recipe becomes the canonical identity
-  representation for untransformed chunks, then align the core model, RAW
-  tooling and every affected conformance vector before the format freezes;
 - preserve one independent reader implementation and run log against the
   public conformance corpus;
 - finish the language-neutral Unicode version and collection-scope rules for
@@ -54,7 +51,8 @@ human and JSON inspection output will change together.
 ## Later: production encoding
 
 Production tuning will use the ordinary registry and Recipe execution path. A
-typed bounded tuner will try an explicit candidate set, always include RAW,
+typed bounded tuner will try an explicit candidate set, always include the
+identity Recipe,
 require exact round trips and deterministic tie-breaking, and return the
 already encoded winner. A high-level packager can then deduplicate selected
 Recipes and use bounded spooling to finalize a manifest without teaching the

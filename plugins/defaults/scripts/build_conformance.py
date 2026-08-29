@@ -102,44 +102,6 @@ def build_default_suite() -> ConformanceSuite:
     return ConformanceSuite(
         (
             StageKnownAnswerCase(
-                "raw-known-answer",
-                "obst.raw@1",
-                b"",
-                b"OBST raw conformance",
-                b"OBST raw conformance",
-                True,
-            ),
-            StageKnownAnswerCase(
-                "raw-empty",
-                "obst.raw@1",
-                b"",
-                b"",
-                b"",
-                True,
-            ),
-            StageBindRejectionCase(
-                "raw-parameters-rejected",
-                "obst.raw@1",
-                b"\x00",
-                ("encode", "decode"),
-            ),
-            StageOutputLimitCase(
-                "raw-encode-limit",
-                "obst.raw@1",
-                "encode",
-                b"",
-                b"x",
-                0,
-            ),
-            StageOutputLimitCase(
-                "raw-decode-limit",
-                "obst.raw@1",
-                "decode",
-                b"",
-                b"x",
-                0,
-            ),
-            StageKnownAnswerCase(
                 "delta8-known-answer",
                 "obst.delta8@1",
                 b"",

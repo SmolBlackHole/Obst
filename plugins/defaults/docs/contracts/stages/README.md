@@ -7,7 +7,6 @@ Stages with each other or with compatible Stages from other plugins.
 
 ## Contracts
 
-- [`obst.raw@1`](raw.md): identity representation.
 - [`obst.delta8@1`](delta8.md): modulo-256 byte deltas.
 - [`obst.zlib@1`](zlib.md): zlib-wrapped DEFLATE without a preset dictionary.
 - [`obst.zlib@2`](zlib-dictionary.md): zlib-wrapped DEFLATE with a declared

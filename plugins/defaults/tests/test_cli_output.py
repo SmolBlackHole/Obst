@@ -30,7 +30,6 @@ from obst.core import (
     inspect_container,
 )
 
-from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import ZlibExtension
 from obst_defaults.files import (
     FileExtension,
@@ -48,7 +47,7 @@ def _inspect(
     with_interpreters: bool = False,
 ) -> ContainerInspection:
     target = io.BytesIO()
-    stage_registry = ExtensionRegistry((RawExtension(), ZlibExtension()))
+    stage_registry = ExtensionRegistry((ZlibExtension(),))
     writer = ContainerWriter(target, manifest, accounting=_accounting())
     sequences = {stream.stream_id: 0 for stream in manifest.streams}
     for stream_id, payload, recipe_id in chunks:
@@ -71,9 +70,7 @@ def _inspect(
     writer.finish()
     reader = ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting())
     inspection_extensions = (
-        (RawExtension(), ZlibExtension(), FileExtension())
-        if with_interpreters
-        else (RawExtension(),)
+        (ZlibExtension(), FileExtension()) if with_interpreters else ()
     )
     return inspect_container(
         reader,
@@ -88,9 +85,9 @@ def _inspect(
     )
 
 
-def _raw_inspection() -> ContainerInspection:
+def _identity_inspection() -> ContainerInspection:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, ()),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     return _inspect(manifest, ((0, b"x" * 64, None),))
@@ -196,7 +193,7 @@ def test_compression_summary_leads_with_the_size_change(
     original_size: int,
     expected: str,
 ) -> None:
-    inspection = _raw_inspection()
+    inspection = _identity_inspection()
     inspection = replace(
         inspection,
         summary=replace(
@@ -217,7 +214,7 @@ def test_compression_summary_leads_with_the_size_change(
 
 
 def test_human_renderer_preserves_readable_inspection_sections() -> None:
-    inspection = _raw_inspection()
+    inspection = _identity_inspection()
 
     output = render_inspection_human(inspection)
 
@@ -232,14 +229,12 @@ def test_human_renderer_preserves_readable_inspection_sections() -> None:
     assert f"{'Logical recovery':<29} not attempted" in output
     assert "\nStreams\n  [0] obst.bytes@1" in output
     assert "Recipe usage: yes (1 total; recipe 0: 1)" in output
-    assert "\nRecipes\n  [0] obst.raw@1 | 1 chunk" in output
+    assert "\nRecipes\n  [0] identity (no stages) | 1 chunk" in output
     assert "\nResource footprint\n" in output
     assert "Manifest " in output
     assert "largest chunk 64 B logical / 64 B encoded" in output
-    assert "Stage executions 1 | largest stream 64 B if materialized" in output
-    assert "\nStage capabilities\n  obst.raw@1 (RAW): decoder available" in output
-    assert "Declared by recipe: 0" in output
-    assert "Used by chunks: yes (1 total; recipe 0: 1)" in output
+    assert "Stage executions 0 | largest stream 64 B if materialized" in output
+    assert "\nStage capabilities\n  none" in output
 
 
 class _InteractiveText(io.StringIO):
@@ -271,7 +266,7 @@ def test_human_output_style_respects_terminal_and_environment(
 
 
 def test_colored_human_renderer_keeps_plain_renderer_and_json_inert() -> None:
-    inspection = _raw_inspection()
+    inspection = _identity_inspection()
 
     plain = render_inspection_human(inspection)
     colored = render_inspection_human(
@@ -287,7 +282,7 @@ def test_colored_human_renderer_keeps_plain_renderer_and_json_inert() -> None:
 
 
 def test_human_renderer_uses_the_compact_apple_silhouette() -> None:
-    output = render_inspection_human(_raw_inspection())
+    output = render_inspection_human(_identity_inspection())
 
     apple, _separator, _sections = output.partition("\nStreams\n")
     assert apple.splitlines()[-1].lstrip().startswith("██████████████")
@@ -295,7 +290,7 @@ def test_human_renderer_uses_the_compact_apple_silhouette() -> None:
 
 
 def test_human_renderer_escapes_interpreter_supplied_labels() -> None:
-    inspection = _raw_inspection()
+    inspection = _identity_inspection()
     inspection = replace(
         inspection,
         streams=(
@@ -325,18 +320,18 @@ def test_human_renderer_pluralizes_stream_and_recipe_chunk_counts(
     expected: str,
 ) -> None:
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, ()),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
 
     output = render_inspection_human(_inspect(manifest, chunks))
 
     assert f"obst.bytes@1 | {expected} |" in output
-    assert f"obst.raw@1 | {expected}" in output
+    assert f"identity (no stages) | {expected}" in output
 
 
 def test_json_renderer_exposes_complete_structural_inspection() -> None:
-    inspection = _raw_inspection()
+    inspection = _identity_inspection()
 
     document = json.loads(render_inspection_json(inspection))
 
@@ -358,17 +353,17 @@ def test_json_renderer_exposes_complete_structural_inspection() -> None:
     assert document["resource_footprint"] == {
         "chunk_count": 1,
         "container_size": inspection.encoded_size,
-        "extension_count": 2,
+        "extension_count": 1,
         "logical_size": 64,
         "manifest_size": inspection.resources.manifest_size,
         "max_encoded_chunk_size": 64,
         "max_logical_chunk_size": 64,
         "max_materialized_stream_size": 64,
-        "max_stages_per_recipe": 1,
+        "max_stages_per_recipe": 0,
         "recipe_count": 1,
-        "stage_executions": 1,
+        "stage_executions": 0,
         "stream_count": 1,
-        "total_stage_count": 1,
+        "total_stage_count": 0,
     }
     assert document["stream_details"] == [
         {
@@ -387,13 +382,7 @@ def test_json_renderer_exposes_complete_structural_inspection() -> None:
         {
             "chunks": 1,
             "id": 0,
-            "stages": [
-                {
-                    "id": RawExtension.extension_id,
-                    "parameters_hex": "",
-                    "parameters_interpretation": None,
-                }
-            ],
+            "stages": [],
         }
     ]
 
@@ -433,7 +422,7 @@ def test_explicit_interpreters_add_meaning_without_replacing_raw_bytes() -> None
 def test_interpretation_error_does_not_hide_raw_metadata() -> None:
     file_extension = FileExtension()
     manifest = Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, ()),),
         streams=(Stream(0, file_extension.extension_id, 0, b"\xff"),),
     )
     inspection = _inspect(manifest, (), with_interpreters=True)

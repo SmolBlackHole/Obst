@@ -33,12 +33,11 @@ from obst_example_adaptive_zlib.output import (
     write_adaptive_pack_result,
 )
 
-_RAW_STAGE_ID = "obst.raw@1"
 _CHUNK_SIZE = 64 * 1024
 
 
 class AdaptivePackCommand:
-    """Create one byte-stream container with adaptive-zlib and external RAW."""
+    """Create one byte-stream container with adaptive-zlib."""
 
     name = "adaptive-pack"
     summary = "pack one file with adaptive zlib through public plugin contracts"
@@ -68,7 +67,7 @@ class AdaptivePackCommand:
 
     def run(self, args: argparse.Namespace, context: CliContext) -> int:
         registry = context.registry
-        self._require_stage_encoders(registry)
+        self._require_stage_encoder(registry)
         parameter_encoder = registry.get_stage_parameter_encoder(
             AdaptiveZlibExtension.extension_id
         )
@@ -87,10 +86,7 @@ class AdaptivePackCommand:
         )
         recipe = Recipe(
             0,
-            (
-                StageSpec(AdaptiveZlibExtension.extension_id, parameters),
-                StageSpec(_RAW_STAGE_ID),
-            ),
+            (StageSpec(AdaptiveZlibExtension.extension_id, parameters),),
         )
         manifest = Manifest(
             recipes=(recipe,),
@@ -131,12 +127,11 @@ class AdaptivePackCommand:
         return EXIT_SUCCESS
 
     @staticmethod
-    def _require_stage_encoders(registry: ExtensionRegistry) -> None:
-        for stage_id in (AdaptiveZlibExtension.extension_id, _RAW_STAGE_ID):
-            try:
-                registry.require_encoder_provider(stage_id)
-            except MissingStageError as exc:
-                raise CliCommandError("plugin_error", EXIT_PLUGIN, exc) from exc
+    def _require_stage_encoder(registry: ExtensionRegistry) -> None:
+        try:
+            registry.require_encoder_provider(AdaptiveZlibExtension.extension_id)
+        except MissingStageError as exc:
+            raise CliCommandError("plugin_error", EXIT_PLUGIN, exc) from exc
 
 
 def _declared_extension(

@@ -20,27 +20,26 @@ from obst.core import (
     iter_decoded_chunks,
 )
 
-from obst_defaults.codecs import RawExtension, ZlibExtension, ZlibParameters
+from obst_defaults.codecs import ZlibExtension, ZlibParameters
 from obst_defaults.packagers import FixedPackageRequest, FixedPackagerExtension
 from obst_defaults.transforms import Delta8Extension
 
 
 def main() -> None:
     """Run one complete carrier-neutral OBST round trip."""
-    raw = RawExtension()
     delta8 = Delta8Extension()
     zlib = ZlibExtension()
     fixed = FixedPackagerExtension()
 
     # Extensions become available only because this host explicitly trusts and
     # registers them. Container bytes never import or download Python code.
-    registry = ExtensionRegistry((raw, delta8, zlib, fixed))
+    registry = ExtensionRegistry((delta8, zlib, fixed))
     packager = cast(
         PackagerProvider[FixedPackageRequest],
         registry.require_packager_provider(fixed.extension_id),
     )
 
-    raw_recipe = RecipeSpec((StageSpec(raw.extension_id),))
+    identity_recipe = RecipeSpec(())
     compressed_recipe = RecipeSpec(
         (
             StageSpec(delta8.extension_id),
@@ -57,7 +56,7 @@ def main() -> None:
     )
     sources = (
         LogicalStreamSource.from_bytes(
-            LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", raw_recipe),
+            LogicalStreamDescriptor(BYTES_STREAM_TYPE, b"", identity_recipe),
             logical_streams[0],
             chunk_size=64,
         ),

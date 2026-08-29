@@ -248,7 +248,7 @@ def main() -> None:
         "images": image_entries,
     }
     MANIFEST_PATH.write_text(
-        json.dumps(document, indent=4, ensure_ascii=False) + "\n",
+        json.dumps(document, indent="\t", ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
 

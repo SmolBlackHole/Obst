@@ -19,8 +19,8 @@ it.
 
 ## Plugin contract catalogs
 
-- [`obst-defaults`](../../plugins/defaults/docs/contracts/README.md): RAW,
-  Delta8, zlib and portable-file contracts.
+- [`obst-defaults`](../../plugins/defaults/docs/contracts/README.md): Delta8,
+  zlib and portable-file contracts.
 
 The [format specification](../format.md) defines how versioned IDs, opaque
 parameters, metadata and specification URLs are represented. A plugin contract

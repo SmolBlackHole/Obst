@@ -24,17 +24,17 @@ from obst.core import (
     materialize_stream,
 )
 from obst.core.io import read_exact, write_all
-from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_extensions import IdentityExtension
 from tests.support_resources import accounting as _accounting
 
 
 def _stage_registry() -> ExtensionRegistry:
-    return ExtensionRegistry((RawExtension(),))
+    return ExtensionRegistry((IdentityExtension(),))
 
 
-def _raw_manifest() -> Manifest:
+def _identity_stage_manifest() -> Manifest:
     return Manifest(
-        recipes=(Recipe(0, (StageSpec(RawExtension.extension_id),)),),
+        recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
 
@@ -118,7 +118,7 @@ def _encode(
     chunk_size: int = 4,
 ) -> bytes:
     target = _PartialWriter(max_write=max_write)
-    manifest = _raw_manifest()
+    manifest = _identity_stage_manifest()
     registry = _stage_registry()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
     for sequence, offset in enumerate(range(0, len(payload), chunk_size)):
@@ -215,7 +215,9 @@ def test_reader_treats_non_progress_as_truncation_without_retrying_forever() -> 
 
 def test_writer_rejects_non_progress() -> None:
     with pytest.raises(BinaryIOContractError, match="reported 0"):
-        ContainerWriter(_ZeroWriter(), _raw_manifest(), accounting=_accounting())
+        ContainerWriter(
+            _ZeroWriter(), _identity_stage_manifest(), accounting=_accounting()
+        )
 
 
 @pytest.mark.parametrize(

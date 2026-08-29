@@ -131,6 +131,10 @@ The required invariant is byte-exact:
 decode(encode(logical_bytes)) == logical_bytes
 ```
 
+The Stage list may be empty. Such a Recipe is the canonical identity
+representation: stored payload bytes equal the logical chunk bytes and no
+Stage decoder is required.
+
 The container records the selected Recipe, not the search that selected it.
 The concrete IDs above belong to the
 [`obst-defaults` Stage contracts](../plugins/defaults/docs/contracts/stages/README.md).

@@ -69,17 +69,15 @@ obst plugins enable adaptive-zlib
 obst extensions
 ```
 
-Activation also makes the plugin's `adaptive-pack` command available. The
-command deliberately requires the separate `obst.raw@1` encoder capability,
-which can be supplied for this operation without enabling the defaults plugin:
+Activation also makes the plugin's `adaptive-pack` command available. Its
+Recipe contains only the adaptive Stage; unchanged bytes need no separate
+identity provider:
 
 ```console
-obst adaptive-pack README.md -o readme-adaptive.obst --plugin obst-defaults
-obst adaptive-pack README.md -o readme-adaptive.obst --plugin obst-defaults --json
+obst adaptive-pack README.md -o readme-adaptive.obst
+obst adaptive-pack README.md -o readme-adaptive.obst --json
 ```
 
-The `--plugin` option augments the command's capability registry. It cannot
-make `adaptive-pack` appear while `adaptive-zlib` itself is inactive.
 The JSON variant emits schema `1` with the destination, exact logical and
 container sizes and the number of written chunks.
 
