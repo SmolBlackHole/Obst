@@ -36,7 +36,7 @@ from obst_defaults.codecs.zlib import (
     ZlibParameters,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
-from support_resources import policy as _policy
+from support_resources import accounting as _accounting
 
 _LOGICAL_STREAM_TYPE = "org.example/logical-bytes@1"
 _RAW = RawExtension()
@@ -76,7 +76,7 @@ def _assert_recipe_reverse_law(data: bytes, recipe: Recipe) -> None:
         data,
         recipe,
         registry,
-        policy=_policy((CoreResource.INTERMEDIATE_BYTES, encode_budget)),
+        accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, encode_budget)),
     )
 
     decoded = decode_recipe(
@@ -84,7 +84,7 @@ def _assert_recipe_reverse_law(data: bytes, recipe: Recipe) -> None:
         recipe,
         registry,
         expected_size=len(data),
-        policy=_policy(
+        accounting=_accounting(
             (CoreResource.INTERMEDIATE_BYTES, max(encode_budget, len(encoded)))
         ),
     )
@@ -95,7 +95,7 @@ def _assert_recipe_reverse_law(data: bytes, recipe: Recipe) -> None:
             data,
             recipe,
             registry,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, encode_budget)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, encode_budget)),
         )
         == encoded
     )
@@ -245,7 +245,9 @@ def test_zlib_stage_reverse_law(data: bytes, compression_level: int) -> None:
         data,
         recipe,
         _stage_registry(),
-        policy=_policy((CoreResource.INTERMEDIATE_BYTES, max(len(data) + 64, 64))),
+        accounting=_accounting(
+            (CoreResource.INTERMEDIATE_BYTES, max(len(data) + 64, 64))
+        ),
     )
     assert encoded[1] & 0x20 == 0
 
@@ -280,7 +282,9 @@ def test_zlib_dictionary_stage_reverse_law(
         data,
         recipe,
         _stage_registry(),
-        policy=_policy((CoreResource.INTERMEDIATE_BYTES, max(len(data) + 64, 64))),
+        accounting=_accounting(
+            (CoreResource.INTERMEDIATE_BYTES, max(len(data) + 64, 64))
+        ),
     )
     assert encoded[1] & 0x20
 
@@ -356,7 +360,7 @@ def test_container_logical_dataset_reverse_law(
     )
     target = io.BytesIO()
     registry = _stage_registry()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     expected_physical_order: list[tuple[int, int, bytes]] = []
     sequence_count = max((len(chunks) for chunks in chunks_by_stream), default=0)
     for sequence in range(sequence_count):
@@ -371,13 +375,14 @@ def test_container_logical_dataset_reverse_law(
                         sequence=sequence,
                         recipe=manifest.recipe(recipe_id),
                         registry=registry,
+                        accounting=_accounting(),
                     )
                 )
                 expected_physical_order.append((stream_id, sequence, logical_chunk))
     writer.finish()
     encoded = target.getvalue()
 
-    reader = ContainerReader(io.BytesIO(encoded))
+    reader = ContainerReader(io.BytesIO(encoded), accounting=_accounting())
     decoded_chunks = list(iter_decoded_chunks(reader, registry))
     recovered = [bytearray() for _ in streams]
     for encoded_chunk, logical_bytes in decoded_chunks:
@@ -410,16 +415,22 @@ def test_raw_in_raw_is_opaque_until_explicit_reverse_traversal(
     inner = _write_raw_container(payload, chunk_size=inner_chunk_size)
     outer = _write_raw_container(inner, chunk_size=outer_chunk_size)
 
-    inspection = inspect_container(ContainerReader(io.BytesIO(outer)))
+    inspection = inspect_container(
+        ContainerReader(io.BytesIO(outer), accounting=_accounting())
+    )
     registry = _stage_registry()
     recovered_inner = materialize_stream(
-        ContainerReader(io.BytesIO(outer)), 0, registry
+        ContainerReader(io.BytesIO(outer), accounting=_accounting()), 0, registry
     )
 
     assert inspection.logical_size == len(inner)
     assert recovered_inner == inner
     assert (
-        materialize_stream(ContainerReader(io.BytesIO(recovered_inner)), 0, registry)
+        materialize_stream(
+            ContainerReader(io.BytesIO(recovered_inner), accounting=_accounting()),
+            0,
+            registry,
+        )
         == payload
     )
 
@@ -431,7 +442,7 @@ def _write_raw_container(payload: bytes, *, chunk_size: int) -> bytes:
     )
     target = io.BytesIO()
     registry = _stage_registry()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     for sequence, offset in enumerate(range(0, len(payload), chunk_size)):
         writer.write_chunk(
             encode_chunk_once(
@@ -440,6 +451,7 @@ def _write_raw_container(payload: bytes, *, chunk_size: int) -> bytes:
                 sequence=sequence,
                 recipe=manifest.recipe(0),
                 registry=registry,
+                accounting=_accounting(),
             )
         )
     writer.finish()

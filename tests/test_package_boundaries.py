@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import importlib.util
 import inspect
 import subprocess
 import sys
@@ -162,10 +163,11 @@ def test_removed_module_layout_has_no_compatibility_packages() -> None:
     assert not (_CORE_ROOT / "constants.py").exists()
 
 
-def test_public_core_operations_do_not_expose_private_resource_budgets() -> None:
+def test_public_core_operations_require_explicit_resource_accounting() -> None:
     operations = (
         core.ChunkDecoder,
         core.ChunkEncoder,
+        core.ContainerReader,
         core.ContainerWriter,
         core.RecipeDecoder,
         core.RecipeEncoder,
@@ -173,12 +175,40 @@ def test_public_core_operations_do_not_expose_private_resource_budgets() -> None
         core.decode_recipe,
         core.encode_chunk_once,
         core.encode_recipe,
+        core.validate_manifest_resources,
     )
 
-    assert all(
-        "_budget" not in inspect.signature(operation).parameters
-        for operation in operations
+    for operation in operations:
+        parameters = inspect.signature(operation).parameters
+        assert "accounting" in parameters
+        assert parameters["accounting"].default is inspect.Parameter.empty
+        assert "policy" not in parameters
+        assert "_budget" not in parameters
+
+
+def test_resource_contracts_have_one_public_owner() -> None:
+    resources = importlib.import_module("obst.resources")
+    generic_names = (
+        "LimitProfile",
+        "ResourceAggregation",
+        "ResourceCatalog",
+        "ResourceContribution",
+        "ResourceDefinition",
+        "ResourceKind",
+        "ResourcePolicy",
+        "ResourceUnit",
+        "validate_resource_identifier",
     )
+
+    assert all(hasattr(resources, name) for name in generic_names)
+    assert all(not hasattr(core, name) for name in generic_names)
+    assert core.ResourceAccounting.__module__ == "obst.core.resource_accounting"
+    assert core.ResourceLimitError.__module__ == "obst.core.resource_accounting"
+
+
+def test_removed_resource_modules_have_no_compatibility_path() -> None:
+    assert importlib.util.find_spec("obst.limits") is None
+    assert importlib.util.find_spec("obst.core.resources") is None
 
 
 def test_core_operation_layers_do_not_import_private_cross_module_helpers() -> None:

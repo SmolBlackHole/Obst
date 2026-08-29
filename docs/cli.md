@@ -402,7 +402,8 @@ activate a plugin nor contribute a command.
 
 ## Resource limit profiles
 
-The CLI resolves one named `ResourcePolicy` for Inspect and every contributed
+The CLI resolves one named `ResourcePolicy`, creates one `ResourceAccounting`,
+and supplies that operation state to Inspect or the selected contributed
 command. `default` contains the finite ceilings declared by the active Core and
 plugin resources. It cannot be edited or deleted.
 

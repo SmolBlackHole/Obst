@@ -31,6 +31,7 @@ from typing import Self
 
 from obst.core import (
     BYTES_STREAM_TYPE,
+    DEFAULT_RESOURCE_POLICY,
     ContainerReader,
     ContainerWriter,
     ExtensionDescriptor,
@@ -38,6 +39,7 @@ from obst.core import (
     ExtensionRegistry,
     Manifest,
     Recipe,
+    ResourceAccounting,
     StageSpec,
     Stream,
     encode_chunk_once,
@@ -103,7 +105,8 @@ manifest = Manifest(
 )
 
 target = BytesIO()
-writer = ContainerWriter(target, manifest)
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
+writer = ContainerWriter(target, manifest, accounting=accounting)
 writer.write_chunk(
     encode_chunk_once(
         payload,
@@ -111,11 +114,12 @@ writer.write_chunk(
         sequence=0,
         recipe=manifest.recipe(0),
         registry=registry,
+        accounting=accounting,
     )
 )
 writer.finish()
 
-reader = ContainerReader(BytesIO(target.getvalue()))
+reader = ContainerReader(BytesIO(target.getvalue()), accounting=accounting)
 assert materialize_stream(reader, stream_id=0, registry=registry) == payload
 ```
 
@@ -153,9 +157,13 @@ from obst.core import (
     ManifestIndex,
     RecipeDecoder,
     RecipeEncoder,
-    ResourcePolicy,
+    ResourceAccounting,
 )
 ```
+
+Generic resource definitions, catalogs, profiles and immutable policies are
+public under `obst.resources`. The Core boundary exports the operation-local
+accountant and its built-in resource set.
 
 The root `obst` package exposes `FormatVersion` and the reference
 implementation's `format_version` value. Concrete first-party codecs,

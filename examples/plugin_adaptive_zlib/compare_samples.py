@@ -8,10 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from obst.core import (
+    DEFAULT_RESOURCE_POLICY,
     ExtensionRegistry,
     Recipe,
     RecipeDecoder,
     RecipeEncoder,
+    ResourceAccounting,
     StageSpec,
 )
 
@@ -60,8 +62,9 @@ def _compare(
         0,
         (StageSpec(extension.extension_id, parameter_bytes),),
     )
-    encoder = RecipeEncoder(registry)
-    decoder = RecipeDecoder(registry)
+    accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
+    encoder = RecipeEncoder(registry, accounting=accounting)
+    decoder = RecipeDecoder(registry, accounting=accounting)
     encoded_chunks: list[bytes] = []
     recovered_chunks: list[bytes] = []
     choices: Counter[str] = Counter()

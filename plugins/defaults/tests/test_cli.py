@@ -70,7 +70,7 @@ from obst_defaults.commands import (
     EXIT_CARRIER,
 )
 from obst_defaults.files import FileExtension, FileResource
-from support_resources import policy as _policy
+from support_resources import accounting as _accounting
 
 _FIRST_PARTY_PLUGIN_NAME = "obst-defaults"
 _FIRST_PARTY_PLUGIN_TARGET = "obst_defaults.bundle:obst_extensions"
@@ -246,7 +246,7 @@ def _container(
     registry = ExtensionRegistry(extensions)
     target = io.BytesIO()
     manifest = _manifest(stage_id=stage_id, specification_url=specification_url)
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             payload,
@@ -254,6 +254,7 @@ def _container(
             sequence=0,
             recipe=manifest.recipe(0),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.finish()
@@ -282,7 +283,7 @@ def _zlib_dictionary_container(payload: bytes) -> bytes:
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             payload,
@@ -290,6 +291,7 @@ def _zlib_dictionary_container(payload: bytes) -> bytes:
             sequence=0,
             recipe=manifest.recipe(0),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.finish()
@@ -602,7 +604,7 @@ def test_unpack_preserves_container_failure_when_reader_close_also_fails(
         stdin=io.BytesIO(),
         stdout=io.StringIO(),
         stderr=io.StringIO(),
-        policy=_policy(),
+        accounting=_accounting(),
     )
 
     with pytest.raises(TruncatedContainerError) as error:
@@ -1273,7 +1275,7 @@ def test_require_decodable_ignores_missing_stages_from_unused_recipes(
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             b"payload",
@@ -1281,6 +1283,7 @@ def test_require_decodable_ignores_missing_stages_from_unused_recipes(
             sequence=0,
             recipe=manifest.recipe(0),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.finish()

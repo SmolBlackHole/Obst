@@ -128,7 +128,7 @@ boundary.
 ## Resource policy
 
 Core sources, recipe execution and container writing accept the public
-`ResourcePolicy`. A Packager decides how its request exposes that
-policy. No private mutable budget object crosses extension boundaries.
+`ResourceAccounting`. A Packager decides how its request exposes that
+operation state. No private mutable budget object crosses extension boundaries.
 
 The [resource guide](resources.md) documents defaults and structured refusal.

@@ -1,6 +1,11 @@
 """Typed resources owned by the portable-file tooling."""
 
-from obst.core import ResourceDefinition, ResourceKind, ResourceUnit
+from obst.resources import (
+    ResourceAggregation,
+    ResourceDefinition,
+    ResourceKind,
+    ResourceUnit,
+)
 
 _GIB = 1024 * 1024 * 1024
 
@@ -13,18 +18,21 @@ class FileResource(ResourceKind):
         4_096,
         "Files restored by one extraction operation.",
         ResourceUnit.COUNT,
+        ResourceAggregation.TOTAL,
     )
     ARCHIVE_MEMBER_BYTES = ResourceDefinition(
         "obst.file@1/archive_member_bytes",
         4 * _GIB,
         "Logical bytes restored for one file.",
         ResourceUnit.BYTES,
+        ResourceAggregation.PEAK,
     )
     ARCHIVE_TOTAL_BYTES = ResourceDefinition(
         "obst.file@1/archive_total_bytes",
         16 * _GIB,
         "Logical file bytes restored by one extraction operation.",
         ResourceUnit.BYTES,
+        ResourceAggregation.TOTAL,
     )
 
 

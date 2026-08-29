@@ -6,15 +6,22 @@ from pathlib import Path
 import pytest
 
 from obst.core import (
-    DEFAULT_LIMIT_PROFILE,
     CoreResource,
+)
+from obst.resources import (
+    DEFAULT_LIMIT_PROFILE,
     LimitProfile,
+    ResourceAggregation,
     ResourceCatalog,
     ResourceDefinition,
     ResourceKind,
     ResourceUnit,
 )
-from obst.limits import LimitManager, LimitProfileSource, LimitStateError
+from obst.resources.profiles import (
+    LimitProfileManager,
+    LimitProfileSource,
+    LimitProfileStateError,
+)
 
 
 class ExampleResource(ResourceKind):
@@ -23,6 +30,7 @@ class ExampleResource(ResourceKind):
         20,
         "Items processed by the example tool.",
         ResourceUnit.COUNT,
+        ResourceAggregation.TOTAL,
     )
 
 
@@ -41,7 +49,7 @@ def _catalog() -> ResourceCatalog:
 
 
 def test_missing_state_selects_immutable_default(tmp_path: Path) -> None:
-    manager = LimitManager.discover(state_path=tmp_path / "limits.json")
+    manager = LimitProfileManager.discover(state_path=tmp_path / "limits.json")
 
     assert manager.active_profile_id == "default"
     assert manager.policy(_catalog()).maximum(CoreResource.CHUNKS) == 262_144
@@ -55,7 +63,7 @@ def test_custom_profile_stores_only_sorted_overrides_and_resolves_defaults(
     tmp_path: Path,
 ) -> None:
     state_path = tmp_path / "limits.json"
-    manager = LimitManager.discover(state_path=state_path)
+    manager = LimitProfileManager.discover(state_path=state_path)
     catalog = _catalog()
 
     manager.create("small", catalog)
@@ -74,7 +82,7 @@ def test_custom_profile_stores_only_sorted_overrides_and_resolves_defaults(
         },
         "schema_version": 1,
     }
-    policy = LimitManager.discover(state_path=state_path).policy(catalog)
+    policy = LimitProfileManager.discover(state_path=state_path).policy(catalog)
     assert policy.maximum(CoreResource.CHUNKS) == 3
     assert policy.maximum(CoreResource.STREAMS) == 65_536
     assert policy.maximum(ExampleResource.ITEMS) is None
@@ -97,7 +105,7 @@ def test_unknown_plugin_override_remains_visible_and_inert(tmp_path: Path) -> No
         ),
         encoding="utf-8",
     )
-    manager = LimitManager.discover(state_path=state_path)
+    manager = LimitProfileManager.discover(state_path=state_path)
     core_catalog = ResourceCatalog(tuple(CoreResource), (DEFAULT_LIMIT_PROFILE,))
 
     view = manager.show(core_catalog)
@@ -112,7 +120,7 @@ def test_unknown_plugin_override_remains_visible_and_inert(tmp_path: Path) -> No
 
 
 def test_contributed_profile_requires_explicit_selection(tmp_path: Path) -> None:
-    manager = LimitManager.discover(state_path=tmp_path / "limits.json")
+    manager = LimitProfileManager.discover(state_path=tmp_path / "limits.json")
     catalog = _catalog()
 
     assert manager.policy(catalog).maximum(ExampleResource.ITEMS) == 20
@@ -125,30 +133,30 @@ def test_unavailable_selected_contributed_profile_fails_explicitly(
     tmp_path: Path,
 ) -> None:
     state_path = tmp_path / "limits.json"
-    manager = LimitManager.discover(state_path=state_path)
+    manager = LimitProfileManager.discover(state_path=state_path)
     manager.use("org.example/tool@1/strict", _catalog())
     core_catalog = ResourceCatalog(tuple(CoreResource), (DEFAULT_LIMIT_PROFILE,))
 
     status = next(status for status in manager.profiles(core_catalog) if status.active)
     assert status.available is False
-    with pytest.raises(LimitStateError, match="selected profile is unavailable"):
+    with pytest.raises(LimitProfileStateError, match="selected profile is unavailable"):
         manager.policy(core_catalog)
 
 
 def test_default_and_active_custom_profiles_cannot_be_mutated_or_deleted(
     tmp_path: Path,
 ) -> None:
-    manager = LimitManager.discover(state_path=tmp_path / "limits.json")
+    manager = LimitProfileManager.discover(state_path=tmp_path / "limits.json")
     catalog = _catalog()
 
-    with pytest.raises(LimitStateError, match="immutable"):
+    with pytest.raises(LimitProfileStateError, match="immutable"):
         manager.set("default", "chunks", 1, catalog)
-    with pytest.raises(LimitStateError, match="immutable"):
+    with pytest.raises(LimitProfileStateError, match="immutable"):
         manager.delete("default", catalog)
 
     manager.create("custom", catalog)
     manager.use("custom", catalog)
-    with pytest.raises(LimitStateError, match="active profile"):
+    with pytest.raises(LimitProfileStateError, match="active profile"):
         manager.delete("custom", catalog)
 
 
@@ -156,12 +164,12 @@ def test_unknown_new_resource_is_rejected_but_retained_resource_can_change(
     tmp_path: Path,
 ) -> None:
     state_path = tmp_path / "limits.json"
-    manager = LimitManager.discover(state_path=state_path)
+    manager = LimitProfileManager.discover(state_path=state_path)
     catalog = _catalog()
     manager.create("custom", catalog)
     manager.set("custom", str(ExampleResource.ITEMS), 5, catalog)
 
-    with pytest.raises(LimitStateError, match="unknown resource"):
+    with pytest.raises(LimitProfileStateError, match="unknown resource"):
         manager.set("custom", "org.example/missing@1/items", 1, catalog)
 
     core_catalog = ResourceCatalog(tuple(CoreResource), (DEFAULT_LIMIT_PROFILE,))
@@ -199,5 +207,5 @@ def test_invalid_limit_state_is_rejected(
     state_path = tmp_path / "limits.json"
     state_path.write_text(json.dumps(document), encoding="utf-8")
 
-    with pytest.raises(LimitStateError):
-        LimitManager.discover(state_path=state_path)
+    with pytest.raises(LimitProfileStateError):
+        LimitProfileManager.discover(state_path=state_path)

@@ -50,9 +50,9 @@ from obst.core.errors import (
     UnsupportedVersionError,
 )
 from obst.core.io import BinaryReader
-from obst.core.resources import ResourceLimitError
-from obst.limits import LimitManager, LimitStateError
+from obst.core.resource_accounting import ResourceAccounting, ResourceLimitError
 from obst.plugins import PluginError, PluginManager, PluginRuntime
+from obst.resources.profiles import LimitProfileManager, LimitProfileStateError
 
 
 def _plugin_manager() -> PluginManager:
@@ -90,12 +90,14 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "limits":
             return _run_limit_management(
-                LimitManager.discover(),
+                LimitProfileManager.discover(),
                 runtime,
                 args,
             )
 
-        policy = LimitManager.discover().policy(runtime.resources)
+        accounting = ResourceAccounting(
+            LimitProfileManager.discover().policy(runtime.resources)
+        )
 
         if args.command == "inspect":
             return run_inspect(
@@ -103,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
                 registry=runtime.registry,
                 stdin=_binary_stdin(),
                 stdout=sys.stdout,
-                policy=policy,
+                accounting=accounting,
             )
 
         contributed_command = contributed.get(args.command)
@@ -116,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
                     stdin=_binary_stdin(),
                     stdout=sys.stdout,
                     stderr=sys.stderr,
-                    policy=policy,
+                    accounting=accounting,
                 ),
             )
     except CliCommandError as exc:
@@ -131,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
         return _fail("invalid_container", exc, EXIT_INVALID_CONTAINER)
     except ResourceLimitError as exc:
         return _fail("resource_limit", exc, EXIT_RESOURCE_LIMIT)
-    except LimitStateError as exc:
+    except LimitProfileStateError as exc:
         return _fail("limit_state", exc, EXIT_LIMIT_STATE)
     except MissingExtensionCapabilityError as exc:
         return _fail("plugin_error", exc, EXIT_PLUGIN)
@@ -200,7 +202,7 @@ def _run_plugin_management(
 
 
 def _run_limit_management(
-    manager: LimitManager,
+    manager: LimitProfileManager,
     runtime: PluginRuntime,
     args: argparse.Namespace,
 ) -> int:
@@ -262,7 +264,7 @@ def _run_limit_management(
                 f"{style.identifier(escape_human_text(args.profile))}\n"
             )
         return EXIT_SUCCESS
-    raise LimitStateError(
+    raise LimitProfileStateError(
         manager.state_path, f"unknown limit command {args.limit_command}"
     )
 

@@ -166,8 +166,8 @@ def obst_commands() -> tuple[CliCommand, ...]:
 ```
 
 `CliContext` supplies the already composed immutable registry, selected plugin
-names, standard endpoints and resource policy. It contains no first-party IDs
-or implementation objects. The generic host owns `inspect`, `help`, `plugins`,
+names, standard endpoints and the operation's `ResourceAccounting`. It contains
+no first-party IDs or implementation objects. The generic host owns `inspect`, `help`, `plugins`,
 `extensions`, `limits` and version output. Contributed command factories execute only
 for persistently enabled plugins when their parser is needed. The host captures
 the validated name, summary and bound callbacks once; the same immutable
@@ -192,12 +192,14 @@ example = "org_example_obst:obst_resources"
 ```
 
 The factory returns one exact `ResourceContribution`. Resource definitions
-carry their typed identity, `ResourceUnit`, default maximum and summary.
+carry their typed identity, `ResourceUnit`, `ResourceAggregation`, default
+maximum and summary.
 Profiles contain only overrides:
 
 ```python
-from obst.core import (
+from obst.resources import (
     LimitProfile,
+    ResourceAggregation,
     ResourceContribution,
     ResourceDefinition,
     ResourceKind,
@@ -211,6 +213,7 @@ class ExampleResource(ResourceKind):
         100_000,
         "Records processed by one table operation.",
         ResourceUnit.COUNT,
+        ResourceAggregation.TOTAL,
     )
 
 

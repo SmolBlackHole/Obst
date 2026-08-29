@@ -47,6 +47,10 @@ from obst.core.registry import (
     StageCapability,
     StreamProfileCapability,
 )
+from obst.core.resource_accounting import (
+    DEFAULT_RESOURCE_POLICY,
+    ResourceAccounting,
+)
 from obst.core.streams import materialize_stream
 
 
@@ -78,7 +82,11 @@ def run_conformance_suite(
     results: list[ConformanceCaseResult] = []
     for case in suite.cases:
         try:
-            _check_case(registry, case)
+            _check_case(
+                registry,
+                case,
+                accounting=ResourceAccounting(DEFAULT_RESOURCE_POLICY),
+            )
         except Exception as exc:
             results.append(
                 ConformanceCaseResult(
@@ -179,9 +187,11 @@ def _require_stream_profile_coverage(
 def _check_case(
     registry: ExtensionRegistry,
     case: PortableConformanceCase,
+    *,
+    accounting: ResourceAccounting,
 ) -> None:
     if type(case) is StageKnownAnswerCase:
-        _check_stage_known_answer(registry, case)
+        _check_stage_known_answer(registry, case, accounting=accounting)
     elif type(case) is StageParametersCase:
         _check_stage_parameters(registry, case)
     elif type(case) is StageBindRejectionCase:
@@ -195,15 +205,17 @@ def _check_case(
     elif type(case) is StreamMetadataRejectionCase:
         _check_stream_metadata_rejection(registry, case)
     elif type(case) is ContainerStructureCase:
-        _check_container_structure(case)
+        _check_container_structure(case, accounting=accounting)
     else:
         assert type(case) is ContainerRecoveryCase
-        _check_container_recovery(registry, case)
+        _check_container_recovery(registry, case, accounting=accounting)
 
 
 def _check_stage_known_answer(
     registry: ExtensionRegistry,
     case: StageKnownAnswerCase,
+    *,
+    accounting: ResourceAccounting,
 ) -> None:
     recipe = Recipe(0, (StageSpec(case.extension_id, case.parameters),))
     can_encode = registry.can_encode(case.extension_id)
@@ -211,7 +223,7 @@ def _check_stage_known_answer(
     if not can_encode and not can_decode:
         raise ConformanceError("Stage provides neither encoder nor decoder")
     if can_decode:
-        decoded = RecipeDecoder(registry).decode(
+        decoded = RecipeDecoder(registry, accounting=accounting).decode(
             case.encoded,
             recipe,
             expected_size=len(case.logical),
@@ -219,11 +231,13 @@ def _check_stage_known_answer(
         if decoded != case.logical:
             raise ConformanceError("known encoding did not recover expected bytes")
     if can_encode:
-        encoded = RecipeEncoder(registry).encode(case.logical, recipe)
+        encoded = RecipeEncoder(registry, accounting=accounting).encode(
+            case.logical, recipe
+        )
         if case.canonical_encoding and encoded != case.encoded:
             raise ConformanceError("encoder did not reproduce canonical encoding")
         if can_decode:
-            decoded = RecipeDecoder(registry).decode(
+            decoded = RecipeDecoder(registry, accounting=accounting).decode(
                 encoded,
                 recipe,
                 expected_size=len(case.logical),
@@ -380,10 +394,12 @@ def _check_stream_metadata_rejection(
 def _check_container_recovery(
     registry: ExtensionRegistry,
     case: ContainerRecoveryCase,
+    *,
+    accounting: ResourceAccounting,
 ) -> None:
     for stream in case.streams:
         logical = materialize_stream(
-            ContainerReader(io.BytesIO(case.container)),
+            ContainerReader(io.BytesIO(case.container), accounting=accounting),
             stream.stream_id,
             registry,
         )
@@ -401,9 +417,15 @@ _STRUCTURAL_OUTCOMES: dict[type[InvalidContainerError], ContainerStructuralOutco
 }
 
 
-def _check_container_structure(case: ContainerStructureCase) -> None:
+def _check_container_structure(
+    case: ContainerStructureCase,
+    *,
+    accounting: ResourceAccounting,
+) -> None:
     try:
-        inspection = inspect_container(ContainerReader(io.BytesIO(case.container)))
+        inspection = inspect_container(
+            ContainerReader(io.BytesIO(case.container), accounting=accounting)
+        )
     except InvalidContainerError as exc:
         if case.outcome is ContainerStructuralOutcome.ACCEPT:
             raise ConformanceError(

@@ -38,6 +38,7 @@ from obst_defaults.files import (
     FileExtractionResult,
 )
 from obst_defaults.output import write_unpack_result
+from support_resources import accounting as _accounting
 
 
 def _inspect(
@@ -48,7 +49,7 @@ def _inspect(
 ) -> ContainerInspection:
     target = io.BytesIO()
     stage_registry = ExtensionRegistry((RawExtension(), ZlibExtension()))
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     sequences = {stream.stream_id: 0 for stream in manifest.streams}
     for stream_id, payload, recipe_id in chunks:
         selected_recipe_id = (
@@ -63,11 +64,12 @@ def _inspect(
                 sequence=sequences[stream_id],
                 recipe=manifest.recipe(selected_recipe_id),
                 registry=stage_registry,
+                accounting=_accounting(),
             )
         )
         sequences[stream_id] += 1
     writer.finish()
-    reader = ContainerReader(io.BytesIO(target.getvalue()))
+    reader = ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting())
     inspection_extensions = (
         (RawExtension(), ZlibExtension(), FileExtension())
         if with_interpreters

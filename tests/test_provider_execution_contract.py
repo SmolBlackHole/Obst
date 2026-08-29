@@ -16,6 +16,7 @@ from obst.core import (
     MissingStageError,
     ProviderRejectedError,
     Recipe,
+    ResourceAccounting,
     ResourceLimitError,
     StageSpec,
     Stream,
@@ -26,6 +27,7 @@ from obst.core import (
 )
 from obst.core.extensions import ExtensionKind
 from obst.core.pipeline import RecipeDecoder, RecipeEncoder
+from tests.support_resources import accounting as _accounting
 from tests.support_resources import policy as _policy
 
 _FIRST_STAGE_ID = "org.example/first@1"
@@ -148,7 +150,7 @@ def test_recipe_callbacks_follow_directional_stage_order() -> None:
         ),
     )
 
-    encoded = encode_recipe(b"payload", recipe, registry)
+    encoded = encode_recipe(b"payload", recipe, registry, accounting=_accounting())
 
     assert encoded == b"payload"
     assert events == [
@@ -159,7 +161,9 @@ def test_recipe_callbacks_follow_directional_stage_order() -> None:
     ]
 
     events.clear()
-    decoded = decode_recipe(encoded, recipe, registry, expected_size=len(encoded))
+    decoded = decode_recipe(
+        encoded, recipe, registry, expected_size=len(encoded), accounting=_accounting()
+    )
 
     assert decoded == b"payload"
     assert events == [
@@ -175,12 +179,12 @@ def test_prepared_recipes_bind_once_for_repeated_execution() -> None:
     registry = ExtensionRegistry((_TracingStage(_FIRST_STAGE_ID, events),))
     recipe = Recipe(0, (StageSpec(_FIRST_STAGE_ID),))
 
-    encoder = RecipeEncoder(registry)
+    encoder = RecipeEncoder(registry, accounting=_accounting())
     encoder.preflight((recipe,))
     assert encoder.encode(b"first", recipe) == b"first"
     assert encoder.encode(b"second", recipe) == b"second"
 
-    decoder = RecipeDecoder(registry)
+    decoder = RecipeDecoder(registry, accounting=_accounting())
     assert decoder.decode(b"first", recipe, expected_size=5) == b"first"
     assert decoder.decode(b"second", recipe, expected_size=6) == b"second"
 
@@ -201,7 +205,9 @@ def test_encoder_resolves_all_pending_recipes_before_any_bind_callback() -> None
     missing_recipe = Recipe(1, (StageSpec(_MISSING_STAGE_ID),))
 
     with pytest.raises(MissingStageError) as error:
-        RecipeEncoder(registry).preflight((valid_recipe, missing_recipe))
+        RecipeEncoder(registry, accounting=_accounting()).preflight(
+            (valid_recipe, missing_recipe)
+        )
 
     assert error.value.stage_id == _MISSING_STAGE_ID
     assert events == []
@@ -218,7 +224,7 @@ def test_recipe_decoder_binds_only_recipes_that_are_executed() -> None:
     used_recipe = Recipe(0, (StageSpec(_FIRST_STAGE_ID),))
 
     assert (
-        RecipeDecoder(registry).decode(
+        RecipeDecoder(registry, accounting=_accounting()).decode(
             b"payload",
             used_recipe,
             expected_size=7,
@@ -239,13 +245,13 @@ def test_recipe_sessions_account_logical_bytes_across_calls(direction: str) -> N
     policy = _policy((CoreResource.LOGICAL_BYTES, 7))
 
     if direction == "encode":
-        session = RecipeEncoder(registry, policy=policy)
+        session = RecipeEncoder(registry, accounting=ResourceAccounting(policy))
         session.preflight((recipe,))
         assert session.encode(b"four", recipe) == b"four"
         with pytest.raises(ResourceLimitError) as error:
             session.encode(b"more", recipe)
     else:
-        decoder = RecipeDecoder(registry, policy=policy)
+        decoder = RecipeDecoder(registry, accounting=ResourceAccounting(policy))
         assert decoder.decode(b"four", recipe, expected_size=4) == b"four"
         with pytest.raises(ResourceLimitError) as error:
             decoder.decode(b"more", recipe, expected_size=4)
@@ -263,9 +269,11 @@ def test_recipe_sessions_refuse_impossible_work_before_binding(direction: str) -
 
     with pytest.raises(ResourceLimitError):
         if direction == "encode":
-            RecipeEncoder(registry, policy=policy).encode(b"x", recipe)
+            RecipeEncoder(registry, accounting=ResourceAccounting(policy)).encode(
+                b"x", recipe
+            )
         else:
-            RecipeDecoder(registry, policy=policy).decode(
+            RecipeDecoder(registry, accounting=ResourceAccounting(policy)).decode(
                 b"x",
                 recipe,
                 expected_size=1,
@@ -280,7 +288,7 @@ def test_encode_resolves_complete_recipe_before_first_provider_callback() -> Non
     recipe = Recipe(0, (StageSpec(_FIRST_STAGE_ID), StageSpec(_MISSING_STAGE_ID)))
 
     with pytest.raises(MissingStageError) as error:
-        encode_recipe(b"payload", recipe, registry)
+        encode_recipe(b"payload", recipe, registry, accounting=_accounting())
 
     assert error.value.stage_id == _MISSING_STAGE_ID
     assert events == []
@@ -292,7 +300,9 @@ def test_decode_resolves_complete_recipe_before_first_provider_callback() -> Non
     recipe = Recipe(0, (StageSpec(_MISSING_STAGE_ID), StageSpec(_FIRST_STAGE_ID)))
 
     with pytest.raises(MissingStageError) as error:
-        decode_recipe(b"payload", recipe, registry, expected_size=7)
+        decode_recipe(
+            b"payload", recipe, registry, expected_size=7, accounting=_accounting()
+        )
 
     assert error.value.stage_id == _MISSING_STAGE_ID
     assert events == []
@@ -308,7 +318,7 @@ def test_decode_does_not_bind_provider_for_unused_recipe() -> None:
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             b"payload",
@@ -316,13 +326,14 @@ def test_decode_does_not_bind_provider_for_unused_recipe() -> None:
             sequence=0,
             recipe=used_recipe,
             registry=ExtensionRegistry((used_stage,)),
+            accounting=_accounting(),
         )
     )
     writer.finish()
     events.clear()
 
     recovered = materialize_stream(
-        ContainerReader(io.BytesIO(target.getvalue())),
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
         0,
         ExtensionRegistry((used_stage, _ExplodingUnusedStage())),
     )
@@ -340,6 +351,7 @@ def test_provider_rejection_subclass_is_a_contract_failure() -> None:
             b"payload",
             Recipe(0, (StageSpec(_ForgingStage.extension_id),)),
             ExtensionRegistry((_ForgingStage(),)),
+            accounting=_accounting(),
         )
 
     assert caught.value.extension_id == _ForgingStage.extension_id
@@ -353,13 +365,16 @@ def test_recipe_input_bytes_subclasses_are_rejected_before_provider_callback() -
     recipe = Recipe(0, (StageSpec(_FIRST_STAGE_ID),))
 
     with pytest.raises(TypeError, match="recipe input must be exact bytes"):
-        encode_recipe(_BytesSubclass(b"payload"), recipe, registry)
+        encode_recipe(
+            _BytesSubclass(b"payload"), recipe, registry, accounting=_accounting()
+        )
     with pytest.raises(TypeError, match="recipe input must be exact bytes"):
         decode_recipe(
             _BytesSubclass(b"payload"),
             recipe,
             registry,
             expected_size=7,
+            accounting=_accounting(),
         )
 
     assert events == []
@@ -380,8 +395,8 @@ def test_output_ceiling_reaches_both_directional_executors() -> None:
     registry = ExtensionRegistry((_TracingStage(_FIRST_STAGE_ID, events, ceilings),))
     recipe = Recipe(0, (StageSpec(_FIRST_STAGE_ID),))
 
-    encode_recipe(b"data", recipe, registry)
-    decode_recipe(b"data", recipe, registry, expected_size=4)
+    encode_recipe(b"data", recipe, registry, accounting=_accounting())
+    decode_recipe(b"data", recipe, registry, expected_size=4, accounting=_accounting())
 
     assert ceilings == [
         ("encode", 64 * 1024 * 1024),

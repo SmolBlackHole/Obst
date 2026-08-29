@@ -13,7 +13,7 @@ ordinary OBST command host. Without this plugin, those commands are absent.
 	- [Pack explicit files](#pack-explicit-files)
 	- [Unpack every file](#unpack-every-file)
 	- [Machine-readable results](#machine-readable-results)
-	- [Resource policy](#resource-policy)
+	- [Resource accounting](#resource-accounting)
 	- [Unsupported operations](#unsupported-operations)
 
 ## Activate the plugin
@@ -93,9 +93,9 @@ Unpack schema `1` reports `destination`, every restored file's `name` and
 complete `path`, `cleanup_issues` and `windows_origin_not_propagated`. The
 last field records the same successful Windows-origin warning described above.
 
-## Resource policy
+## Resource accounting
 
-The command host supplies the currently selected `ResourcePolicy` to Pack,
+The command host supplies one operation-local `ResourceAccounting` to Pack,
 Unpack and every nested operation. `obst-defaults` contributes its file-member
 resources through `obst.resources`; it does not maintain a second extraction
 policy or select a profile when the plugin is enabled. Use the native
@@ -104,7 +104,7 @@ inspect and select local overrides.
 
 Crossing a local ceiling reports `resource_limit` rather than calling valid
 wire data corrupt. The core [resource guide](../../../docs/core/resources.md)
-owns operation-wide accounting, while [file extraction](files/extraction.md#resource-policy)
+owns operation-wide accounting, while [file extraction](files/extraction.md#resource-accounting)
 owns the adapter-specific ceilings.
 
 ## Unsupported operations

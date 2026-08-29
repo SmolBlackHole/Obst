@@ -15,6 +15,7 @@ from obst.core import (
     PipelineError,
     ProviderRejectedError,
     Recipe,
+    ResourceAccounting,
     ResourceLimitError,
     StageSpec,
     decode_recipe,
@@ -33,6 +34,7 @@ from obst_defaults.codecs.zlib import (
     ZlibParameters,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
+from support_resources import accounting as _accounting
 from support_resources import policy as _policy
 
 RAW_STAGE_ID = RawExtension.extension_id
@@ -154,9 +156,11 @@ def test_parameterless_extensions_reject_every_nonempty_parameter_block(
     recipe = Recipe(0, (StageSpec(stage_id, parameters),))
 
     with pytest.raises(PipelineError) as encode_error:
-        encode_recipe(b"payload", recipe, registry)
+        encode_recipe(b"payload", recipe, registry, accounting=_accounting())
     with pytest.raises(PipelineError) as decode_error:
-        decode_recipe(b"payload", recipe, registry, expected_size=7)
+        decode_recipe(
+            b"payload", recipe, registry, expected_size=7, accounting=_accounting()
+        )
 
     assert stage_id in encode_error.value.reason
     assert encode_error.value.reason == decode_error.value.reason
@@ -171,9 +175,11 @@ def test_zlib_rejects_every_parameter_block_outside_its_contract(
     recipe = Recipe(0, (StageSpec(ZLIB_STAGE_ID, parameters),))
 
     with pytest.raises(PipelineError) as encode_error:
-        encode_recipe(b"payload", recipe, registry)
+        encode_recipe(b"payload", recipe, registry, accounting=_accounting())
     with pytest.raises(PipelineError) as decode_error:
-        decode_recipe(b"payload", recipe, registry, expected_size=7)
+        decode_recipe(
+            b"payload", recipe, registry, expected_size=7, accounting=_accounting()
+        )
 
     assert "compression-level" in encode_error.value.reason
     assert encode_error.value.reason == decode_error.value.reason
@@ -210,9 +216,11 @@ def test_zlib_dictionary_rejects_parameter_blocks_outside_its_contract(
     recipe = Recipe(0, (StageSpec(ZLIB_DICTIONARY_STAGE_ID, parameters),))
 
     with pytest.raises(PipelineError, match=r"obst\.zlib@2"):
-        encode_recipe(b"payload", recipe, registry)
+        encode_recipe(b"payload", recipe, registry, accounting=_accounting())
     with pytest.raises(PipelineError, match=r"obst\.zlib@2"):
-        decode_recipe(b"payload", recipe, registry, expected_size=7)
+        decode_recipe(
+            b"payload", recipe, registry, expected_size=7, accounting=_accounting()
+        )
 
 
 @pytest.mark.parametrize(
@@ -287,14 +295,14 @@ def test_first_party_extensions_enforce_output_limits(
         data,
         recipe,
         registry,
-        policy=_policy((CoreResource.INTERMEDIATE_BYTES, len(data) + 64)),
+        accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, len(data) + 64)),
     )
     assert (
         encode_recipe(
             data,
             recipe,
             registry,
-            policy=_policy(
+            accounting=_accounting(
                 (CoreResource.INTERMEDIATE_BYTES, max(len(data), len(baseline)))
             ),
         )
@@ -306,7 +314,7 @@ def test_first_party_extensions_enforce_output_limits(
             recipe,
             registry,
             expected_size=len(data),
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, len(data))),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, len(data))),
         )
         == data
     )
@@ -315,7 +323,7 @@ def test_first_party_extensions_enforce_output_limits(
             data,
             recipe,
             registry,
-            policy=_policy(
+            accounting=_accounting(
                 (CoreResource.INTERMEDIATE_BYTES, max(len(data), len(baseline)) - 1)
             ),
         )
@@ -325,7 +333,7 @@ def test_first_party_extensions_enforce_output_limits(
             recipe,
             registry,
             expected_size=len(data),
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, len(data) - 1)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, len(data) - 1)),
         )
 
 
@@ -338,7 +346,7 @@ def test_zlib_rejects_invalid_payload() -> None:
             Recipe(0, (StageSpec(ZLIB_STAGE_ID, b"\x06"),)),
             registry,
             expected_size=7,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -370,7 +378,9 @@ def test_zlib_rejects_payloads_that_are_not_exactly_one_complete_stream(
 ) -> None:
     logical = b"common-prefix:payload" * 8
     recipe = Recipe(0, (StageSpec(extension.extension_id, parameters),))
-    encoded = encode_recipe(logical, recipe, _stage_registry())
+    encoded = encode_recipe(
+        logical, recipe, _stage_registry(), accounting=_accounting()
+    )
     malformed = {
         "truncated": encoded[:-1],
         "trailing-bytes": encoded + b"trailing",
@@ -383,7 +393,7 @@ def test_zlib_rejects_payloads_that_are_not_exactly_one_complete_stream(
             recipe,
             _stage_registry(),
             expected_size=len(logical),
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 4096)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 4096)),
         )
 
 
@@ -401,9 +411,16 @@ def test_delta8_known_answers(logical: bytes, encoded: bytes) -> None:
     recipe = Recipe(0, (StageSpec(DELTA8_STAGE_ID),))
     registry = _stage_registry()
 
-    assert encode_recipe(logical, recipe, registry) == encoded
+    assert encode_recipe(logical, recipe, registry, accounting=_accounting()) == encoded
     assert (
-        decode_recipe(encoded, recipe, registry, expected_size=len(logical)) == logical
+        decode_recipe(
+            encoded,
+            recipe,
+            registry,
+            expected_size=len(logical),
+            accounting=_accounting(),
+        )
+        == logical
     )
 
 
@@ -412,9 +429,13 @@ def test_delta8_state_resets_for_every_chunk() -> None:
     registry = _stage_registry()
 
     assert tuple(
-        encode_recipe(chunk, recipe, registry) for chunk in (b"\x01", b"\x02")
+        encode_recipe(chunk, recipe, registry, accounting=_accounting())
+        for chunk in (b"\x01", b"\x02")
     ) == (b"\x01", b"\x02")
-    assert encode_recipe(b"\x01\x02", recipe, registry) == b"\x01\x01"
+    assert (
+        encode_recipe(b"\x01\x02", recipe, registry, accounting=_accounting())
+        == b"\x01\x01"
+    )
 
 
 def test_zlib_v1_rejects_a_preset_dictionary_stream() -> None:
@@ -428,7 +449,7 @@ def test_zlib_v1_rejects_a_preset_dictionary_stream() -> None:
             Recipe(0, (StageSpec(ZLIB_STAGE_ID, b"\x06"),)),
             _stage_registry(),
             expected_size=len(dictionary) + 5,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 4096)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 4096)),
         )
 
 
@@ -444,7 +465,7 @@ def test_zlib_v2_requires_a_preset_dictionary_stream() -> None:
             Recipe(0, (StageSpec(ZLIB_DICTIONARY_STAGE_ID, parameters),)),
             _stage_registry(),
             expected_size=13,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -461,7 +482,7 @@ def test_zlib_v2_rejects_a_different_dictionary() -> None:
             Recipe(0, (StageSpec(ZLIB_DICTIONARY_STAGE_ID, parameters),)),
             _stage_registry(),
             expected_size=26,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -474,7 +495,7 @@ def test_encode_and_decode_enforce_the_same_intermediate_limit() -> None:
             b"too large",
             raw_recipe,
             registry,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 2)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 2)),
         )
     with pytest.raises(ResourceLimitError, match="intermediate_bytes"):
         decode_recipe(
@@ -482,7 +503,7 @@ def test_encode_and_decode_enforce_the_same_intermediate_limit() -> None:
             raw_recipe,
             registry,
             expected_size=9,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 2)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 2)),
         )
 
 
@@ -504,7 +525,7 @@ def test_executor_rejects_provider_outputs_that_violate_the_protocol() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             registry,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -530,6 +551,7 @@ def test_executor_rejects_bytes_subclass_before_size_accounting() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             registry,
+            accounting=_accounting(),
         )
 
 
@@ -544,7 +566,7 @@ def test_stage_execution_budget_spans_complete_recipe() -> None:
             b"payload",
             recipe,
             _stage_registry(),
-            policy=_policy((CoreResource.STAGE_EXECUTIONS, 1)),
+            accounting=_accounting((CoreResource.STAGE_EXECUTIONS, 1)),
         )
 
     assert error.value.resource is CoreResource.STAGE_EXECUTIONS
@@ -569,7 +591,7 @@ def test_unexpected_provider_exceptions_have_stable_extension_context() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             registry,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
     assert error.value.extension_id == _XOR_ID
@@ -597,6 +619,7 @@ def test_provider_obst_errors_cannot_masquerade_as_core_failures() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             ExtensionRegistry((MisleadingStage(),)),
+            accounting=_accounting(),
         )
 
     assert error.value.extension_id == _XOR_ID
@@ -624,6 +647,7 @@ def test_wrong_provider_signature_fails_with_extension_context() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             registry,
+            accounting=_accounting(),
         )
 
     assert error.value.extension_id == _XOR_ID
@@ -667,14 +691,14 @@ def test_core_rechecks_provider_output_ceiling(
         match=rf"above its {expected_ceiling}-byte output ceiling",
     ):
         if direction == "encode":
-            encode_recipe(b"x", recipe, registry, policy=policy)
+            encode_recipe(b"x", recipe, registry, accounting=ResourceAccounting(policy))
         else:
             decode_recipe(
                 b"x",
                 recipe,
                 registry,
                 expected_size=1,
-                policy=policy,
+                accounting=ResourceAccounting(policy),
             )
 
 
@@ -711,7 +735,7 @@ def test_final_stage_receives_tighter_endpoint_ceiling(direction: str) -> None:
     )
 
     if direction == "encode":
-        ChunkEncoder(registry, policy=policy).encode(
+        ChunkEncoder(registry, accounting=ResourceAccounting(policy)).encode(
             b"x",
             stream_id=0,
             sequence=0,
@@ -723,7 +747,7 @@ def test_final_stage_receives_tighter_endpoint_ceiling(direction: str) -> None:
             recipe,
             registry,
             expected_size=1,
-            policy=policy,
+            accounting=ResourceAccounting(policy),
         )
 
     assert received == [1]
@@ -751,7 +775,7 @@ def test_provider_output_helper_preserves_structured_resource_limit() -> None:
             b"x",
             Recipe(0, (StageSpec(_XOR_ID),)),
             ExtensionRegistry((BoundedStage(),)),
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 2)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 2)),
         )
 
     assert error.value.resource is CoreResource.INTERMEDIATE_BYTES
@@ -775,6 +799,7 @@ def test_expected_payload_rejection_becomes_structured_pipeline_error() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             ExtensionRegistry((RejectingStage(),)),
+            accounting=_accounting(),
         )
 
     assert error.value.stage_id == _XOR_ID

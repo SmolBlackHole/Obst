@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from obst.core import Extension, ResourceContribution
+from obst.core import Extension
+from obst.resources import ResourceContribution
 
 from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
 from obst_defaults.carriers.memory import MemoryCarrierExtension

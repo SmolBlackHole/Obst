@@ -106,20 +106,12 @@ from obst.core.registry import (
     StageCapability,
     StreamProfileCapability,
 )
-from obst.core.resources import (
-    DEFAULT_LIMIT_PROFILE,
+from obst.core.resource_accounting import (
     DEFAULT_RESOURCE_CATALOG,
     DEFAULT_RESOURCE_POLICY,
     CoreResource,
-    LimitProfile,
-    ResourceCatalog,
-    ResourceContribution,
-    ResourceDefinition,
-    ResourceKind,
+    ResourceAccounting,
     ResourceLimitError,
-    ResourcePolicy,
-    ResourceUnit,
-    require_resource_limit,
 )
 from obst.core.streams import (
     ChunkDecoder,
@@ -133,7 +125,6 @@ from obst.core.wire import FormatVersion, format_version
 
 __all__ = [
     "BYTES_STREAM_TYPE",
-    "DEFAULT_LIMIT_PROFILE",
     "DEFAULT_RESOURCE_CATALOG",
     "DEFAULT_RESOURCE_POLICY",
     "BinaryIOContractError",
@@ -180,7 +171,6 @@ __all__ = [
     "InspectionInterpretation",
     "InspectionInterpretationPolicy",
     "InvalidContainerError",
-    "LimitProfile",
     "LogicalRecoveryStatus",
     "LogicalStreamDescriptor",
     "LogicalStreamSource",
@@ -204,13 +194,8 @@ __all__ = [
     "RecipeDecoder",
     "RecipeEncoder",
     "RecipeSpec",
-    "ResourceCatalog",
-    "ResourceContribution",
-    "ResourceDefinition",
-    "ResourceKind",
+    "ResourceAccounting",
     "ResourceLimitError",
-    "ResourcePolicy",
-    "ResourceUnit",
     "SelectionError",
     "SourceConsumedError",
     "StageCapability",
@@ -242,7 +227,6 @@ __all__ = [
     "iter_decoded_chunks",
     "materialize_stream",
     "require_no_parameters",
-    "require_resource_limit",
     "require_stage_output_size",
     "validate_manifest_resources",
 ]

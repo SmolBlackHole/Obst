@@ -16,7 +16,7 @@ implementation, and [writing](writing.md) owns container framing.
 	- [Reuse Recipe bindings](#reuse-recipe-bindings)
 	- [Execute one Chunk](#execute-one-chunk)
 	- [Validate manifest resources](#validate-manifest-resources)
-	- [Operation budgets](#operation-budgets)
+	- [Operation accounting](#operation-accounting)
 
 ## Execute one Recipe
 
@@ -28,7 +28,7 @@ expected logical size:
 from obst.core import (
     ExtensionRegistry,
     Recipe,
-    ResourcePolicy,
+    ResourceAccounting,
     decode_recipe,
     encode_recipe,
 )
@@ -38,15 +38,15 @@ def round_trip_recipe(
     logical: bytes,
     recipe: Recipe,
     registry: ExtensionRegistry,
-    policy: ResourcePolicy,
+    accounting: ResourceAccounting,
 ) -> bytes:
-    encoded = encode_recipe(logical, recipe, registry, policy=policy)
+    encoded = encode_recipe(logical, recipe, registry, accounting=accounting)
     return decode_recipe(
         encoded,
         recipe,
         registry,
         expected_size=len(logical),
-        policy=policy,
+        accounting=accounting,
     )
 ```
 
@@ -62,12 +62,12 @@ operations use `RecipeEncoder` and `RecipeDecoder` instead:
 ```python
 from obst.core import RecipeDecoder, RecipeEncoder
 
-encoder = RecipeEncoder(registry, policy=policy)
+encoder = RecipeEncoder(registry, accounting=accounting)
 encoder.preflight(recipes)
 encoded_a = encoder.encode(logical_a, recipe_a)
 encoded_b = encoder.encode(logical_b, recipe_b)
 
-decoder = RecipeDecoder(registry, policy=policy)
+decoder = RecipeDecoder(registry, accounting=accounting)
 recovered_a = decoder.decode(
     encoded_a,
     recipe_a,
@@ -94,7 +94,7 @@ Recipe ID, recovers the bytes and verifies their declared size and hash:
 from obst.core import (
     ExtensionRegistry,
     Recipe,
-    ResourcePolicy,
+    ResourceAccounting,
     decode_chunk_once,
     encode_chunk_once,
 )
@@ -104,7 +104,7 @@ def round_trip_chunk(
     logical: bytes,
     recipe: Recipe,
     registry: ExtensionRegistry,
-    policy: ResourcePolicy,
+    accounting: ResourceAccounting,
 ) -> bytes:
     chunk = encode_chunk_once(
         logical,
@@ -112,9 +112,14 @@ def round_trip_chunk(
         sequence=0,
         recipe=recipe,
         registry=registry,
-        policy=policy,
+        accounting=accounting,
     )
-    return decode_chunk_once(chunk, recipe, registry, policy=policy)
+    return decode_chunk_once(
+        chunk,
+        recipe,
+        registry,
+        accounting=accounting,
+    )
 ```
 
 Use the session types when processing several Chunks:
@@ -139,7 +144,7 @@ constructing its encoded body:
 ```python
 from obst.core import validate_manifest_resources
 
-validate_manifest_resources(manifest, policy=policy)
+validate_manifest_resources(manifest, accounting=accounting)
 ```
 
 The check invokes no Extension code. Encoder preflight separately resolves and
@@ -152,13 +157,17 @@ Every provider required by one Recipe is resolved from the immutable
 first bind callback. A missing later Stage therefore cannot leave a Recipe
 partially executed.
 
-## Operation budgets
+## Operation accounting
 
-Each standalone Recipe or Chunk helper owns an independent budget under the
-supplied `ResourcePolicy`. Session objects retain cumulative logical-byte and
-Stage-execution counters across calls. Readers and writers own separate
-structural counters; sharing `ResourcePolicy` shares policy, not mutable
-accounting.
+Recipe and Chunk helpers require an explicit `ResourceAccounting`. They never
+create a hidden default operation. Session objects retain cumulative
+logical-byte and Stage-execution totals across calls, so every component in one
+larger read, write or packaging flow must receive the same accountant.
+
+The host may create separate accountants for genuinely separate operations,
+such as packaging a container and later recovering it. Reusing only the
+immutable `ResourcePolicy` would reset all totals and is therefore not an
+operation boundary.
 
 The [resource guide](resources.md) owns limits and accounting. The
 [packaging guide](packaging.md) composes forward execution across logical

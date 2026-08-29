@@ -1,4 +1,4 @@
-"""Local named resource-profile state for the OBST command host."""
+"""Local named resource-profile state for an OBST toolchain host."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ from pathlib import Path
 from typing import cast
 
 from obst.core.errors import ObstError
-from obst.core.resources import (
+from obst.resources import (
     LimitProfile,
     ResourceCatalog,
-    ResourceDefinition,
     ResourceKind,
     ResourcePolicy,
     ResourceUnit,
+    validate_resource_identifier,
 )
 
 LIMIT_STATE_SCHEMA_VERSION = 1
@@ -32,7 +32,7 @@ class LimitProfileSource(Enum):
     UNAVAILABLE = "unavailable"
 
 
-class LimitStateError(ObstError):
+class LimitProfileStateError(ObstError):
     """Local named-profile state is invalid or cannot be persisted."""
 
     def __init__(self, state_path: Path, reason: str) -> None:
@@ -75,7 +75,7 @@ class LimitProfileView:
     resources: tuple[ResourceLimitStatus, ...]
 
 
-class LimitManager:
+class LimitProfileManager:
     """Manage inert local overrides and resolve one operation policy."""
 
     def __init__(
@@ -90,7 +90,7 @@ class LimitManager:
         self._profiles = profiles
 
     @classmethod
-    def discover(cls, *, state_path: Path | None = None) -> LimitManager:
+    def discover(cls, *, state_path: Path | None = None) -> LimitProfileManager:
         """Read local profile state without importing or activating plugins."""
         selected_path = state_path or default_limit_state_path()
         active_profile_id, profiles = _read_limit_state(selected_path)
@@ -116,7 +116,7 @@ class LimitManager:
         collisions = self._profiles.keys() & catalog_profiles.keys()
         if collisions:
             collision = min(collisions)
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 f"custom profile conflicts with an available profile: {collision}",
             )
@@ -171,7 +171,7 @@ class LimitManager:
         try:
             status = statuses[selected_id]
         except KeyError as exc:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 f"unknown limit profile: {selected_id}",
             ) from exc
@@ -239,7 +239,7 @@ class LimitManager:
             try:
                 return catalog.policy(self._active_profile_id)
             except KeyError as exc:
-                raise LimitStateError(
+                raise LimitProfileStateError(
                     self._state_path,
                     f"selected profile is unavailable: {self._active_profile_id}",
                 ) from exc
@@ -247,7 +247,7 @@ class LimitManager:
             profile.profile_id == self._active_profile_id
             for profile in catalog.profiles
         ):
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 "custom profile conflicts with an available profile: "
                 f"{self._active_profile_id}",
@@ -265,11 +265,13 @@ class LimitManager:
         """Create one empty local custom profile."""
         _validate_profile_id(profile_id, self._state_path)
         if profile_id == "default":
-            raise LimitStateError(self._state_path, "default profile is immutable")
+            raise LimitProfileStateError(
+                self._state_path, "default profile is immutable"
+            )
         if profile_id in self._profiles or any(
             profile.profile_id == profile_id for profile in catalog.profiles
         ):
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 f"limit profile already exists: {profile_id}",
             )
@@ -291,25 +293,27 @@ class LimitManager:
     ) -> ResourceLimitStatus:
         """Set one explicit local override on a custom profile."""
         if profile_id == "default":
-            raise LimitStateError(self._state_path, "default profile is immutable")
+            raise LimitProfileStateError(
+                self._state_path, "default profile is immutable"
+            )
         try:
             overrides = self._profiles[profile_id]
         except KeyError as exc:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 f"custom limit profile does not exist: {profile_id}",
             ) from exc
         if type(maximum) is not int and maximum is not None:
             raise TypeError("limit maximum must be an exact integer or None")
         if maximum is not None and maximum < 0:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path, "limit maximum must be non-negative"
             )
         try:
             catalog.resource(resource_id)
         except KeyError:
             if resource_id not in overrides:
-                raise LimitStateError(
+                raise LimitProfileStateError(
                     self._state_path,
                     f"unknown resource: {resource_id}",
                 ) from None
@@ -332,7 +336,7 @@ class LimitManager:
         """Persistently select one available built-in, contributed or custom profile."""
         status = self._require_status(profile_id, catalog)
         if not status.available:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 f"limit profile is unavailable: {profile_id}",
             )
@@ -343,14 +347,16 @@ class LimitManager:
     def delete(self, profile_id: str, catalog: ResourceCatalog) -> None:
         """Delete one inactive local custom profile."""
         if profile_id == "default":
-            raise LimitStateError(self._state_path, "default profile is immutable")
+            raise LimitProfileStateError(
+                self._state_path, "default profile is immutable"
+            )
         if profile_id not in self._profiles:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 f"custom limit profile does not exist: {profile_id}",
             )
         if profile_id == self._active_profile_id:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 "cannot delete the active profile; select another profile first",
             )
@@ -379,7 +385,7 @@ class LimitManager:
                 if status.profile_id == profile_id
             )
         except StopIteration as exc:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 self._state_path,
                 f"unknown limit profile: {profile_id}",
             ) from exc
@@ -440,20 +446,14 @@ def _validate_profile_id(profile_id: object, state_path: Path) -> None:
     try:
         LimitProfile(cast(str, profile_id), "Local custom resource profile.")
     except (TypeError, ValueError) as exc:
-        raise LimitStateError(state_path, str(exc)) from exc
+        raise LimitProfileStateError(state_path, str(exc)) from exc
 
 
 def _validate_resource_id(resource_id: object, state_path: Path) -> str:
     try:
-        definition = ResourceDefinition(
-            cast(str, resource_id),
-            None,
-            "Stored resource override.",
-            ResourceUnit.COUNT,
-        )
+        return validate_resource_identifier(resource_id)
     except (TypeError, ValueError) as exc:
-        raise LimitStateError(state_path, str(exc)) from exc
-    return definition.identifier
+        raise LimitProfileStateError(state_path, str(exc)) from exc
 
 
 def _read_limit_state(
@@ -464,15 +464,15 @@ def _read_limit_state(
     except FileNotFoundError:
         return "default", {}
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise LimitStateError(
+        raise LimitProfileStateError(
             state_path,
             f"cannot read valid JSON: {type(exc).__name__}: {exc}",
         ) from exc
     if type(loaded) is not dict:
-        raise LimitStateError(state_path, "document must be a JSON object")
+        raise LimitProfileStateError(state_path, "document must be a JSON object")
     document = cast(dict[str, object], loaded)
     if set(document) != {"schema_version", "active_profile", "profiles"}:
-        raise LimitStateError(
+        raise LimitProfileStateError(
             state_path,
             "document must contain exactly schema_version, active_profile and profiles",
         )
@@ -480,12 +480,14 @@ def _read_limit_state(
         type(document["schema_version"]) is not int
         or document["schema_version"] != LIMIT_STATE_SCHEMA_VERSION
     ):
-        raise LimitStateError(state_path, "unsupported limit-state schema version")
+        raise LimitProfileStateError(
+            state_path, "unsupported limit-state schema version"
+        )
     active_profile = document["active_profile"]
     _validate_profile_id(active_profile, state_path)
     loaded_profiles = document["profiles"]
     if type(loaded_profiles) is not dict:
-        raise LimitStateError(state_path, "profiles must be a JSON object")
+        raise LimitProfileStateError(state_path, "profiles must be a JSON object")
     profiles: dict[str, dict[str, int | None]] = {}
     profile_order: list[str] = []
     for raw_profile_id, raw_overrides in cast(
@@ -495,9 +497,9 @@ def _read_limit_state(
         profile_id = cast(str, raw_profile_id)
         profile_order.append(profile_id)
         if profile_id == "default":
-            raise LimitStateError(state_path, "default profile is immutable")
+            raise LimitProfileStateError(state_path, "default profile is immutable")
         if type(raw_overrides) is not dict:
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 state_path,
                 f"profile {profile_id} overrides must be a JSON object",
             )
@@ -509,26 +511,26 @@ def _read_limit_state(
             resource_id = _validate_resource_id(raw_resource_id, state_path)
             resource_order.append(resource_id)
             if type(maximum) is not int and maximum is not None:
-                raise LimitStateError(
+                raise LimitProfileStateError(
                     state_path,
                     f"profile {profile_id} maximum for {resource_id} "
                     "must be an integer or null",
                 )
             if maximum is not None and maximum < 0:
-                raise LimitStateError(
+                raise LimitProfileStateError(
                     state_path,
                     f"profile {profile_id} maximum for {resource_id} "
                     "must be non-negative",
                 )
             overrides[resource_id] = maximum
         if resource_order != sorted(overrides):
-            raise LimitStateError(
+            raise LimitProfileStateError(
                 state_path,
                 f"profile {profile_id} resource identifiers must be sorted",
             )
         profiles[profile_id] = overrides
     if profile_order != sorted(profiles):
-        raise LimitStateError(state_path, "profile identifiers must be sorted")
+        raise LimitProfileStateError(state_path, "profile identifiers must be sorted")
     return cast(str, active_profile), profiles
 
 
@@ -563,7 +565,7 @@ def _write_limit_state(
         finally:
             temporary_path.unlink(missing_ok=True)
     except OSError as exc:
-        raise LimitStateError(
+        raise LimitProfileStateError(
             state_path,
             f"cannot persist state: {type(exc).__name__}: {exc}",
         ) from exc
@@ -571,11 +573,11 @@ def _write_limit_state(
 
 __all__ = [
     "LIMIT_STATE_SCHEMA_VERSION",
-    "LimitManager",
+    "LimitProfileManager",
     "LimitProfileSource",
+    "LimitProfileStateError",
     "LimitProfileStatus",
     "LimitProfileView",
-    "LimitStateError",
     "ResourceLimitStatus",
     "default_limit_state_path",
 ]

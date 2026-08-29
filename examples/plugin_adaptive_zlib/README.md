@@ -187,7 +187,15 @@ its complete language-neutral contract.
 ## Use it directly
 
 ```python
-from obst.core import ExtensionRegistry, Recipe, StageSpec, decode_recipe, encode_recipe
+from obst.core import (
+    DEFAULT_RESOURCE_POLICY,
+    ExtensionRegistry,
+    Recipe,
+    ResourceAccounting,
+    StageSpec,
+    decode_recipe,
+    encode_recipe,
+)
 from obst_example_adaptive_zlib import (
     AdaptiveZlibExtension,
     AdaptiveZlibParameters,
@@ -198,13 +206,15 @@ parameters = extension.encode_parameters(AdaptiveZlibParameters(compression_leve
 registry = ExtensionRegistry((extension,))
 recipe = Recipe(0, (StageSpec(extension.extension_id, parameters),))
 logical = b"".join(index.to_bytes(8, "little") for index in range(4096))
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
 
-encoded = encode_recipe(logical, recipe, registry)
+encoded = encode_recipe(logical, recipe, registry, accounting=accounting)
 recovered = decode_recipe(
     encoded,
     recipe,
     registry,
     expected_size=len(logical),
+    accounting=accounting,
 )
 
 assert recovered == logical

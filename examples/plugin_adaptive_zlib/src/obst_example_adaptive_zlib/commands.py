@@ -12,7 +12,6 @@ from obst.cli.commands import EXIT_PLUGIN, EXIT_SUCCESS
 from obst.core import (
     BYTES_STREAM_TYPE,
     ChunkEncoder,
-    ContainerReader,
     ContainerWriter,
     ExtensionDeclaration,
     ExtensionRegistry,
@@ -23,7 +22,6 @@ from obst.core import (
     StageParameterEncoder,
     StageSpec,
     Stream,
-    inspect_container,
 )
 
 from obst_example_adaptive_zlib.extension import (
@@ -103,8 +101,8 @@ class AdaptivePackCommand:
         )
         logical = Path(args.input).read_bytes()
         target = BytesIO()
-        writer = ContainerWriter(target, manifest, policy=context.policy)
-        encoder = ChunkEncoder(registry, policy=context.policy)
+        writer = ContainerWriter(target, manifest, accounting=context.accounting)
+        encoder = ChunkEncoder(registry, accounting=context.accounting)
         encoder.preflight((recipe,))
         for sequence, offset in enumerate(range(0, len(logical), _CHUNK_SIZE)):
             chunk = logical[offset : offset + _CHUNK_SIZE]
@@ -119,17 +117,13 @@ class AdaptivePackCommand:
             )
         result = writer.finish()
         container = target.getvalue()
-        inspection = inspect_container(
-            ContainerReader(BytesIO(container), policy=context.policy),
-            registry=registry,
-        )
         _write_new_file(Path(args.output), container)
         write_adaptive_pack_result(
             AdaptivePackResult(
                 destination=Path(args.output),
                 logical_size=len(logical),
                 container_size=result.encoded_size,
-                chunk_count=inspection.chunk_count,
+                chunk_count=result.chunk_count,
             ),
             stdout=context.stdout,
             json_output=args.json,

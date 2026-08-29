@@ -58,12 +58,14 @@ it implements:
 from typing import Self
 
 from obst.core import (
+    DEFAULT_RESOURCE_POLICY,
     ExtensionDescriptor,
     ExtensionKind,
     ExtensionRegistry,
     InspectionField,
     InspectionInterpretation,
     Recipe,
+    ResourceAccounting,
     StageSpec,
     decode_recipe,
     encode_recipe,
@@ -130,8 +132,9 @@ reverse = ReverseExtension()
 registry = ExtensionRegistry((reverse,))
 recipe = Recipe(0, (StageSpec(reverse.extension_id),))
 logical = b"fruit travels both ways"
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
 
-encoded = encode_recipe(logical, recipe, registry)
+encoded = encode_recipe(logical, recipe, registry, accounting=accounting)
 assert encoded == logical[::-1]
 assert (
     decode_recipe(
@@ -139,6 +142,7 @@ assert (
         recipe,
         registry,
         expected_size=len(logical),
+        accounting=accounting,
     )
     == logical
 )

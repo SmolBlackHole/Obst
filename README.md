@@ -10,7 +10,7 @@
 > **Obst** /oːpst/, German, neuter noun<br>
 >
 > 1. fruit, collectively<br>
-> 2. apparently also a recursive binary container
+> 2. also a (recursive) binary container
 
 ## TL;DR: What is OBST?
 
@@ -23,22 +23,24 @@ storage or transport. It describes logical streams in independently framed
 chunks, records their reversible representation as recipes, and protects both
 stored and recovered bytes with integrity data.
 
-That puts the format here:
+**OBST is the format. The OBST toolchain is the reference ecosystem around
+it.** This repository contains both, but they are not the same thing.
 
-```mermaid
-flowchart LR
-    Domain["Application semantics<br/>+ domain format or adapter"]
-    Logical["Logical byte streams"]
-    Obst["OBST<br/>streams + recipes + chunks + integrity"]
-    Bytes["OBST byte stream"]
-    Outside["Carrier + storage or transport<br/>file, memory, BLOB, S3, HTTP"]
+Read the layers from top to bottom:
 
-    Domain --> Logical --> Obst --> Bytes --> Outside
-```
+| Layer                 | Game example          | Telemetry example |
+| --------------------- | --------------------- | ----------------- |
+| Application semantics | Game state            | Telemetry model   |
+| Domain format         | SQLite                | MCAP              |
+| Logical bytes         | SQLite database bytes | MCAP bytes        |
+| **[OBST format](docs/format.md)** | **OBST** | **OBST** |
+| Storage or transport  | S3 object             | Flash             |
+| Actual transport      | HTTP over TCP         | Block device      |
 
-Application and domain formats own meaning. OBST owns the reversible stored
-representation. Carriers and their underlying systems own where the completed
-container bytes go.
+Applications and domain formats own meaning and produce logical bytes. OBST
+owns their reversible stored representation. Storage and transport own where
+the resulting container lives and how it moves. The Python runtime, CLI, plugin
+manager and plugins form the reference toolchain, not the wire contract.
 
 An OBST byte stream contains:
 
@@ -156,7 +158,9 @@ host decision that permits its Python code to execute.
 
 The [command-line guide](docs/cli.md) documents stdin, flags, JSON output and
 archive safety rules. The [runtime error reference](docs/errors.md) owns exit
-codes and failure examples.
+codes and failure examples. For a complete snapshot of the current toolchain,
+see the [human-readable CLI output](docs/cli-output-reference.md) and the
+[JSON output reference](docs/cli-json-output-reference.md).
 
 ## But why would I want another container format?
 
@@ -399,8 +403,9 @@ obst plugins enable obst-defaults
 python scripts/quality.py
 ```
 
-The quality command runs Ruff, formatting checks, isort, mypy strict, Pyright
-strict and the full test suite. Safe mechanical fixes are available through:
+The quality command runs Ruff, formatting checks, isort, mypy strict and
+Pyright strict for the runtime. It also runs the runtime, `obst-defaults` and
+Adaptive-Zlib test suites. Safe mechanical fixes are available through:
 
 ```bash
 python scripts/quality.py --fix
@@ -420,8 +425,9 @@ paths, see the [anatomy](docs/anatomy.md), [format specification](docs/format.md
 
 ## Status
 
-OBST is experimental. The v0.1 vectors pin the current draft, but compatibility
-has not frozen and intentional pre-freeze wire changes regenerate them.
+OBST is experimental and under active development. The v0.1 vectors pin the
+current draft, but compatibility has not frozen and intentional pre-freeze wire
+changes regenerate them.
 
 The runtime reads and writes chunked containers and inspects missing
 capabilities. The explicitly activated `obst-defaults` plugin supplies RAW,

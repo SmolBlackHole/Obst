@@ -17,11 +17,10 @@ from obst.cli.commands import EXIT_PLUGIN, EXIT_SUCCESS
 from obst.core import (
     ContainerReader,
     CoreResource,
-    LimitProfile,
     PipelineError,
     Recipe,
+    ResourceAccounting,
     ResourceLimitError,
-    ResourcePolicy,
     StageCapability,
     StageSpec,
     decode_recipe,
@@ -35,11 +34,27 @@ from obst.plugins import (
     EXTENSION_ENTRY_POINT_GROUP,
     PluginManager,
 )
+from obst.resources import LimitProfile, ResourceKind, ResourcePolicy
 
 PLUGIN_ROOT = Path(__file__).parents[1]
 ROOT = PLUGIN_ROOT.parents[1]
 PLUGIN_SOURCE = PLUGIN_ROOT / "src"
 PLUGIN_COMPARISON = PLUGIN_ROOT / "compare_samples.py"
+
+
+def _accounting(
+    *overrides: tuple[ResourceKind, int | None],
+) -> ResourceAccounting:
+    return ResourceAccounting(
+        ResourcePolicy(
+            tuple(CoreResource),
+            LimitProfile(
+                "test",
+                "Test-only resource ceilings.",
+                overrides,
+            ),
+        )
+    )
 
 
 def test_example_plugin_uses_only_public_obst_import_boundaries() -> None:
@@ -128,11 +143,18 @@ def test_example_plugin_entry_point_loads_and_round_trips(
 
     assert registry.can_encode(stage_id)
     assert registry.can_decode(stage_id)
-    encoded = encode_recipe(logical, recipe, registry)
+    encoded = encode_recipe(logical, recipe, registry, accounting=_accounting())
     assert encoded[:2] == b"\x03\x00"
     assert len(encoded) < len(stdlib_zlib.compress(logical, 9))
     assert (
-        decode_recipe(encoded, recipe, registry, expected_size=len(logical)) == logical
+        decode_recipe(
+            encoded,
+            recipe,
+            registry,
+            expected_size=len(logical),
+            accounting=_accounting(),
+        )
+        == logical
     )
     capability = registry.capabilities()[0]
     assert isinstance(capability, StageCapability)
@@ -151,9 +173,7 @@ def test_example_plugin_entry_point_loads_and_round_trips(
     )
     dictionary_logical = b"sensor:value=100\nsensor:value=101\n"
     dictionary_encoded = encode_recipe(
-        dictionary_logical,
-        dictionary_recipe,
-        registry,
+        dictionary_logical, dictionary_recipe, registry, accounting=_accounting()
     )
     assert dictionary_encoded[:2] == b"\x00\x01"
     assert (
@@ -162,6 +182,7 @@ def test_example_plugin_entry_point_loads_and_round_trips(
             dictionary_recipe,
             registry,
             expected_size=len(dictionary_logical),
+            accounting=_accounting(),
         )
         == dictionary_logical
     )
@@ -171,6 +192,7 @@ def test_example_plugin_entry_point_loads_and_round_trips(
             b"payload",
             Recipe(2, (StageSpec(stage_id, b"\x06"),)),
             registry,
+            accounting=_accounting(),
         )
     with pytest.raises(PipelineError, match="undeclared shuffle mode"):
         decode_recipe(
@@ -178,19 +200,14 @@ def test_example_plugin_entry_point_loads_and_round_trips(
             recipe,
             registry,
             expected_size=7,
+            accounting=_accounting(),
         )
     with pytest.raises(ResourceLimitError):
         encode_recipe(
             b"small",
             recipe,
             registry,
-            policy=ResourcePolicy(
-                profile=LimitProfile(
-                    "test",
-                    "Test intermediate ceiling.",
-                    ((CoreResource.INTERMEDIATE_BYTES, 5),),
-                )
-            ),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 5)),
         )
 
 
@@ -334,14 +351,16 @@ def test_example_plugin_command_composes_another_plugins_stage(
         "chunks": 2,
     }
     registry = manager.runtime(("obst-defaults",)).registry
-    reader = ContainerReader(BytesIO(output.read_bytes()))
+    reader = ContainerReader(BytesIO(output.read_bytes()), accounting=_accounting())
     inspection = inspect_container(reader, registry=registry)
     assert inspection.chunk_count == 2
     assert tuple(stage.stage_id for stage in inspection.manifest.recipes[0].stages) == (
         "org.example/adaptive-zlib@1",
         "obst.raw@1",
     )
-    recovery_reader = ContainerReader(BytesIO(output.read_bytes()))
+    recovery_reader = ContainerReader(
+        BytesIO(output.read_bytes()), accounting=_accounting()
+    )
     recovered = b"".join(
         logical_chunk
         for _chunk, logical_chunk in iter_decoded_chunks(recovery_reader, registry)
@@ -398,7 +417,7 @@ def test_example_plugin_round_trips_existing_obst_sample(
     )
     logical = (ROOT / "samples" / "apple.obst").read_bytes()[: 64 * 1024]
 
-    encoded = encode_recipe(logical, recipe, registry)
+    encoded = encode_recipe(logical, recipe, registry, accounting=_accounting())
 
     assert encoded[:2] == b"\x00\x00"
     assert (
@@ -407,6 +426,7 @@ def test_example_plugin_round_trips_existing_obst_sample(
             recipe,
             registry,
             expected_size=len(logical),
+            accounting=_accounting(),
         )
         == logical
     )

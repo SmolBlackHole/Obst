@@ -13,16 +13,17 @@ still-encoded chunks.
 	- [Structural reading](#structural-reading)
 	- [Logical decoding](#logical-decoding)
 		- [Selective chunk decoding](#selective-chunk-decoding)
-	- [Resource policy](#resource-policy)
+	- [Resource accounting](#resource-accounting)
 
 ## Structural reading
 
 ```python
 from io import BytesIO
 
-from obst.core import ContainerReader
+from obst.core import DEFAULT_RESOURCE_POLICY, ContainerReader, ResourceAccounting
 
-reader = ContainerReader(BytesIO(container_bytes))
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
+reader = ContainerReader(BytesIO(container_bytes), accounting=accounting)
 print(reader.version.label)
 print(reader.manifest.streams)
 
@@ -72,14 +73,21 @@ Decoding is a separate operation because it requires an explicitly composed
 ```python
 from io import BytesIO
 
-from obst.core import ContainerReader, ExtensionRegistry, materialize_stream
+from obst.core import (
+    DEFAULT_RESOURCE_POLICY,
+    ContainerReader,
+    ExtensionRegistry,
+    ResourceAccounting,
+    materialize_stream,
+)
 
 
 def recover_stream(
     container_bytes: bytes,
     registry: ExtensionRegistry,
 ) -> bytes:
-    reader = ContainerReader(BytesIO(container_bytes))
+    accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
+    reader = ContainerReader(BytesIO(container_bytes), accounting=accounting)
     return materialize_stream(reader, stream_id=0, registry=registry)
 ```
 
@@ -105,7 +113,7 @@ domain policy and only then spend logical recovery and stage-execution budget:
 ```python
 from obst.core import ChunkDecoder
 
-decoder = ChunkDecoder(reader.index, registry, policy=reader.policy)
+decoder = ChunkDecoder(reader.index, registry, accounting=reader.accounting)
 
 for chunk in reader.iter_chunks():
     require_application_capacity(chunk.logical_size)
@@ -113,10 +121,10 @@ for chunk in reader.iter_chunks():
     consume(chunk.stream_id, logical_bytes)
 ```
 
-The reader owns structural input accounting. The decoder owns a separate
-logical and stage-execution budget under the same immutable `ResourcePolicy`
-policy. Skipping a chunk still consumes structural input but invokes no decoder
-and spends no logical or stage-execution budget.
+The reader and decoder share one operation accountant. Structural reading and
+logical recovery record different resources into that same state. Skipping a
+chunk still consumes structural input but invokes no decoder and records no
+logical bytes or Stage executions.
 
 `reader.index` is created once from the validated manifest. A caller that
 already has a `Manifest` can construct `ManifestIndex(manifest)` directly, so
@@ -126,13 +134,13 @@ The [runtime error reference](../errors.md) explains why unavailable
 capabilities, invalid stage payloads and corrupted logical bytes are separate
 failure classes.
 
-## Resource policy
+## Resource accounting
 
-`ResourcePolicy` bounds manifest size and counts, complete container bytes,
+The selected `ResourcePolicy` bounds manifest size and counts, container bytes,
 chunks, encoded and logical chunk sizes, pipeline work, recovered logical bytes
-and materialized stream size. Structural inspection charges only resources it
-actually consumes; it does not spend logical recovery or stage-execution
-budgets.
+and materialized stream size. `ResourceAccounting` retains this operation's
+totals and peaks. Structural inspection records only resources it consumes; it
+does not record logical recovery or Stage executions.
 
 Crossing a local ceiling raises `ResourceLimitError`, not
 `InvalidContainerError`. A container refused by local policy may still be valid

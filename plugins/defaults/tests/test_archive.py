@@ -19,8 +19,8 @@ from obst.core import (
     Manifest,
     Recipe,
     RecipeSpec,
+    ResourceAccounting,
     ResourceLimitError,
-    ResourcePolicy,
     StageSpec,
     Stream,
     encode_chunk_once,
@@ -50,7 +50,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
     FixedPackagerExtension,
 )
-from support_resources import policy as _policy
+from support_resources import accounting as _accounting
 
 
 def _raw_recipe() -> RecipeSpec:
@@ -76,7 +76,7 @@ def _publish(
         chunk_size=chunk_size,
     ) as sources:
         operation = FixedPackagerExtension().prepare_package(
-            FixedPackageRequest(archiver.registry, sources, _policy())
+            FixedPackageRequest(archiver.registry, sources, _accounting())
         )
         return publish_package(
             operation,
@@ -89,15 +89,15 @@ def _extract(
     source: Path,
     output_directory: Path,
     *,
-    policy: ResourcePolicy | None = None,
+    accounting: ResourceAccounting | None = None,
 ) -> FileExtractionResult:
-    selected_policy = _policy() if policy is None else policy
+    selected_accounting = _accounting() if accounting is None else accounting
     with source.open("rb") as input_file:
-        reader = ContainerReader(input_file, policy=selected_policy)
+        reader = ContainerReader(input_file, accounting=selected_accounting)
         return archiver.extract(
             reader,
             output_directory,
-            policy=selected_policy,
+            accounting=selected_accounting,
         )
 
 
@@ -124,7 +124,7 @@ def test_file_archiver_preserves_names_and_bytes_through_public_composition(
     assert published.package.encoded_size == archive.stat().st_size
     assert [stream.chunk_count for stream in published.package.streams] == [1, 20]
     with archive.open("rb") as source:
-        reader = ContainerReader(source)
+        reader = ContainerReader(source, accounting=_accounting())
         assert [stream.stream_type for stream in reader.manifest.streams] == [
             extension.extension_id,
             extension.extension_id,
@@ -165,7 +165,7 @@ def test_file_archiver_materializes_mixed_profile_ids(tmp_path: Path) -> None:
     )
     archive = tmp_path / "mixed.obst"
     with archive.open("wb") as target:
-        writer = ContainerWriter(target, manifest)
+        writer = ContainerWriter(target, manifest, accounting=_accounting())
         for stream_id, payload in enumerate((b"standard", b"rar bytes")):
             writer.write_chunk(
                 encode_chunk_once(
@@ -174,6 +174,7 @@ def test_file_archiver_materializes_mixed_profile_ids(tmp_path: Path) -> None:
                     sequence=0,
                     recipe=manifest.recipe(0),
                     registry=registry,
+                    accounting=_accounting(),
                 )
             )
         writer.finish()
@@ -265,7 +266,7 @@ def test_extraction_member_limit_refuses_chunkless_fanout_before_output(
             archiver,
             archive,
             output,
-            policy=_policy((FileResource.ARCHIVE_MEMBERS, 1)),
+            accounting=_accounting((FileResource.ARCHIVE_MEMBERS, 1)),
         )
 
     assert error.value.resource is FileResource.ARCHIVE_MEMBERS
@@ -288,7 +289,7 @@ def test_extraction_byte_limits_accept_boundary_and_publish_nothing_above_it(
         archiver,
         archive,
         exact_output,
-        policy=_policy(
+        accounting=_accounting(
             (FileResource.ARCHIVE_MEMBER_BYTES, 8),
             (FileResource.ARCHIVE_TOTAL_BYTES, 8),
         ),
@@ -301,7 +302,7 @@ def test_extraction_byte_limits_accept_boundary_and_publish_nothing_above_it(
             archiver,
             archive,
             rejected_output,
-            policy=_policy((FileResource.ARCHIVE_MEMBER_BYTES, 7)),
+            accounting=_accounting((FileResource.ARCHIVE_MEMBER_BYTES, 7)),
         )
     assert error.value.resource is FileResource.ARCHIVE_MEMBER_BYTES
     assert rejected_output.is_dir()
@@ -323,7 +324,7 @@ def test_streaming_extraction_does_not_materialize_whole_streams(
         archiver,
         archive,
         tmp_path / "output",
-        policy=_policy((CoreResource.MATERIALIZED_STREAM_BYTES, 0)),
+        accounting=_accounting((CoreResource.MATERIALIZED_STREAM_BYTES, 0)),
     )
 
     assert (tmp_path / "output" / source.name).read_bytes() == source.read_bytes()
@@ -626,7 +627,7 @@ def _write_profile_container(
         streams=(Stream(0, stream_type, 0, metadata),),
     )
     with path.open("wb") as target:
-        writer = ContainerWriter(target, manifest)
+        writer = ContainerWriter(target, manifest, accounting=_accounting())
         writer.write_chunk(
             encode_chunk_once(
                 payload,
@@ -634,6 +635,7 @@ def _write_profile_container(
                 sequence=0,
                 recipe=manifest.recipe(0),
                 registry=registry,
+                accounting=_accounting(),
             )
         )
         writer.finish()

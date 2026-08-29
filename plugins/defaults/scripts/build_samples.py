@@ -12,6 +12,7 @@ from obst.core import (
     DEFAULT_RESOURCE_POLICY,
     PackagerProvider,
     RecipeSpec,
+    ResourceAccounting,
     StageSpec,
     format_version,
 )
@@ -151,7 +152,11 @@ def _build_container(source_path: Path, target_path: Path) -> dict[str, object]:
         recipe=_FILE_RECIPE,
     ) as sources:
         operation = _FIXED_PACKAGER_PROVIDER.prepare_package(
-            FixedPackageRequest(_SAMPLE_REGISTRY, sources, DEFAULT_RESOURCE_POLICY)
+            FixedPackageRequest(
+                _SAMPLE_REGISTRY,
+                sources,
+                ResourceAccounting(DEFAULT_RESOURCE_POLICY),
+            )
         )
         published = publish_package(
             operation,
@@ -199,7 +204,11 @@ def main() -> None:
         recipe=_FILE_RECIPE,
     ) as sources:
         operation = _FIXED_PACKAGER_PROVIDER.prepare_package(
-            FixedPackageRequest(_SAMPLE_REGISTRY, sources, DEFAULT_RESOURCE_POLICY)
+            FixedPackageRequest(
+                _SAMPLE_REGISTRY,
+                sources,
+                ResourceAccounting(DEFAULT_RESOURCE_POLICY),
+            )
         )
         nested_result = publish_package(
             operation,

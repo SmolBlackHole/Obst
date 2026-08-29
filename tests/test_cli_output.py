@@ -14,8 +14,8 @@ from obst.conformance import (
     ConformanceCaseResult,
     ConformanceReport,
 )
-from obst.core import ResourceUnit
-from obst.limits import (
+from obst.resources import ResourceUnit
+from obst.resources.profiles import (
     LimitProfileSource,
     LimitProfileStatus,
     LimitProfileView,

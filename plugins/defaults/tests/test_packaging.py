@@ -22,8 +22,8 @@ from obst.core import (
     PipelineError,
     ProviderRejectedError,
     RecipeSpec,
+    ResourceAccounting,
     ResourceLimitError,
-    ResourcePolicy,
     SourceConsumedError,
     StageSpec,
     iter_decoded_chunks,
@@ -38,7 +38,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackagerExtension,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
-from support_resources import policy as _policy
+from support_resources import accounting as _accounting
 
 _RAW = RecipeSpec((StageSpec(RawExtension.extension_id),))
 _DELTA_ZLIB = RecipeSpec(
@@ -87,12 +87,12 @@ def _fixed_operation(
     registry: ExtensionRegistry,
     sources: tuple[LogicalStreamSource, ...],
     *,
-    policy: ResourcePolicy | None = None,
+    accounting: ResourceAccounting | None = None,
 ) -> PackageWriteOperation:
     request = FixedPackageRequest(
         registry,
         sources,
-        _policy() if policy is None else policy,
+        _accounting() if accounting is None else accounting,
     )
     return FixedPackagerExtension().prepare_package(request)
 
@@ -102,9 +102,9 @@ def _package(
     registry: ExtensionRegistry,
     sources: tuple[LogicalStreamSource, ...],
     *,
-    policy: ResourcePolicy | None = None,
+    accounting: ResourceAccounting | None = None,
 ) -> PackageResult:
-    return _fixed_operation(registry, sources, policy=policy).write_to(target)
+    return _fixed_operation(registry, sources, accounting=accounting).write_to(target)
 
 
 def test_fixed_packager_preserves_stream_identity_and_logical_bytes() -> None:
@@ -113,7 +113,7 @@ def test_fixed_packager_preserves_stream_identity_and_logical_bytes() -> None:
     registry = _stage_registry()
     result = _package(target, registry, _example_sources())
 
-    reader = ContainerReader(io.BytesIO(target.getvalue()))
+    reader = ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting())
     recovered = [bytearray() for _ in result.streams]
     for chunk, logical_bytes in iter_decoded_chunks(reader, registry):
         recovered[chunk.stream_id].extend(logical_bytes)
@@ -177,7 +177,11 @@ def test_packager_writes_each_chunk_before_requesting_the_next() -> None:
 
     assert result.chunk_count == 2
     assert (
-        materialize_stream(ContainerReader(io.BytesIO(target.getvalue())), 0, registry)
+        materialize_stream(
+            ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
+            0,
+            registry,
+        )
         == b"firstsecond"
     )
     with pytest.raises(SourceConsumedError, match="already been consumed"):
@@ -221,7 +225,7 @@ def test_packager_refuses_declared_chunk_limit_before_consuming_source() -> None
             io.BytesIO(),
             _stage_registry(),
             (source,),
-            policy=_policy((CoreResource.LOGICAL_CHUNK_BYTES, 8)),
+            accounting=_accounting((CoreResource.LOGICAL_CHUNK_BYTES, 8)),
         )
 
     assert error.value.resource is CoreResource.LOGICAL_CHUNK_BYTES
@@ -265,7 +269,7 @@ def test_packager_refuses_manifest_limits_before_provider_validation() -> None:
             target,
             registry,
             (source,),
-            policy=_policy((CoreResource.STAGES_PER_RECIPE, 1)),
+            accounting=_accounting((CoreResource.STAGES_PER_RECIPE, 1)),
         )
 
     assert error.value.resource is CoreResource.STAGES_PER_RECIPE
@@ -337,7 +341,7 @@ def test_packager_stage_budget_spans_all_source_chunks() -> None:
             io.BytesIO(),
             _stage_registry(),
             (source,),
-            policy=_policy((CoreResource.STAGE_EXECUTIONS, 1)),
+            accounting=_accounting((CoreResource.STAGE_EXECUTIONS, 1)),
         )
 
     assert error.value.resource is CoreResource.STAGE_EXECUTIONS
@@ -345,14 +349,14 @@ def test_packager_stage_budget_spans_all_source_chunks() -> None:
 
 
 @pytest.mark.parametrize(
-    ("policy", "resource"),
+    ("accounting", "resource"),
     [
-        (_policy((CoreResource.CHUNKS, 0)), CoreResource.CHUNKS),
-        (_policy((CoreResource.LOGICAL_BYTES, 0)), CoreResource.LOGICAL_BYTES),
+        (_accounting((CoreResource.CHUNKS, 0)), CoreResource.CHUNKS),
+        (_accounting((CoreResource.LOGICAL_BYTES, 0)), CoreResource.LOGICAL_BYTES),
     ],
 )
 def test_packager_refuses_known_operation_limits_before_stage_execution(
-    policy: ResourcePolicy,
+    accounting: ResourceAccounting,
     resource: CoreResource,
 ) -> None:
     encoding_calls = 0
@@ -383,7 +387,7 @@ def test_packager_refuses_known_operation_limits_before_stage_execution(
     )
 
     with pytest.raises(ResourceLimitError) as error:
-        _package(io.BytesIO(), registry, (source,), policy=policy)
+        _package(io.BytesIO(), registry, (source,), accounting=accounting)
 
     assert error.value.resource is resource
     assert error.value.observed == (

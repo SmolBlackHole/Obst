@@ -26,7 +26,7 @@ from obst.core.packaging import (
     RecipeSpec,
 )
 from obst.core.registry import ExtensionContribution, ExtensionRegistry
-from obst.core.resources import ResourcePolicy, require_resource_limit
+from obst.core.resource_accounting import ResourceAccounting
 from obst.core.streams import ChunkDecoder
 
 from obst_defaults.cleanup import close_all
@@ -183,17 +183,18 @@ class FileArchiver:
         reader: ContainerReader,
         output_directory: Path,
         *,
-        policy: ResourcePolicy,
+        accounting: ResourceAccounting,
     ) -> FileExtractionResult:
         """Decode and publish every file stream without overwriting a target."""
-        require_resource_limit(
+        if accounting is not reader.accounting:
+            raise ValueError("file extraction must share the reader accounting")
+        entries = self._entries(reader.manifest)
+        accounting.record(
             FileResource.ARCHIVE_MEMBERS,
+            len(entries),
             scope="file extraction",
-            maximum=policy.maximum(FileResource.ARCHIVE_MEMBERS),
-            observed=len(reader.manifest.streams),
             phase="file_extract",
         )
-        entries = self._entries(reader.manifest)
         output_identity = _prepare_extraction_directory(output_directory)
         targets = tuple(output_directory / entry.name for entry in entries)
         for target in targets:
@@ -204,7 +205,7 @@ class FileArchiver:
         decoder = ChunkDecoder(
             reader.index,
             self.registry,
-            policy=reader.policy,
+            accounting=accounting,
         )
         member_sizes = {entry.stream_id: 0 for entry in entries}
         total_size = 0
@@ -231,18 +232,16 @@ class FileArchiver:
                 entry = by_stream_id[chunk.stream_id]
                 member_size = member_sizes[chunk.stream_id] + chunk.logical_size
                 observed_total = total_size + chunk.logical_size
-                require_resource_limit(
+                accounting.record(
                     FileResource.ARCHIVE_MEMBER_BYTES,
+                    member_size,
                     scope=entry.name,
-                    maximum=policy.maximum(FileResource.ARCHIVE_MEMBER_BYTES),
-                    observed=member_size,
                     phase="file_extract",
                 )
-                require_resource_limit(
+                accounting.record(
                     FileResource.ARCHIVE_TOTAL_BYTES,
+                    chunk.logical_size,
                     scope="file extraction",
-                    maximum=policy.maximum(FileResource.ARCHIVE_TOTAL_BYTES),
-                    observed=observed_total,
                     phase="file_extract",
                 )
                 decoded = decoder.decode(chunk)

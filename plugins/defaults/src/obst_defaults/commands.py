@@ -229,7 +229,7 @@ def _pack_paths(
             for source in sources
         )
         operation = packager.prepare_package(
-            FixedPackageRequest(registry, sources, context.policy)
+            FixedPackageRequest(registry, sources, context.accounting)
         )
         published = publish_package(
             operation,
@@ -280,11 +280,11 @@ def _unpack_path(
     source = carrier.open()
     primary_error: BaseException | None = None
     try:
-        reader = ContainerReader(source, policy=context.policy)
+        reader = ContainerReader(source, accounting=context.accounting)
         result = file_archiver.extract(
             reader,
             Path(output_directory),
-            policy=context.policy,
+            accounting=context.accounting,
         )
     except BaseException as error:
         primary_error = error

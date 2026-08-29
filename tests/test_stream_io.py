@@ -25,6 +25,7 @@ from obst.core import (
 )
 from obst.core.io import read_exact, write_all
 from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_resources import accounting as _accounting
 
 
 def _stage_registry() -> ExtensionRegistry:
@@ -119,7 +120,7 @@ def _encode(
     target = _PartialWriter(max_write=max_write)
     manifest = _raw_manifest()
     registry = _stage_registry()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     for sequence, offset in enumerate(range(0, len(payload), chunk_size)):
         writer.write_chunk(
             encode_chunk_once(
@@ -128,6 +129,7 @@ def _encode(
                 sequence=sequence,
                 recipe=manifest.recipe(0),
                 registry=registry,
+                accounting=_accounting(),
             )
         )
     writer.finish()
@@ -139,7 +141,7 @@ def test_container_uses_only_minimal_reader_and_writer_contracts() -> None:
 
     encoded = _encode(payload)
     decoded = materialize_stream(
-        ContainerReader(_ShortReader(encoded, max_read=2)),
+        ContainerReader(_ShortReader(encoded, max_read=2), accounting=_accounting()),
         0,
         _stage_registry(),
     )
@@ -167,10 +169,14 @@ def test_reader_and_writer_accept_bounded_short_progress(
     encoded = _encode(payload, max_write=max_write, chunk_size=chunk_size)
 
     inspection = inspect_container(
-        ContainerReader(_ShortReader(encoded, max_read=max_read))
+        ContainerReader(
+            _ShortReader(encoded, max_read=max_read), accounting=_accounting()
+        )
     )
     decoded = materialize_stream(
-        ContainerReader(_ShortReader(encoded, max_read=max_read)),
+        ContainerReader(
+            _ShortReader(encoded, max_read=max_read), accounting=_accounting()
+        ),
         0,
         _stage_registry(),
     )
@@ -183,13 +189,18 @@ def test_clean_eof_is_only_accepted_after_terminal_commit() -> None:
     empty_container = _encode(b"")
 
     inspection = inspect_container(
-        ContainerReader(_ShortReader(empty_container, max_read=1))
+        ContainerReader(
+            _ShortReader(empty_container, max_read=1), accounting=_accounting()
+        )
     )
     assert inspection.chunk_count == 0
 
     with pytest.raises(InvalidContainerError, match="trailing bytes"):
         inspect_container(
-            ContainerReader(_ShortReader(empty_container + b"O", max_read=1))
+            ContainerReader(
+                _ShortReader(empty_container + b"O", max_read=1),
+                accounting=_accounting(),
+            )
         )
 
 
@@ -197,12 +208,14 @@ def test_reader_treats_non_progress_as_truncation_without_retrying_forever() -> 
     encoded = _encode(b"payload")
 
     with pytest.raises(TruncatedContainerError, match="container header"):
-        ContainerReader(_StallingReader(encoded, stall_after=4))
+        ContainerReader(
+            _StallingReader(encoded, stall_after=4), accounting=_accounting()
+        )
 
 
 def test_writer_rejects_non_progress() -> None:
     with pytest.raises(BinaryIOContractError, match="reported 0"):
-        ContainerWriter(_ZeroWriter(), _raw_manifest())
+        ContainerWriter(_ZeroWriter(), _raw_manifest(), accounting=_accounting())
 
 
 @pytest.mark.parametrize(

@@ -12,18 +12,24 @@ split input or know where the bytes will be stored.
 - [Structural writing](#structural-writing)
 	- [Table of contents](#table-of-contents)
 	- [Write encoded chunks](#write-encoded-chunks)
-	- [Resource policy](#resource-policy)
+	- [Resource accounting](#resource-accounting)
 
 ## Write encoded chunks
 
 ```python
 from io import BytesIO
 
-from obst.core import ContainerWriter, Manifest
+from obst.core import (
+    DEFAULT_RESOURCE_POLICY,
+    ContainerWriter,
+    Manifest,
+    ResourceAccounting,
+)
 
 target = BytesIO()
 manifest = Manifest(recipes=recipes, streams=streams, extensions=extensions)
-writer = ContainerWriter(target, manifest)
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
+writer = ContainerWriter(target, manifest, accounting=accounting)
 
 for chunk in encoded_chunks:
     writer.write_chunk(chunk)
@@ -63,13 +69,14 @@ Use [Packaging](packaging.md) when starting from logical bytes. Use an
 [output carrier](../extensions/carriers.md) when publication needs a commit and
 abort lifecycle around the binary target.
 
-## Resource policy
+## Resource accounting
 
-`ContainerWriter(..., policy=policy)` applies the same selected
-manifest, container, chunk-count and per-chunk ceilings as the reader. It also
-bounds the complete declared logical output. The writer proves a manifest fits
-before building its body and checks a complete chunk record before publishing
-that record.
+`ContainerWriter(..., accounting=accounting)` applies the selected manifest,
+container, chunk-count and per-chunk ceilings. It also preflights the complete
+declared logical output. A cooperating `ChunkEncoder` receives the same
+accountant, so pipeline and structural work remain part of one operation. The
+writer proves a manifest fits before building its body and checks a complete
+chunk record before publishing that record.
 
 Local policy refusal raises `ResourceLimitError`. Wire representability remains
 an independent model and format rule. The complete contract lives in

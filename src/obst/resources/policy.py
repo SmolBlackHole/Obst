@@ -1,4 +1,4 @@
-"""Public resource definitions, policies and core-owned accounting."""
+"""Public resource contracts shared across the OBST toolchain."""
 
 from __future__ import annotations
 
@@ -10,26 +10,19 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Final, Self, cast
 
-from obst.core.errors import ObstError
-
 __all__ = [
     "DEFAULT_LIMIT_PROFILE",
-    "DEFAULT_RESOURCE_CATALOG",
-    "DEFAULT_RESOURCE_POLICY",
-    "CoreResource",
     "LimitProfile",
+    "ResourceAggregation",
     "ResourceCatalog",
     "ResourceContribution",
     "ResourceDefinition",
     "ResourceKind",
-    "ResourceLimitError",
     "ResourcePolicy",
     "ResourceUnit",
-    "require_resource_limit",
+    "validate_resource_identifier",
 ]
 
-_MIB = 1024 * 1024
-_GIB = 1024 * _MIB
 _LOCAL_ID = r"[a-z0-9]+(?:[._-][a-z0-9]+)*"
 _EXTENSION_ID = rf"{_LOCAL_ID}(?:/{_LOCAL_ID})?@[1-9][0-9]*"
 _IDENTIFIER_PATTERN = re.compile(rf"(?:{_LOCAL_ID}|{_EXTENSION_ID}/{_LOCAL_ID})")
@@ -45,20 +38,41 @@ def _require_optional_limit(name: str, value: object) -> None:
         raise ValueError(f"{name} must be non-negative")
 
 
+class ResourceUnit(Enum):
+    """Human presentation unit for one measured resource."""
+
+    COUNT = "count"
+    BYTES = "bytes"
+
+
+class ResourceAggregation(Enum):
+    """How operation-local observations combine for one resource."""
+
+    TOTAL = "total"
+    PEAK = "peak"
+
+
+def validate_resource_identifier(identifier: object) -> str:
+    """Validate and return one canonical resource identifier."""
+    if type(identifier) is not str:
+        raise TypeError("resource identifier must be an exact string")
+    if _IDENTIFIER_PATTERN.fullmatch(identifier) is None:
+        raise ValueError(f"invalid resource identifier: {identifier!r}")
+    return identifier
+
+
 @dataclass(frozen=True, slots=True)
 class ResourceDefinition:
-    """Stable identity, default ceiling and human description for a resource."""
+    """Stable identity and accounting semantics for one measured resource."""
 
     identifier: str
     default_maximum: int | None
     summary: str
     unit: ResourceUnit
+    aggregation: ResourceAggregation
 
     def __post_init__(self) -> None:
-        if type(self.identifier) is not str:
-            raise TypeError("resource identifier must be an exact string")
-        if _IDENTIFIER_PATTERN.fullmatch(self.identifier) is None:
-            raise ValueError(f"invalid resource identifier: {self.identifier!r}")
+        validate_resource_identifier(self.identifier)
         _require_optional_limit("resource default maximum", self.default_maximum)
         if type(self.summary) is not str:
             raise TypeError("resource summary must be an exact string")
@@ -66,13 +80,8 @@ class ResourceDefinition:
             raise ValueError("resource summary cannot be empty")
         if type(self.unit) is not ResourceUnit:
             raise TypeError("resource unit must be an exact ResourceUnit")
-
-
-class ResourceUnit(Enum):
-    """Human presentation unit for one measured resource."""
-
-    COUNT = "count"
-    BYTES = "bytes"
+        if type(self.aggregation) is not ResourceAggregation:
+            raise TypeError("resource aggregation must be an exact ResourceAggregation")
 
 
 class ResourceKind(Enum):
@@ -105,82 +114,9 @@ class ResourceKind(Enum):
     def unit(self) -> ResourceUnit:
         return self.definition.unit
 
-
-class CoreResource(ResourceKind):
-    """Closed set of local resources measured by the OBST Core runtime."""
-
-    MANIFEST_BYTES = ResourceDefinition(
-        "manifest_bytes",
-        16 * _MIB,
-        "Bytes in one encoded manifest.",
-        ResourceUnit.BYTES,
-    )
-    ENCODED_CHUNK_BYTES = ResourceDefinition(
-        "encoded_chunk_bytes",
-        64 * _MIB,
-        "Encoded bytes in one chunk.",
-        ResourceUnit.BYTES,
-    )
-    LOGICAL_CHUNK_BYTES = ResourceDefinition(
-        "logical_chunk_bytes",
-        64 * _MIB,
-        "Logical bytes in one chunk.",
-        ResourceUnit.BYTES,
-    )
-    INTERMEDIATE_BYTES = ResourceDefinition(
-        "intermediate_bytes",
-        64 * _MIB,
-        "Bytes in one pipeline intermediate.",
-        ResourceUnit.BYTES,
-    )
-    MATERIALIZED_STREAM_BYTES = ResourceDefinition(
-        "materialized_stream_bytes",
-        64 * _MIB,
-        "Bytes in one materialized stream.",
-        ResourceUnit.BYTES,
-    )
-    EXTENSIONS = ResourceDefinition(
-        "extensions",
-        4_096,
-        "Extension declarations in one manifest.",
-        ResourceUnit.COUNT,
-    )
-    RECIPES = ResourceDefinition(
-        "recipes", 4_096, "Recipes in one manifest.", ResourceUnit.COUNT
-    )
-    STREAMS = ResourceDefinition(
-        "streams", 65_536, "Streams in one manifest.", ResourceUnit.COUNT
-    )
-    TOTAL_STAGES = ResourceDefinition(
-        "total_stages",
-        65_536,
-        "Stages across all recipes in one manifest.",
-        ResourceUnit.COUNT,
-    )
-    STAGES_PER_RECIPE = ResourceDefinition(
-        "stages_per_recipe", 64, "Stages in one recipe.", ResourceUnit.COUNT
-    )
-    CONTAINER_BYTES = ResourceDefinition(
-        "container_bytes",
-        16 * _GIB,
-        "Bytes in one complete container.",
-        ResourceUnit.BYTES,
-    )
-    CHUNKS = ResourceDefinition(
-        "chunks", 262_144, "Chunks in one container.", ResourceUnit.COUNT
-    )
-    LOGICAL_BYTES = ResourceDefinition(
-        "logical_bytes",
-        16 * _GIB,
-        "Logical bytes processed by one operation.",
-        ResourceUnit.BYTES,
-    )
-    STAGE_EXECUTIONS = ResourceDefinition(
-        "stage_executions",
-        1_048_576,
-        "Stage executions in one operation.",
-        ResourceUnit.COUNT,
-    )
+    @property
+    def aggregation(self) -> ResourceAggregation:
+        return self.definition.aggregation
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,7 +161,7 @@ DEFAULT_LIMIT_PROFILE: Final = LimitProfile(
 class ResourcePolicy:
     """Resolved immutable ceilings for one known resource catalog and profile."""
 
-    resources: tuple[ResourceKind, ...] = tuple(CoreResource)
+    resources: tuple[ResourceKind, ...]
     profile: LimitProfile = DEFAULT_LIMIT_PROFILE
     _maximums: Mapping[ResourceKind, int | None] = dataclass_field(
         init=False,
@@ -266,9 +202,6 @@ class ResourcePolicy:
             raise KeyError(
                 f"resource is not declared by this policy: {resource}"
             ) from exc
-
-
-DEFAULT_RESOURCE_POLICY: Final = ResourcePolicy()
 
 
 @dataclass(frozen=True, slots=True)
@@ -368,155 +301,3 @@ class ResourceCatalog:
     def policy(self, profile_id: str = "default", /) -> ResourcePolicy:
         """Resolve one named profile over this catalog's resource set."""
         return ResourcePolicy(self.resources, self.profile(profile_id))
-
-
-DEFAULT_RESOURCE_CATALOG: Final = ResourceCatalog(
-    tuple(CoreResource),
-    (DEFAULT_LIMIT_PROFILE,),
-)
-
-
-class ResourceLimitError(ObstError):
-    """A valid operation was refused by its local resource policy."""
-
-    def __init__(
-        self,
-        *,
-        resource: ResourceKind,
-        scope: str,
-        maximum: int,
-        observed: int,
-        phase: str,
-    ) -> None:
-        if not isinstance(cast(object, resource), ResourceKind):
-            raise TypeError("resource must be a ResourceKind member")
-        self.resource = resource
-        self.scope = scope
-        self.maximum = maximum
-        self.observed = observed
-        self.phase = phase
-        super().__init__(
-            f"{phase} refused {scope} {resource}: "
-            f"observed {observed}, maximum {maximum}"
-        )
-
-
-def require_resource_limit(
-    resource: ResourceKind,
-    *,
-    scope: str,
-    maximum: int | None,
-    observed: int,
-    phase: str,
-) -> None:
-    """Refuse one observed value above a selected local ceiling."""
-    if not isinstance(cast(object, resource), ResourceKind):
-        raise TypeError("resource must be a ResourceKind member")
-    if maximum is not None and observed > maximum:
-        raise ResourceLimitError(
-            resource=resource,
-            scope=scope,
-            maximum=maximum,
-            observed=observed,
-            phase=phase,
-        )
-
-
-@dataclass(slots=True)
-class ResourceBudget:
-    """Monotone resource accounting shared within one Core operation."""
-
-    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY
-    container_bytes: int = 0
-    chunks: int = 0
-    logical_bytes: int = 0
-    stage_executions: int = 0
-
-    def consume_container_bytes(self, amount: int, *, phase: str) -> None:
-        self.container_bytes = self._consume(
-            current=self.container_bytes,
-            amount=amount,
-            resource=CoreResource.CONTAINER_BYTES,
-            scope="container",
-            maximum=self.policy.maximum(CoreResource.CONTAINER_BYTES),
-            phase=phase,
-        )
-
-    def consume_chunk(self, *, phase: str) -> None:
-        self.chunks = self._consume(
-            current=self.chunks,
-            amount=1,
-            resource=CoreResource.CHUNKS,
-            scope="container",
-            maximum=self.policy.maximum(CoreResource.CHUNKS),
-            phase=phase,
-        )
-
-    def consume_logical_bytes(
-        self,
-        amount: int,
-        *,
-        scope: str,
-        phase: str,
-    ) -> None:
-        self.logical_bytes = self._consume(
-            current=self.logical_bytes,
-            amount=amount,
-            resource=CoreResource.LOGICAL_BYTES,
-            scope=scope,
-            maximum=self.policy.maximum(CoreResource.LOGICAL_BYTES),
-            phase=phase,
-        )
-
-    def observe_logical_bytes(
-        self,
-        observed: int,
-        *,
-        scope: str,
-        phase: str,
-    ) -> None:
-        """Advance cumulative logical-byte accounting to one observed total."""
-        if type(observed) is not int or observed < self.logical_bytes:
-            raise ValueError(
-                "observed logical bytes must be a monotone non-negative integer"
-            )
-        require_resource_limit(
-            CoreResource.LOGICAL_BYTES,
-            scope=scope,
-            maximum=self.policy.maximum(CoreResource.LOGICAL_BYTES),
-            observed=observed,
-            phase=phase,
-        )
-        self.logical_bytes = observed
-
-    def consume_stage_execution(self, *, scope: str, phase: str) -> None:
-        self.stage_executions = self._consume(
-            current=self.stage_executions,
-            amount=1,
-            resource=CoreResource.STAGE_EXECUTIONS,
-            scope=scope,
-            maximum=self.policy.maximum(CoreResource.STAGE_EXECUTIONS),
-            phase=phase,
-        )
-
-    def _consume(
-        self,
-        *,
-        current: int,
-        amount: int,
-        resource: ResourceKind,
-        scope: str,
-        maximum: int | None,
-        phase: str,
-    ) -> int:
-        if type(amount) is not int or amount < 0:
-            raise ValueError("resource consumption must be a non-negative integer")
-        observed = current + amount
-        require_resource_limit(
-            resource,
-            scope=scope,
-            maximum=maximum,
-            observed=observed,
-            phase=phase,
-        )
-        return observed

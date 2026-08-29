@@ -13,20 +13,21 @@ failure behavior.
 	- [Table of contents](#table-of-contents)
 	- [Run extraction](#run-extraction)
 		- [Rejected requests](#rejected-requests)
-	- [Resource policy](#resource-policy)
+	- [Resource accounting](#resource-accounting)
 	- [Results and publication failures](#results-and-publication-failures)
 
 ## Run extraction
 
 `extract()` accepts a structural `ContainerReader`, an output directory and
-the host-selected `ResourcePolicy`. Stage decoding uses the registry already
+the operation's `ResourceAccounting`. Stage decoding uses the registry already
 owned by the archiver:
 
 ```python
 from io import BytesIO
 from pathlib import Path
 
-from obst.core import ContainerReader, CoreResource, LimitProfile, ResourcePolicy
+from obst.core import ContainerReader, CoreResource, ResourceAccounting
+from obst.resources import LimitProfile, ResourcePolicy
 from obst_defaults.files import FileResource
 
 policy = ResourcePolicy(
@@ -37,11 +38,12 @@ policy = ResourcePolicy(
         ((FileResource.ARCHIVE_MEMBERS, 100),),
     ),
 )
-reader = ContainerReader(BytesIO(container_bytes), policy=policy)
+accounting = ResourceAccounting(policy)
+reader = ContainerReader(BytesIO(container_bytes), accounting=accounting)
 result = archiver.extract(
     reader,
     Path("restored"),
-    policy=policy,
+    accounting=accounting,
 )
 ```
 
@@ -95,7 +97,7 @@ These failures use the families defined in the [plugin error
 reference](../errors.md). They are not evidence that the container framing or
 payload CRC is corrupt.
 
-## Resource policy
+## Resource accounting
 
 `obst-defaults` publishes these typed resources through its ordinary
 `obst.resources` contribution:

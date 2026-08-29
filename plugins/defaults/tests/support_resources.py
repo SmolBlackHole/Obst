@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from obst.core import CoreResource, LimitProfile, ResourceKind, ResourcePolicy
+from obst.core import CoreResource, ResourceAccounting
+from obst.resources import LimitProfile, ResourceKind, ResourcePolicy
 
 from obst_defaults.files import FileResource
 
@@ -17,3 +18,8 @@ def policy(*overrides: tuple[ResourceKind, int | None]) -> ResourcePolicy:
             overrides,
         ),
     )
+
+
+def accounting(*overrides: tuple[ResourceKind, int | None]) -> ResourceAccounting:
+    """Build one explicit test-only Core and defaults accountant."""
+    return ResourceAccounting(policy(*overrides))

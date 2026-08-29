@@ -24,7 +24,7 @@ from tests.support_extensions import (
     DeltaExtension,
     IdentityExtension,
 )
-from tests.support_resources import policy as _policy
+from tests.support_resources import accounting as _accounting
 
 _EXPLODING_ID = "org.example/exploding@1"
 _REJECTING_ID = "org.example/rejecting@1"
@@ -82,11 +82,18 @@ def test_recipe_execution_is_reversible_across_multiple_neutral_stages() -> None
     registry = ExtensionRegistry((DeltaExtension(), compression))
     logical = bytes(range(128)) * 4
 
-    encoded = encode_recipe(logical, recipe, registry)
+    encoded = encode_recipe(logical, recipe, registry, accounting=_accounting())
 
     assert encoded != logical
     assert (
-        decode_recipe(encoded, recipe, registry, expected_size=len(logical)) == logical
+        decode_recipe(
+            encoded,
+            recipe,
+            registry,
+            expected_size=len(logical),
+            accounting=_accounting(),
+        )
+        == logical
     )
 
 
@@ -99,7 +106,7 @@ def test_recipe_execution_enforces_intermediate_output_limits() -> None:
             b"payload",
             recipe,
             registry,
-            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 6)),
+            accounting=_accounting((CoreResource.INTERMEDIATE_BYTES, 6)),
         )
 
     assert caught.value.resource is CoreResource.INTERMEDIATE_BYTES
@@ -133,6 +140,7 @@ def test_unexpected_provider_exceptions_have_stable_extension_context() -> None:
             b"payload",
             recipe,
             ExtensionRegistry((_ExplodingStage(),)),
+            accounting=_accounting(),
         )
 
     assert caught.value.extension_id == _EXPLODING_ID
@@ -167,6 +175,7 @@ def test_expected_provider_rejection_becomes_structured_pipeline_error() -> None
             recipe,
             ExtensionRegistry((_RejectingStage(),)),
             expected_size=7,
+            accounting=_accounting(),
         )
 
     assert caught.value.stage_id == _REJECTING_ID
@@ -201,4 +210,5 @@ def test_executor_rejects_provider_outputs_that_violate_the_protocol() -> None:
             b"payload",
             recipe,
             ExtensionRegistry((_InvalidOutputStage(),)),
+            accounting=_accounting(),
         )

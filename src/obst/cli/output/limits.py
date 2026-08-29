@@ -14,8 +14,8 @@ from obst.cli.presentation import (
     render_human_table,
     styled_yes_no,
 )
-from obst.core.resources import ResourceUnit
-from obst.limits import (
+from obst.resources import ResourceUnit
+from obst.resources.profiles import (
     LimitProfileSource,
     LimitProfileStatus,
     LimitProfileView,

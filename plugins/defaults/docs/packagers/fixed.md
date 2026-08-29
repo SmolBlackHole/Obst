@@ -71,9 +71,10 @@ and every required encoder. It then consumes each source once, encodes each
 logical chunk with that stream's recipe and finishes the `ContainerWriter` so a
 terminal commit closes the representation.
 
-`FixedPackageRequest.policy` requires one explicit immutable `ResourcePolicy`.
-The operation passes it unchanged to source preflight, recipe execution and
-container writing. It never replaces the host selection with a local default.
+`FixedPackageRequest.accounting` requires one explicit operation-local
+`ResourceAccounting`. The operation passes it unchanged to source preflight,
+recipe execution and container writing. It never replaces the host selection
+with a local default.
 The
 [resource guide](../../../../docs/core/resources.md) documents the defaults and refusal
 semantics.

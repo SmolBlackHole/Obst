@@ -26,10 +26,17 @@ streams, recipes, chunks and stages reported here.
 ```python
 from io import BytesIO
 
-from obst.core import ContainerReader, ExtensionRegistry, inspect_container
+from obst.core import (
+    DEFAULT_RESOURCE_POLICY,
+    ContainerReader,
+    ExtensionRegistry,
+    ResourceAccounting,
+    inspect_container,
+)
 
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
 inspection = inspect_container(
-    ContainerReader(BytesIO(container_bytes)),
+    ContainerReader(BytesIO(container_bytes), accounting=accounting),
     registry=ExtensionRegistry(trusted_extensions),
 )
 ```
@@ -77,10 +84,10 @@ the remaining exact facts derived during the same structural pass:
 - the largest logical stream size relevant to full materialization.
 
 These values describe the representation, not the inspecting machine.
-`ResourcePolicy` remains local policy and is not loaded from container
-metadata. Peak memory, execution time and intermediate stage sizes cannot be
-known without executing a particular local implementation, so they remain
-absent from structural inspection.
+The selected resource policy and operation accounting remain local and are not
+loaded from container metadata. Peak memory, execution time and intermediate
+Stage sizes cannot be known without executing a particular local
+implementation, so they remain absent from structural inspection.
 
 ## Declared and local specification URLs
 
@@ -122,7 +129,7 @@ policy = InspectionInterpretationPolicy(
     )
 )
 inspection = inspect_container(
-    ContainerReader(BytesIO(container_bytes)),
+    ContainerReader(BytesIO(container_bytes), accounting=accounting),
     registry=ExtensionRegistry(trusted_extensions),
     interpretation_policy=policy,
 )
@@ -163,7 +170,7 @@ presentation:
 
 ```python
 inspection = inspect_container(
-    ContainerReader(BytesIO(container_bytes)),
+    ContainerReader(BytesIO(container_bytes), accounting=accounting),
     registry=registry,
 )
 ```

@@ -19,8 +19,8 @@ from obst.core import (
     PipelineError,
     ProviderRejectedError,
     RecipeSpec,
+    ResourceAccounting,
     ResourceLimitError,
-    ResourcePolicy,
     StageSpec,
     iter_decoded_chunks,
 )
@@ -37,7 +37,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackagerExtension,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
-from support_resources import policy as _policy
+from support_resources import accounting as _accounting
 
 RAW_STAGE_ID = RawExtension.extension_id
 DELTA8_STAGE_ID = Delta8Extension.extension_id
@@ -67,12 +67,12 @@ def _fixed_operation(
     registry: ExtensionRegistry,
     sources: tuple[LogicalStreamSource, ...],
     *,
-    policy: ResourcePolicy | None = None,
+    accounting: ResourceAccounting | None = None,
 ) -> PackageWriteOperation:
     request = FixedPackageRequest(
         registry,
         sources,
-        _policy() if policy is None else policy,
+        _accounting() if accounting is None else accounting,
     )
     return FixedPackagerExtension().prepare_package(request)
 
@@ -87,7 +87,7 @@ def test_packaging_stage_limit_spans_chunks_and_distinct_recipes() -> None:
         _fixed_operation(
             _registry(),
             sources,
-            policy=_policy((CoreResource.STAGE_EXECUTIONS, 3)),
+            accounting=_accounting((CoreResource.STAGE_EXECUTIONS, 3)),
         ).write_to(io.BytesIO())
 
     assert caught.value.resource is CoreResource.STAGE_EXECUTIONS
@@ -110,7 +110,7 @@ def test_decoding_stage_limit_spans_chunks_and_distinct_recipes() -> None:
             iter_decoded_chunks(
                 ContainerReader(
                     io.BytesIO(target.getvalue()),
-                    policy=_policy((CoreResource.STAGE_EXECUTIONS, 3)),
+                    accounting=_accounting((CoreResource.STAGE_EXECUTIONS, 3)),
                 ),
                 registry,
             )

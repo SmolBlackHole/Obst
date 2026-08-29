@@ -14,6 +14,7 @@ from obst.core import (
     LogicalStreamSource,
     PackagerProvider,
     RecipeSpec,
+    ResourceAccounting,
     StageSpec,
     inspect_container,
     iter_decoded_chunks,
@@ -68,8 +69,9 @@ def main() -> None:
     )
 
     target = BytesIO()
+    package_accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
     operation = packager.prepare_package(
-        FixedPackageRequest(registry, sources, DEFAULT_RESOURCE_POLICY)
+        FixedPackageRequest(registry, sources, package_accounting)
     )
     package = operation.write_to(target)
     container_bytes = target.getvalue()
@@ -77,7 +79,10 @@ def main() -> None:
     # Inspection consumes a reader and validates the complete stored form. It
     # deliberately does not execute decoders, so recovery uses a fresh reader.
     inspection = inspect_container(
-        ContainerReader(BytesIO(container_bytes)),
+        ContainerReader(
+            BytesIO(container_bytes),
+            accounting=ResourceAccounting(DEFAULT_RESOURCE_POLICY),
+        ),
         registry=registry,
     )
     if inspection.encoded_size != len(container_bytes):
@@ -87,7 +92,10 @@ def main() -> None:
 
     recovered = [bytearray() for _ in logical_streams]
     for chunk, logical_bytes in iter_decoded_chunks(
-        ContainerReader(BytesIO(container_bytes)),
+        ContainerReader(
+            BytesIO(container_bytes),
+            accounting=ResourceAccounting(DEFAULT_RESOURCE_POLICY),
+        ),
         registry,
     ):
         recovered[chunk.stream_id].extend(logical_bytes)

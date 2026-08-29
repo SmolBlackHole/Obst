@@ -31,13 +31,7 @@ from obst.core.manifest import (
     validate_manifest_header,
 )
 from obst.core.model import Chunk, Manifest
-from obst.core.resources import (
-    DEFAULT_RESOURCE_POLICY,
-    CoreResource,
-    ResourceBudget,
-    ResourcePolicy,
-    require_resource_limit,
-)
+from obst.core.resource_accounting import CoreResource, ResourceAccounting
 from obst.core.wire import (
     BLAKE2S_128_SIZE,
     ChunkHeader,
@@ -75,19 +69,23 @@ class ContainerWriter:
         target: BinaryWriter,
         manifest: Manifest,
         *,
-        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
+        accounting: ResourceAccounting,
     ) -> None:
+        if type(accounting) is not ResourceAccounting:
+            raise TypeError("container writer accounting must be ResourceAccounting")
         self.manifest = manifest
         self.index = ManifestIndex(manifest)
-        self.policy = policy
-        self._budget = ResourceBudget(policy)
+        self.accounting = accounting
         self._next_sequences = {stream.stream_id: 0 for stream in self.manifest.streams}
-        self._target = _CountingWriter(target, self._budget)
+        self._target = _CountingWriter(target, self.accounting)
         self._chunk_count = 0
         self._logical_size = 0
         self._encoded_payload_size = 0
         self._state = _LifecycleState.WRITING
-        manifest_bytes = encode_manifest(self.manifest, policy=self.policy)
+        manifest_bytes = encode_manifest(
+            self.manifest,
+            accounting=self.accounting,
+        )
         self._write_container_header(manifest_bytes)
 
     def preflight_chunk(self, logical_size: int, /) -> None:
@@ -97,7 +95,7 @@ class ContainerWriter:
             raise TypeError("logical chunk size must be an integer")
         if logical_size < 0:
             raise ValueError("logical chunk size must be non-negative")
-        self._require_logical_chunk_capacity(logical_size)
+        self._check_chunk_capacity(logical_size)
 
     def write_chunk(self, chunk: Chunk) -> None:
         """Write one already encoded chunk without executing its recipe."""
@@ -111,12 +109,11 @@ class ContainerWriter:
                     f"stream {chunk.stream_id} expected chunk sequence "
                     f"{expected_sequence}, got {chunk.sequence}"
                 )
-            self._require_logical_chunk_capacity(chunk.logical_size)
-            require_resource_limit(
+            self._check_chunk_capacity(chunk.logical_size)
+            self.accounting.record(
                 CoreResource.ENCODED_CHUNK_BYTES,
+                chunk.encoded_size,
                 scope=f"stream {chunk.stream_id} chunk {chunk.sequence}",
-                maximum=self.policy.maximum(CoreResource.ENCODED_CHUNK_BYTES),
-                observed=chunk.encoded_size,
                 phase="container_write",
             )
             header = ChunkHeader(
@@ -135,9 +132,15 @@ class ContainerWriter:
             self._require_container_capacity(
                 len(header) + chunk.encoded_size + TerminalCommit.size
             )
-            self._budget.consume_chunk(phase="container_write")
-            self._budget.observe_logical_bytes(
-                self._logical_size + chunk.logical_size,
+            self.accounting.record(
+                CoreResource.LOGICAL_CHUNK_BYTES,
+                chunk.logical_size,
+                scope=f"stream {chunk.stream_id} chunk {chunk.sequence}",
+                phase="container_write",
+            )
+            self.accounting.record(
+                CoreResource.CHUNKS,
+                1,
                 scope="container",
                 phase="container_write",
             )
@@ -195,35 +198,31 @@ class ContainerWriter:
         write_all(self._target, record)
 
     def _require_container_capacity(self, amount: int) -> None:
-        require_resource_limit(
+        self.accounting.check(
             CoreResource.CONTAINER_BYTES,
+            self._target.bytes_written + amount,
             scope="container",
-            maximum=self.policy.maximum(CoreResource.CONTAINER_BYTES),
-            observed=self._target.bytes_written + amount,
             phase="container_write",
         )
 
-    def _require_logical_chunk_capacity(self, logical_size: int) -> None:
+    def _check_chunk_capacity(self, logical_size: int) -> None:
         scope = f"container chunk {self._chunk_count}"
-        require_resource_limit(
+        self.accounting.check(
             CoreResource.LOGICAL_CHUNK_BYTES,
+            logical_size,
             scope=scope,
-            maximum=self.policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
-            observed=logical_size,
             phase="container_write",
         )
-        require_resource_limit(
+        self.accounting.check(
             CoreResource.CHUNKS,
+            self.accounting.current(CoreResource.CHUNKS) + 1,
             scope="container",
-            maximum=self.policy.maximum(CoreResource.CHUNKS),
-            observed=self._chunk_count + 1,
             phase="container_write",
         )
-        require_resource_limit(
+        self.accounting.check(
             CoreResource.LOGICAL_BYTES,
+            self._logical_size + logical_size,
             scope="container",
-            maximum=self.policy.maximum(CoreResource.LOGICAL_BYTES),
-            observed=self._logical_size + logical_size,
             phase="container_write",
         )
 
@@ -252,11 +251,12 @@ class ContainerReader:
         self,
         source: BinaryReader,
         *,
-        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
+        accounting: ResourceAccounting,
     ) -> None:
-        self.policy = policy
-        self._budget = ResourceBudget(policy)
-        self._source = _CountingReader(source, self._budget)
+        if type(accounting) is not ResourceAccounting:
+            raise TypeError("container reader accounting must be ResourceAccounting")
+        self.accounting = accounting
+        self._source = _CountingReader(source, self.accounting)
         self.version, self.manifest, self.manifest_size = self._read_container_header()
         self.index = ManifestIndex(self.manifest)
         self._next_sequences = {stream.stream_id: 0 for stream in self.manifest.streams}
@@ -349,17 +349,16 @@ class ContainerReader:
         )
         assert header is not None
         parsed = ContainerHeader.decode(header)
-        require_resource_limit(
+        self.accounting.record(
             CoreResource.MANIFEST_BYTES,
+            parsed.manifest_size,
             scope="manifest",
-            maximum=self.policy.maximum(CoreResource.MANIFEST_BYTES),
-            observed=parsed.manifest_size,
             phase="container_read",
         )
         validate_manifest_counts(
             recipe_count=parsed.recipe_count,
             stream_count=parsed.stream_count,
-            policy=self.policy,
+            accounting=self.accounting,
         )
         self._require_container_capacity(parsed.manifest_size)
         if parsed.manifest_size < ManifestHeader.size:
@@ -374,7 +373,7 @@ class ContainerReader:
         validate_manifest_header(
             manifest_header,
             manifest_size=parsed.manifest_size,
-            policy=self.policy,
+            accounting=self.accounting,
             phase="container_read",
         )
         manifest_body = read_exact(
@@ -388,25 +387,23 @@ class ContainerReader:
             manifest_body,
             recipe_count=parsed.recipe_count,
             stream_count=parsed.stream_count,
-            policy=self.policy,
+            accounting=self.accounting,
         )
         return parsed.version, manifest, parsed.manifest_size
 
     def _parse_chunk_header(self, header: bytes) -> ChunkHeader:
         parsed = ChunkHeader.decode(header)
         scope = f"stream {parsed.stream_id} chunk {parsed.sequence}"
-        require_resource_limit(
+        self.accounting.record(
             CoreResource.ENCODED_CHUNK_BYTES,
+            parsed.encoded_size,
             scope=scope,
-            maximum=self.policy.maximum(CoreResource.ENCODED_CHUNK_BYTES),
-            observed=parsed.encoded_size,
             phase="container_read",
         )
-        require_resource_limit(
+        self.accounting.record(
             CoreResource.LOGICAL_CHUNK_BYTES,
+            parsed.logical_size,
             scope=scope,
-            maximum=self.policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
-            observed=parsed.logical_size,
             phase="container_read",
         )
         if parsed.stream_id not in self._next_sequences:
@@ -425,16 +422,20 @@ class ContainerReader:
                 f"stream {parsed.stream_id} expected chunk sequence "
                 f"{expected_sequence}, got {parsed.sequence}"
             )
-        self._budget.consume_chunk(phase="container_read")
+        self.accounting.record(
+            CoreResource.CHUNKS,
+            1,
+            scope="container",
+            phase="container_read",
+        )
         self._next_sequences[parsed.stream_id] = parsed.sequence + 1
         return parsed
 
     def _require_container_capacity(self, amount: int) -> None:
-        require_resource_limit(
+        self.accounting.check(
             CoreResource.CONTAINER_BYTES,
+            self._source.bytes_read + amount,
             scope="container",
-            maximum=self.policy.maximum(CoreResource.CONTAINER_BYTES),
-            observed=self._source.bytes_read + amount,
             phase="container_read",
         )
 
@@ -470,9 +471,9 @@ class ContainerReader:
 
 
 class _CountingReader:
-    def __init__(self, source: BinaryReader, budget: ResourceBudget) -> None:
+    def __init__(self, source: BinaryReader, accounting: ResourceAccounting) -> None:
         self._source = source
-        self._budget = budget
+        self._accounting = accounting
         self.bytes_read = 0
         self._content_hasher = hashlib.blake2s(digest_size=BLAKE2S_128_SIZE)
 
@@ -482,7 +483,12 @@ class _CountingReader:
 
     def read(self, size: int = -1, /) -> bytes:
         data = validate_read_result(self._source.read(size), requested=size)
-        self._budget.consume_container_bytes(len(data), phase="container_read")
+        self._accounting.record(
+            CoreResource.CONTAINER_BYTES,
+            len(data),
+            scope="container",
+            phase="container_read",
+        )
         self.bytes_read += len(data)
         self._content_hasher.update(data)
         return data
@@ -493,9 +499,9 @@ class _CountingReader:
 
 
 class _CountingWriter:
-    def __init__(self, target: BinaryWriter, budget: ResourceBudget) -> None:
+    def __init__(self, target: BinaryWriter, accounting: ResourceAccounting) -> None:
         self._target = target
-        self._budget = budget
+        self._accounting = accounting
         self.bytes_written = 0
         self._content_hasher = hashlib.blake2s(digest_size=BLAKE2S_128_SIZE)
 
@@ -509,7 +515,12 @@ class _CountingWriter:
             self._target.write(data),
             offered=len(view),
         )
-        self._budget.consume_container_bytes(written, phase="container_write")
+        self._accounting.record(
+            CoreResource.CONTAINER_BYTES,
+            written,
+            scope="container",
+            phase="container_write",
+        )
         self.bytes_written += written
         self._content_hasher.update(view[:written])
         return written

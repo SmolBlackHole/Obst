@@ -27,6 +27,7 @@ from obst.core import (
 from obst.core.extensions import ExtensionKind
 from tests.support_extensions import CompressionExtension as ZlibExtension
 from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_resources import accounting as _accounting
 
 RAW_STAGE_ID = RawExtension.extension_id
 ZLIB_STAGE_ID = ZlibExtension.extension_id
@@ -102,7 +103,7 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
     )
     target = io.BytesIO()
     registry = ExtensionRegistry((RawExtension(), ZlibExtension()))
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             b"raw",
@@ -110,6 +111,7 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
             sequence=0,
             recipe=manifest.recipe(0),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.write_chunk(
@@ -119,6 +121,7 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
             sequence=1,
             recipe=manifest.recipe(1),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.write_chunk(
@@ -128,6 +131,7 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
             sequence=0,
             recipe=manifest.recipe(1),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.write_chunk(
@@ -137,12 +141,13 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
             sequence=1,
             recipe=manifest.recipe(1),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.finish()
 
     inspection = inspect_container(
-        ContainerReader(io.BytesIO(target.getvalue())),
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
         registry=registry,
     )
 
@@ -183,7 +188,7 @@ def test_unused_unknown_stage_is_declared_but_not_required() -> None:
         (RawExtension(), _IdentityEncoderStage())
     )
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             b"payload",
@@ -191,12 +196,13 @@ def test_unused_unknown_stage_is_declared_but_not_required() -> None:
             sequence=0,
             recipe=manifest.recipe(0),
             registry=complete_writer_registry,
+            accounting=_accounting(),
         )
     )
     writer.finish()
 
     inspection = inspect_container(
-        ContainerReader(io.BytesIO(target.getvalue())),
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
         registry=ExtensionRegistry((RawExtension(),)),
     )
 
@@ -220,7 +226,7 @@ def test_inspection_observes_decoder_capability_without_executing_it() -> None:
     )
     writer_registry = ExtensionRegistry((_IdentityEncoderStage(),))
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             b"payload",
@@ -228,13 +234,14 @@ def test_inspection_observes_decoder_capability_without_executing_it() -> None:
             sequence=0,
             recipe=manifest.recipe(0),
             registry=writer_registry,
+            accounting=_accounting(),
         )
     )
     writer.finish()
     reader_registry = ExtensionRegistry((_ExplodingDecoderStage(),))
 
     inspection = inspect_container(
-        ContainerReader(io.BytesIO(target.getvalue())),
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
         registry=reader_registry,
     )
 
@@ -273,10 +280,10 @@ def test_inspection_uses_the_registry_snapshot_from_operation_start() -> None:
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()
-    ContainerWriter(target, manifest).finish()
+    ContainerWriter(target, manifest, accounting=_accounting()).finish()
 
     structural_inspection = inspect_container(
-        ContainerReader(io.BytesIO(target.getvalue())),
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
         registry=registry,
     )
 
@@ -285,7 +292,7 @@ def test_inspection_uses_the_registry_snapshot_from_operation_start() -> None:
     assert not builder.build().can_decode(_CUSTOM_STAGE_ID)
 
     inspection = inspect_container(
-        ContainerReader(io.BytesIO(target.getvalue())),
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
         registry=registry,
         interpretation_policy=InspectionInterpretationPolicy(
             frozenset({_CUSTOM_STAGE_ID})
@@ -345,11 +352,11 @@ def test_interpretation_policy_is_an_explicit_extension_allowlist() -> None:
         streams=(Stream(0, _PROFILE_ID, 0, b"opaque"),),
     )
     target = io.BytesIO()
-    ContainerWriter(target, manifest).finish()
+    ContainerWriter(target, manifest, accounting=_accounting()).finish()
     encoded = target.getvalue()
 
     structural = inspect_container(
-        ContainerReader(io.BytesIO(encoded)),
+        ContainerReader(io.BytesIO(encoded), accounting=_accounting()),
         registry=registry,
     )
 
@@ -359,7 +366,7 @@ def test_interpretation_policy_is_an_explicit_extension_allowlist() -> None:
     assert structural.streams[0].metadata is None
 
     interpreted = inspect_container(
-        ContainerReader(io.BytesIO(encoded)),
+        ContainerReader(io.BytesIO(encoded), accounting=_accounting()),
         registry=registry,
         interpretation_policy=InspectionInterpretationPolicy(
             frozenset({_CUSTOM_STAGE_ID})
@@ -413,12 +420,12 @@ def test_interpreter_member_access_uses_the_extension_error_boundary(
         streams=(Stream(0, _PROFILE_ID, 0, b"opaque"),),
     )
     target = io.BytesIO()
-    ContainerWriter(target, manifest).finish()
+    ContainerWriter(target, manifest, accounting=_accounting()).finish()
     extension_id = _CUSTOM_STAGE_ID if capability == "parameters" else _PROFILE_ID
 
     with pytest.raises(ExtensionContractError, match="getter changed"):
         inspect_container(
-            ContainerReader(io.BytesIO(target.getvalue())),
+            ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
             registry=registry,
             interpretation_policy=InspectionInterpretationPolicy(
                 frozenset({extension_id})
@@ -434,7 +441,7 @@ def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> Non
     )
     registry = ExtensionRegistry((RawExtension(),))
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     writer.write_chunk(
         encode_chunk_once(
             b"recoverable logical bytes",
@@ -442,13 +449,14 @@ def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> Non
             sequence=0,
             recipe=manifest.recipe(0),
             registry=registry,
+            accounting=_accounting(),
         )
     )
     writer.finish()
 
     encoded = target.getvalue()
     inspection = inspect_container(
-        ContainerReader(io.BytesIO(encoded)),
+        ContainerReader(io.BytesIO(encoded), accounting=_accounting()),
         registry=registry,
     )
 
@@ -456,7 +464,9 @@ def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> Non
     assert inspection.streams[0].metadata is None
     assert inspection.streams[0].declaration.metadata == b"application-owned metadata"
     assert (
-        materialize_stream(ContainerReader(io.BytesIO(encoded)), 0, registry)
+        materialize_stream(
+            ContainerReader(io.BytesIO(encoded), accounting=_accounting()), 0, registry
+        )
         == b"recoverable logical bytes"
     )
 
@@ -467,9 +477,11 @@ def test_empty_stream_has_zero_chunk_resource_footprint() -> None:
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()
-    ContainerWriter(target, manifest).finish()
+    ContainerWriter(target, manifest, accounting=_accounting()).finish()
 
-    inspection = inspect_container(ContainerReader(io.BytesIO(target.getvalue())))
+    inspection = inspect_container(
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting())
+    )
 
     assert inspection.summary.chunk_count == 0
     assert inspection.resources.max_encoded_chunk_size == 0
@@ -494,7 +506,7 @@ def test_resource_footprint_multiplies_chunks_by_recipe_stages() -> None:
     )
     registry = ExtensionRegistry((RawExtension(), ZlibExtension()))
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    writer = ContainerWriter(target, manifest, accounting=_accounting())
     for sequence, payload in enumerate((b"first", b"second")):
         writer.write_chunk(
             encode_chunk_once(
@@ -503,11 +515,14 @@ def test_resource_footprint_multiplies_chunks_by_recipe_stages() -> None:
                 sequence=sequence,
                 recipe=manifest.recipe(0),
                 registry=registry,
+                accounting=_accounting(),
             )
         )
     writer.finish()
 
-    inspection = inspect_container(ContainerReader(io.BytesIO(target.getvalue())))
+    inspection = inspect_container(
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting())
+    )
 
     assert inspection.resources.total_stage_count == 2
     assert inspection.resources.max_stages_per_recipe == 2

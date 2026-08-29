@@ -16,11 +16,6 @@ from obst.conformance import (
 )
 from obst.core import (
     Extension,
-    LimitProfile,
-    ResourceContribution,
-    ResourceDefinition,
-    ResourceKind,
-    ResourceUnit,
 )
 from obst.plugins import (
     COMMAND_ENTRY_POINT_GROUP,
@@ -32,6 +27,14 @@ from obst.plugins import (
     PluginLoadError,
     PluginManager,
     PluginStateError,
+)
+from obst.resources import (
+    LimitProfile,
+    ResourceAggregation,
+    ResourceContribution,
+    ResourceDefinition,
+    ResourceKind,
+    ResourceUnit,
 )
 from tests.support_extensions import IdentityExtension as RawExtension
 
@@ -103,6 +106,7 @@ class ExampleResource(ResourceKind):
         8,
         "Items processed by the example plugin.",
         ResourceUnit.COUNT,
+        ResourceAggregation.TOTAL,
     )
 
 
@@ -112,6 +116,7 @@ class UnqualifiedResource(ResourceKind):
         8,
         "Invalid unqualified plugin resource.",
         ResourceUnit.COUNT,
+        ResourceAggregation.TOTAL,
     )
 
 

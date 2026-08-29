@@ -23,9 +23,9 @@ from obst.conformance import (
 from obst.core.errors import ExtensionError, ObstError
 from obst.core.extensions import Extension
 from obst.core.registry import ExtensionRegistry
-from obst.core.resources import (
+from obst.core.resource_accounting import CoreResource
+from obst.resources import (
     DEFAULT_LIMIT_PROFILE,
-    CoreResource,
     ResourceCatalog,
     ResourceContribution,
     ResourceKind,

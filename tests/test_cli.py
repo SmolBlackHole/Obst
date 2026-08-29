@@ -23,6 +23,7 @@ from obst.core import (
     Stream,
 )
 from obst.plugins import PluginManager
+from tests.support_resources import accounting as _accounting
 
 
 def _empty_manager(tmp_path: Path) -> PluginManager:
@@ -47,7 +48,7 @@ def _write_structural_container(path: Path) -> None:
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     with path.open("wb") as target:
-        ContainerWriter(target, manifest).finish()
+        ContainerWriter(target, manifest, accounting=_accounting()).finish()
 
 
 def test_help_is_native_and_does_not_require_plugins(

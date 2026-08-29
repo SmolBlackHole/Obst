@@ -18,12 +18,9 @@ from obst.core.extensions import (
 )
 from obst.core.model import Recipe, StageSpec
 from obst.core.registry import ExtensionRegistry
-from obst.core.resources import (
-    DEFAULT_RESOURCE_POLICY,
+from obst.core.resource_accounting import (
     CoreResource,
-    ResourceBudget,
-    ResourcePolicy,
-    require_resource_limit,
+    ResourceAccounting,
 )
 
 type _Direction = Literal["encode", "decode"]
@@ -57,16 +54,18 @@ class _ResolvedDecoderStage:
 class RecipeEncoder:
     """Bind and execute recipes within one cumulative forward operation."""
 
-    __slots__ = ("_bindings", "_budget", "_registry")
+    __slots__ = ("_accounting", "_bindings", "_registry")
 
     def __init__(
         self,
         registry: ExtensionRegistry,
         *,
-        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
+        accounting: ResourceAccounting,
     ) -> None:
+        if type(accounting) is not ResourceAccounting:
+            raise TypeError("recipe encoder accounting must be ResourceAccounting")
         self._bindings: dict[Recipe, tuple[_EncoderBinding, ...]] = {}
-        self._budget = ResourceBudget(policy)
+        self._accounting = accounting
         self._registry = registry
 
     def preflight(self, recipes: Iterable[Recipe], /) -> None:
@@ -96,7 +95,7 @@ class RecipeEncoder:
         _require_exact_bytes("recipe input", data)
         _require_optional_output_size(max_output_size)
         _precheck_recipe_operation(
-            self._budget,
+            self._accounting,
             input_size=len(data),
             logical_size=len(data),
             stage_count=len(recipe.stages),
@@ -109,7 +108,7 @@ class RecipeEncoder:
         return _execute_encoder_recipe(
             data,
             bindings,
-            self._budget,
+            self._accounting,
             max_output_size=max_output_size,
         )
 
@@ -117,16 +116,18 @@ class RecipeEncoder:
 class RecipeDecoder:
     """Bind and execute only required recipes within one reverse operation."""
 
-    __slots__ = ("_bindings", "_budget", "_registry")
+    __slots__ = ("_accounting", "_bindings", "_registry")
 
     def __init__(
         self,
         registry: ExtensionRegistry,
         *,
-        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
+        accounting: ResourceAccounting,
     ) -> None:
+        if type(accounting) is not ResourceAccounting:
+            raise TypeError("recipe decoder accounting must be ResourceAccounting")
         self._bindings: dict[Recipe, tuple[_DecoderBinding, ...]] = {}
-        self._budget = ResourceBudget(policy)
+        self._accounting = accounting
         self._registry = registry
 
     def decode(
@@ -141,7 +142,7 @@ class RecipeDecoder:
         _require_exact_bytes("recipe input", data)
         _require_expected_size(expected_size)
         _precheck_recipe_operation(
-            self._budget,
+            self._accounting,
             input_size=len(data),
             logical_size=expected_size,
             stage_count=len(recipe.stages),
@@ -155,38 +156,41 @@ class RecipeDecoder:
             data,
             bindings,
             expected_size=expected_size,
-            budget=self._budget,
+            accounting=self._accounting,
         )
 
 
 def _execute_encoder_recipe(
     data: bytes,
     bindings: tuple[_EncoderBinding, ...],
-    budget: ResourceBudget,
+    accounting: ResourceAccounting,
     *,
     max_output_size: int | None,
 ) -> bytes:
     _require_exact_bytes("recipe input", data)
-    budget.consume_logical_bytes(
+    accounting.record(
+        CoreResource.LOGICAL_BYTES,
         len(data),
         scope="recipe input",
         phase="recipe_encode",
     )
     _require_intermediate_bytes(
-        budget,
+        accounting,
         len(data),
         scope="recipe input",
         phase="recipe_encode",
     )
     result = data
     for index, binding in enumerate(bindings):
-        stage_output_size = budget.policy.maximum(CoreResource.INTERMEDIATE_BYTES)
+        stage_output_size = accounting.maximum(CoreResource.INTERMEDIATE_BYTES)
         if index == len(bindings) - 1:
             stage_output_size = _minimum_output_size(
                 stage_output_size,
                 max_output_size,
             )
-        budget.consume_stage_execution(
+        accounting.record(
+            CoreResource.STAGE_EXECUTIONS,
+            1,
             scope=binding.stage_id,
             phase="recipe_encode",
         )
@@ -211,29 +215,32 @@ def _execute_decoder_recipe(
     bindings: tuple[_DecoderBinding, ...],
     *,
     expected_size: int,
-    budget: ResourceBudget,
+    accounting: ResourceAccounting,
 ) -> bytes:
     _require_exact_bytes("recipe input", data)
-    budget.consume_logical_bytes(
+    accounting.record(
+        CoreResource.LOGICAL_BYTES,
         expected_size,
         scope="recipe output",
         phase="recipe_decode",
     )
     _require_intermediate_bytes(
-        budget,
+        accounting,
         len(data),
         scope="recipe input",
         phase="recipe_decode",
     )
     result = data
     for index, binding in enumerate(bindings):
-        stage_output_size = budget.policy.maximum(CoreResource.INTERMEDIATE_BYTES)
+        stage_output_size = accounting.maximum(CoreResource.INTERMEDIATE_BYTES)
         if index == len(bindings) - 1:
             stage_output_size = _minimum_output_size(
                 stage_output_size,
                 expected_size,
             )
-        budget.consume_stage_execution(
+        accounting.record(
+            CoreResource.STAGE_EXECUTIONS,
+            1,
             scope=binding.stage_id,
             phase="recipe_decode",
         )
@@ -262,11 +269,11 @@ def encode_recipe(
     recipe: Recipe,
     registry: ExtensionRegistry,
     *,
-    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
+    accounting: ResourceAccounting,
 ) -> bytes:
     """Bind and execute one recipe as one bounded forward operation."""
     _require_exact_bytes("recipe input", data)
-    return RecipeEncoder(registry, policy=policy).encode(data, recipe)
+    return RecipeEncoder(registry, accounting=accounting).encode(data, recipe)
 
 
 def decode_recipe(
@@ -275,11 +282,11 @@ def decode_recipe(
     registry: ExtensionRegistry,
     *,
     expected_size: int,
-    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
+    accounting: ResourceAccounting,
 ) -> bytes:
     """Bind and execute one recipe as one bounded reverse operation."""
     _require_exact_bytes("recipe input", data)
-    return RecipeDecoder(registry, policy=policy).decode(
+    return RecipeDecoder(registry, accounting=accounting).decode(
         data,
         recipe,
         expected_size=expected_size,
@@ -511,23 +518,22 @@ def _validate_provider_output(
 
 
 def _require_intermediate_bytes(
-    budget: ResourceBudget,
+    accounting: ResourceAccounting,
     observed: int,
     *,
     scope: str,
     phase: str,
 ) -> None:
-    require_resource_limit(
+    accounting.record(
         CoreResource.INTERMEDIATE_BYTES,
+        observed,
         scope=scope,
-        maximum=budget.policy.maximum(CoreResource.INTERMEDIATE_BYTES),
-        observed=observed,
         phase=phase,
     )
 
 
 def _precheck_recipe_operation(
-    budget: ResourceBudget,
+    accounting: ResourceAccounting,
     *,
     input_size: int,
     logical_size: int,
@@ -535,22 +541,20 @@ def _precheck_recipe_operation(
     direction: _Direction,
 ) -> None:
     phase = f"recipe_{direction}"
-    require_resource_limit(
+    accounting.check(
         CoreResource.LOGICAL_BYTES,
+        accounting.current(CoreResource.LOGICAL_BYTES) + logical_size,
         scope="recipe input" if direction == "encode" else "recipe output",
-        maximum=budget.policy.maximum(CoreResource.LOGICAL_BYTES),
-        observed=budget.logical_bytes + logical_size,
         phase=phase,
     )
-    require_resource_limit(
+    accounting.check(
         CoreResource.STAGE_EXECUTIONS,
+        accounting.current(CoreResource.STAGE_EXECUTIONS) + stage_count,
         scope="recipe",
-        maximum=budget.policy.maximum(CoreResource.STAGE_EXECUTIONS),
-        observed=budget.stage_executions + stage_count,
         phase=phase,
     )
     _require_intermediate_bytes(
-        budget,
+        accounting,
         input_size,
         scope="recipe input",
         phase=phase,

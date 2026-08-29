@@ -6,9 +6,7 @@ from dataclasses import dataclass
 
 from obst.core import (
     CoreResource,
-    ResourceKind,
-    ResourcePolicy,
-    require_resource_limit,
+    ResourceAccounting,
 )
 from obst.core.container import ContainerWriter
 from obst.core.errors import OperationStateError, PackagingError
@@ -33,7 +31,7 @@ class FixedPackageRequest:
 
     registry: ExtensionRegistry
     sources: tuple[LogicalStreamSource, ...]
-    policy: ResourcePolicy
+    accounting: ResourceAccounting
 
     def __post_init__(self) -> None:
         if type(self.registry) is not ExtensionRegistry:
@@ -44,8 +42,8 @@ class FixedPackageRequest:
             raise TypeError(
                 "fixed package sources must contain LogicalStreamSource values"
             )
-        if type(self.policy) is not ResourcePolicy:
-            raise TypeError("fixed package policy must be a ResourcePolicy")
+        if type(self.accounting) is not ResourceAccounting:
+            raise TypeError("fixed package accounting must be ResourceAccounting")
 
 
 class FixedPackagerExtension:
@@ -87,19 +85,19 @@ class _FixedPackageOperation:
         if len({id(source) for source in sources}) != len(sources):
             raise PackagingError("a logical stream source cannot be declared twice")
         for source in sources:
-            _preflight_source(source, self._request.policy)
+            _preflight_source(source, self._request.accounting)
         manifest = _fixed_manifest(sources, self._request.registry)
-        validate_manifest_resources(manifest, policy=self._request.policy)
+        validate_manifest_resources(manifest, accounting=self._request.accounting)
         recipes_by_id = {recipe.recipe_id: recipe for recipe in manifest.recipes}
         encoder = ChunkEncoder(
             self._request.registry,
-            policy=self._request.policy,
+            accounting=self._request.accounting,
         )
         encoder.preflight(manifest.recipes)
         writer = ContainerWriter(
             target,
             manifest,
-            policy=self._request.policy,
+            accounting=self._request.accounting,
         )
         packaged_streams: list[PackagedStream] = []
         for stream, source in zip(manifest.streams, sources, strict=True):
@@ -175,33 +173,18 @@ def _fixed_manifest(
 
 def _preflight_source(
     source: LogicalStreamSource,
-    policy: ResourcePolicy,
+    accounting: ResourceAccounting,
 ) -> None:
     scope = f"logical source {source.descriptor.stream_type}"
-    _require_source_limit(
+    accounting.check(
         CoreResource.LOGICAL_CHUNK_BYTES,
-        scope,
-        policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
         source.max_chunk_bytes,
-    )
-    _require_source_limit(
-        CoreResource.INTERMEDIATE_BYTES,
-        scope,
-        policy.maximum(CoreResource.INTERMEDIATE_BYTES),
-        source.max_chunk_bytes,
-    )
-
-
-def _require_source_limit(
-    resource: ResourceKind,
-    scope: str,
-    maximum: int | None,
-    observed: int,
-) -> None:
-    require_resource_limit(
-        resource,
         scope=scope,
-        maximum=maximum,
-        observed=observed,
+        phase="package",
+    )
+    accounting.check(
+        CoreResource.INTERMEDIATE_BYTES,
+        source.max_chunk_bytes,
+        scope=scope,
         phase="package",
     )

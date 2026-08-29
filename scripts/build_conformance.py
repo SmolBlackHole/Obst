@@ -19,11 +19,13 @@ from obst.conformance import (
 )
 from obst.core import (
     BYTES_STREAM_TYPE,
+    DEFAULT_RESOURCE_POLICY,
     ContainerWriter,
     ExtensionDeclaration,
     ExtensionRegistry,
     Manifest,
     Recipe,
+    ResourceAccounting,
     StageSpec,
     Stream,
     encode_chunk_once,
@@ -207,7 +209,8 @@ def _write_container(
 ) -> bytes:
     target = io.BytesIO()
     registry = _registry()
-    writer = ContainerWriter(target, manifest)
+    accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
+    writer = ContainerWriter(target, manifest, accounting=accounting)
     for stream_id, sequence, recipe_id, logical in chunks:
         writer.write_chunk(
             encode_chunk_once(
@@ -216,6 +219,7 @@ def _write_container(
                 sequence=sequence,
                 recipe=manifest.recipe(recipe_id),
                 registry=registry,
+                accounting=accounting,
             )
         )
     writer.finish()

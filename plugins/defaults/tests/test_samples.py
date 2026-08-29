@@ -25,7 +25,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
     FixedPackagerExtension,
 )
-from support_resources import policy as _policy
+from support_resources import accounting as _accounting
 
 SAMPLE_ROOT = Path(__file__).parents[3] / "samples"
 SAMPLE_PAIRS = (
@@ -63,7 +63,7 @@ def _publish_sample(target: Path, sources: tuple[Path, ...]) -> None:
         recipe=_FILE_RECIPE,
     ) as logical_sources:
         operation = FixedPackagerExtension().prepare_package(
-            FixedPackageRequest(_sample_registry(), logical_sources, _policy())
+            FixedPackageRequest(_sample_registry(), logical_sources, _accounting())
         )
         publish_package(
             operation,
@@ -73,12 +73,14 @@ def _publish_sample(target: Path, sources: tuple[Path, ...]) -> None:
 
 def _recover_files(container_path: Path) -> dict[str, bytes]:
     with container_path.open("rb") as source:
-        streams = tuple(ContainerReader(source).manifest.streams)
+        streams = tuple(
+            ContainerReader(source, accounting=_accounting()).manifest.streams
+        )
 
     recovered: dict[str, bytes] = {}
     for stream in streams:
         with container_path.open("rb") as source:
-            reader = ContainerReader(source)
+            reader = ContainerReader(source, accounting=_accounting())
             recovered[_FILE_EXTENSION.plan_file(stream.metadata).name] = (
                 materialize_stream(reader, stream.stream_id, _stage_registry())
             )
@@ -92,7 +94,7 @@ def test_image_sample_decodes_byte_identically(
 ) -> None:
     source = (SAMPLE_ROOT / source_name).read_bytes()
     with (SAMPLE_ROOT / container_name).open("rb") as encoded:
-        reader = ContainerReader(encoded)
+        reader = ContainerReader(encoded, accounting=_accounting())
         assert (
             reader.manifest.recipes[0].stages[0].stage_id == ZlibExtension.extension_id
         )

@@ -9,7 +9,7 @@ from typing import Protocol, TextIO, cast
 from obst.core.errors import ObstError
 from obst.core.io import BinaryReader
 from obst.core.registry import ExtensionRegistry
-from obst.core.resources import ResourcePolicy
+from obst.core.resource_accounting import ResourceAccounting
 
 EXIT_SUCCESS = 0
 EXIT_INTERNAL = 1
@@ -48,7 +48,7 @@ class CliContext:
     stdin: BinaryReader
     stdout: TextIO
     stderr: TextIO
-    policy: ResourcePolicy
+    accounting: ResourceAccounting
 
 
 class CliCommand(Protocol):

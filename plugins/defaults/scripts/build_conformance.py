@@ -22,12 +22,14 @@ from obst.conformance import (
     write_conformance_suite,
 )
 from obst.core import (
+    DEFAULT_RESOURCE_POLICY,
     ContainerWriter,
     ExtensionRegistry,
     InspectionField,
     InspectionInterpretation,
     Manifest,
     Recipe,
+    ResourceAccounting,
     StageSpec,
     Stream,
     encode_chunk_once,
@@ -74,7 +76,8 @@ def _container_recovery_case() -> ContainerRecoveryCase:
         ),
     )
     target = io.BytesIO()
-    writer = ContainerWriter(target, manifest)
+    accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
+    writer = ContainerWriter(target, manifest, accounting=accounting)
     writer.write_chunk(
         encode_chunk_once(
             logical,
@@ -82,6 +85,7 @@ def _container_recovery_case() -> ContainerRecoveryCase:
             sequence=0,
             recipe=recipe,
             registry=ExtensionRegistry(obst_extensions()),
+            accounting=accounting,
         )
     )
     writer.finish()

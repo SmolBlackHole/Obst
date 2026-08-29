@@ -43,7 +43,7 @@ classDiagram
     ObstError <|-- CliCommandError
     ObstError <|-- OperationStateError
     ObstError <|-- ResourceLimitError
-    ObstError <|-- LimitStateError
+    ObstError <|-- LimitProfileStateError
     ObstError <|-- SelectionError
     SelectionError <|-- UnknownStreamError
     SelectionError <|-- UnknownRecipeError
@@ -67,8 +67,8 @@ is imported from `obst.plugins`. The transport-neutral core defines Carrier
 provider protocols, but does not know about paths, archives, installed
 packages or local activation state. `ConformanceError` is imported from
 `obst.conformance`; `CliCommandError` is imported from `obst.cli`.
-`LimitStateError` is imported from `obst.limits` because it belongs to local
-host configuration, not container processing.
+`LimitProfileStateError` is imported from `obst.resources.profiles` because it
+belongs to local host configuration, not container processing.
 
 | Exception                         | Meaning                                                                                                                                                                                |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,7 +94,7 @@ host configuration, not container processing.
 | `PackagingError`                  | Logical sources cannot be packaged under the requested policy.                                                                                                                         |
 | `SourceConsumedError`             | A single-use logical source was requested more than once.                                                                                                                              |
 | `ResourceLimitError`              | A valid operation exceeds local resource policy. Structured fields name the resource, scope, maximum, observed value and phase.                                                        |
-| `LimitStateError`                 | Local named-profile state is malformed, unavailable, immutable for the requested edit or cannot be persisted atomically.                                                               |
+| `LimitProfileStateError`          | Local named-profile state is malformed, unavailable, immutable for the requested edit or cannot be persisted atomically.                                                               |
 | `InvalidContainerError`           | Input bytes violate container structure, references, ordering or flags. Local policy refusal is a separate error family.                                                               |
 | `CorruptContainerError`           | Recognizable OBST bytes fail an encoded checksum or decoded logical hash.                                                                                                              |
 | `TruncatedContainerError`         | Input ends before a declared header, manifest, payload or terminal commit is complete.                                                                                                 |
@@ -196,18 +196,26 @@ A reader may reject a structurally valid container because the caller selected
 a lower local ceiling:
 
 ```python
-from obst.core import ContainerReader, CoreResource, LimitProfile, ResourceLimitError, ResourcePolicy
+from obst.core import (
+    ContainerReader,
+    CoreResource,
+    ResourceAccounting,
+    ResourceLimitError,
+)
+from obst.resources import LimitProfile, ResourcePolicy
 
 policy = ResourcePolicy(
-    profile=LimitProfile(
+    tuple(CoreResource),
+    LimitProfile(
         "small-manifest",
         "Accept manifests up to 1 KiB.",
         ((CoreResource.MANIFEST_BYTES, 1024),),
     )
 )
+accounting = ResourceAccounting(policy)
 
 try:
-    ContainerReader(source, policy=policy)
+    ContainerReader(source, accounting=accounting)
 except ResourceLimitError as error:
     assert error.resource is CoreResource.MANIFEST_BYTES
     assert error.maximum == 1024

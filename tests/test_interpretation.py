@@ -23,6 +23,7 @@ from obst.core import (
     inspect_container,
 )
 from obst.core.extensions import ExtensionKind
+from tests.support_resources import accounting as _accounting
 
 _CUSTOM_STAGE_ID = "org.example/interpretation@1"
 _CUSTOM_DESCRIPTOR = ExtensionDescriptor()
@@ -50,9 +51,9 @@ def _inspect_stage_parameters(
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     target = io.BytesIO()
-    ContainerWriter(target, manifest).finish()
+    ContainerWriter(target, manifest, accounting=_accounting()).finish()
     inspection = inspect_container(
-        ContainerReader(io.BytesIO(target.getvalue())),
+        ContainerReader(io.BytesIO(target.getvalue()), accounting=_accounting()),
         registry=ExtensionRegistry((extension,)),
         interpretation_policy=InspectionInterpretationPolicy(
             frozenset({stage.stage_id})
