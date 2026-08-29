@@ -7,7 +7,7 @@
 		"note": "Applies to the source images, not the OBST project code."
 	},
 	"container_defaults": {
-		"format": "0.1-apple",
+		"format": "0.2-apple",
 		"stream_type": "obst.file@1",
 		"recipe": "obst.zlib@1",
 		"zlib_level": 9,
@@ -16,7 +16,7 @@
 	"nested_archive": {
 		"path": "all-fruit.obst",
 		"size": 3562036,
-		"sha256": "7aab4798c2ab1710386f7ff672bef4ff80e981420f64c8ebd5e32a80c709698a",
+		"sha256": "20a71fd53e84abfae8c9c4e976f761a2cc59b72c2771c5bc9a30532b2899a780",
 		"members": [
 			"apple.obst",
 			"pineapple.obst",
@@ -35,7 +35,7 @@
 			"container": {
 				"path": "apple.obst",
 				"size": 266889,
-				"sha256": "7affd2529161f376761d56f6153d6a667e60e2ae56e902005f50ce62b0aa11ea",
+				"sha256": "4cadda6661175e17a4c234347706e90c178ac7812e6704382a06ef1be8cd7e19",
 				"chunk_count": 6
 			}
 		},
@@ -50,7 +50,7 @@
 			"container": {
 				"path": "pineapple.obst",
 				"size": 837637,
-				"sha256": "1813a383ef0f29b7bb5984908bd13ebaf6679307baf48dfe610f83fae799ee59",
+				"sha256": "c9dae71da14381604bca426a15785301fe7961e29efc857f4814fabd84a5b5df",
 				"chunk_count": 14
 			}
 		},
@@ -65,7 +65,7 @@
 			"container": {
 				"path": "fruit-bowl.obst",
 				"size": 2452411,
-				"sha256": "f019a2b1293a38d08e407751cf8f654057c205fa6d85680c76f92aac641d6bb3",
+				"sha256": "6aff3b5388d9e533d4e64561013cd5c417a56e23176918295a8e5ddbaaf77b6b",
 				"chunk_count": 38
 			}
 		},

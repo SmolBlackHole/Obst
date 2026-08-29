@@ -43,7 +43,7 @@ obst: error: the following arguments are required: command
 
 ```console
 > obst --version
-obst format 0.1-apple
+obst format 0.2-apple
 ```
 
 ```console
@@ -104,7 +104,7 @@ Extension plugins
 adaptive-zlib
   Installed       yes
   Enabled         yes
-  Distribution    obst-example-adaptive-zlib 0.1.0
+  Distribution    obst-example-adaptive-zlib 0.2.0
   Summary         Adaptive third-party zlib Stage plugin for OBST
   Documentation   https://github.com/SmolBlackHole/Obst/blob/main/examples/plugin_adaptive_zlib/README.md
   Extensions      obst_example_adaptive_zlib:obst_extensions
@@ -114,7 +114,7 @@ adaptive-zlib
 obst-defaults
   Installed       yes
   Enabled         yes
-  Distribution    obst-defaults 0.1.0
+  Distribution    obst-defaults 0.2.0
   Summary         Explicitly activated first-party tooling for OBST
   Documentation   https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/README.md
   Extensions      obst_defaults.bundle:obst_extensions
@@ -125,7 +125,7 @@ obst-defaults
 obst-format
   Installed       yes
   Enabled         no
-  Distribution    obst 0.1.0
+  Distribution    obst 0.2.0
   Summary         Open binary container for chunked data and reversible pipelines
   Documentation   https://github.com/SmolBlackHole/Obst/blob/main/docs/README.md
   Conformance     obst.format_conformance:obst_conformance
@@ -249,7 +249,7 @@ The example container below was created from the repository `README.md` by the
              ██   █  █████
                █ █ ████
 
-         █████████████████        OBST container 0.1-apple
+         █████████████████        OBST container 0.2-apple
        █████████████████████      -------------------------
                                   Streams                       1
      ████████████████████████     Recipes                       1

@@ -888,7 +888,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         (
             "container-version",
             5,
-            b"\x02",
+            b"\x03",
             "unsupported_version",
             ("version",),
             True,
@@ -979,7 +979,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         (
             "manifest-version",
             5,
-            b"\x02",
+            b"\x03",
             "unsupported_version",
             ("version",),
             True,

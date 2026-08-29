@@ -12,7 +12,7 @@ tests and authoritative documentation agree.
 
 ## Now: pre-public stabilization
 
-The current implementation already reads, writes, inspects, packages and
+The current `0.2-apple` implementation already reads, writes, inspects, packages and
 extracts bounded OBST containers through explicitly activated extensions. The
 remaining work before a public preview is to make those boundaries boring and
 reproducible:
@@ -35,7 +35,7 @@ The first compatibility promise remains unfrozen until cross-language recovery
 and constrained-memory streaming have been reproduced from the public
 specification and vectors.
 
-## Next: `0.2-apple` producer identity
+## Next: `0.3-apple` producer identity
 
 The next manifest revision will describe the implementation that wrote one
 concrete container representation. A bounded canonical producer identity will
@@ -64,13 +64,28 @@ inputs. New reversible Stages will land only after their wire parameters,
 inverse, malformed-input behavior, allocation bounds and measured value are
 known.
 
+## Later: seekable and indexed access
+
+`0.2-apple` deliberately keeps `CMIT` as the absolute end of the container and
+the core reader single-pass. Seekable access must remain optional tooling, not
+a new validity requirement.
+
+The first useful step is a rebuildable sidecar index. It can map stream and
+chunk identities to byte offsets and sizes, bind itself to the terminal commit
+hash, and be discarded or regenerated without changing the container it
+describes. A container without that index remains fully valid and recoverable.
+
+A later wire revision may permit the same index payload in explicitly separate
+auxiliary data after `CMIT`. That revision must define new trailing-byte and
+binding semantics rather than weakening `0.2-apple` retroactively.
+
 ## Later directions
 
 - Transport-neutral capability negotiation may let a sender choose only Stage
   decoders and stream profiles already supported by a receiver. It will never
   download or activate code.
-- Indexed, selective and nested tooling may provide bounded access to exact
-  streams without changing the existing single-pass reader contract.
+- Selective and nested tooling may build on the optional index while preserving
+  bounded access and the existing single-pass reader contract.
 - Content-defined chunking may improve chunk reuse across insertions while the
   wire format continues to see ordinary bounded chunks.
 - Incremental packing, append and delta snapshots require explicit crash,

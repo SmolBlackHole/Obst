@@ -158,7 +158,7 @@ class FormatVersion:
         return f"{self.major}.{self.minor}-{self.codename}"
 
 
-format_version = FormatVersion(major=0, minor=1, codename="apple")
+format_version = FormatVersion(major=0, minor=2, codename="apple")
 
 
 def _checksummed(*fields: WireField) -> ChecksummedLayout:

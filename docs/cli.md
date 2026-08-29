@@ -72,7 +72,7 @@ obst inspect samples/apple.obst
 ```
 
 ```text
-obst format 0.1-apple
+obst format 0.2-apple
 ```
 
 This is the format identity, not the Python package release. `apple` is the

@@ -79,7 +79,7 @@ def test_inspect_is_available_without_extension_plugins(
     assert cli_main.main(["inspect", str(container)]) == EXIT_SUCCESS
 
     output = capsys.readouterr().out
-    assert "OBST container 0.1-apple" in output
+    assert "OBST container 0.2-apple" in output
     assert "Required decoders available" in output
     assert "org.example/missing@1: decoder missing" in output
 

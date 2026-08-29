@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).parents[1]
 
 
 def test_installed_distribution_publishes_all_three_plugin_contributions() -> None:
-    assert version("obst-example-adaptive-zlib") == "0.1.0"
+    assert version("obst-example-adaptive-zlib") == "0.2.0"
     assert metadata("obst-example-adaptive-zlib")["License-Expression"] == "MPL-2.0"
     contributions = {
         (entry.group, entry.name, entry.value)

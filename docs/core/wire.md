@@ -65,7 +65,7 @@ configurable limit.
 
 ## Record layouts
 
-The module maps every fixed v0.1 record to one immutable Python record:
+The module maps every fixed v0.2 record to one immutable Python record:
 
 | Python mapping          | Representation        | Normative definition                                   |
 | ----------------------- | --------------------- | ------------------------------------------------------ |

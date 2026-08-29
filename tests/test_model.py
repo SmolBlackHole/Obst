@@ -49,9 +49,9 @@ def _encode_manifest(manifest: Manifest) -> bytes:
 
 
 def test_format_version_owns_numeric_and_human_identity() -> None:
-    assert format_version == FormatVersion(major=0, minor=1, codename="apple")
-    assert format_version.numeric == (0, 1)
-    assert format_version.label == "0.1-apple"
+    assert format_version == FormatVersion(major=0, minor=2, codename="apple")
+    assert format_version.numeric == (0, 2)
+    assert format_version.label == "0.2-apple"
 
 
 @pytest.mark.parametrize(
@@ -70,7 +70,7 @@ def test_format_version_owns_numeric_and_human_identity() -> None:
             id="boolean-major",
         ),
         pytest.param(
-            lambda: FormatVersion(major=0, minor=1, codename=""),
+            lambda: FormatVersion(major=0, minor=2, codename=""),
             id="empty-codename",
         ),
     ),
@@ -475,16 +475,16 @@ def test_manifest_wire_rejects_noncanonical_and_invalid_references(
                 4,
                 b"\x01",
                 UnsupportedVersionError,
-                r"manifest version 1\.1",
+                r"manifest version 1\.2",
             ),
             id="version-major",
         ),
         pytest.param(
             _ManifestHeaderMutation(
                 5,
-                b"\x02",
+                b"\x03",
                 UnsupportedVersionError,
-                r"manifest version 0\.2",
+                r"manifest version 0\.3",
             ),
             id="version-minor",
         ),

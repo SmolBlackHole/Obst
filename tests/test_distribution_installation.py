@@ -18,7 +18,7 @@ import sys
 
 from obst.plugins import PluginManager
 
-assert version("obst") == "0.1.0"
+assert version("obst") == "0.2.0"
 assert metadata("obst")["License-Expression"] == "MPL-2.0"
 manager = PluginManager.discover(state_path=Path(sys.argv[1]) / "plugins.json")
 assert manager.status("obst-format").installed

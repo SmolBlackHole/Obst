@@ -339,8 +339,8 @@ def test_json_renderer_exposes_complete_structural_inspection() -> None:
     assert document["format"] == {
         "codename": format_version.codename,
         "label": format_version.label,
-        "major": 0,
-        "minor": 1,
+        "major": format_version.major,
+        "minor": format_version.minor,
         "name": "OBST",
     }
     assert document["container_size"] == inspection.encoded_size

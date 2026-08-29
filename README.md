@@ -99,7 +99,7 @@ The human-readable output includes the apple:
              ██   █  █████
                █ █ ████
 
-         █████████████████        OBST container 0.1-apple
+         █████████████████        OBST container 0.2-apple
        █████████████████████      -------------------------
                                   Streams                       1
      ████████████████████████     Recipes                       1
@@ -331,9 +331,9 @@ a receiver advertise supported decoders, profiles and limits before a sender
 builds an ordinary OBST stream. It is tracked in the
 [roadmap](ROADMAP.md#later-directions).
 
-## What does `0.1-apple` mean?
+## What does `0.2-apple` mean?
 
-The wire format is [`OBST 0.1-apple`](docs/format.md#version-identity).
+The wire format is [`OBST 0.2-apple`](docs/format.md#version-identity).
 
 The numeric major and minor are stored in the container and manifest headers.
 `apple` is the stable human-readable codename for major version `0`, so every
@@ -425,7 +425,7 @@ paths, see the [anatomy](docs/anatomy.md), [format specification](docs/format.md
 
 ## Status
 
-OBST is experimental and under active development. The v0.1 vectors pin the
+OBST is experimental and under active development. The v0.2 vectors pin the
 current draft, but compatibility has not frozen and intentional pre-freeze wire
 changes regenerate them.
 

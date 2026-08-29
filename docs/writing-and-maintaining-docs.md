@@ -220,7 +220,7 @@ reserves a value or meaning:
 
 ```markdown
 > [!NOTE]
-> **Reserved semantics:** This field is zero in v0.1 and readers reject any
+> **Reserved semantics:** This field is zero in v0.2 and readers reject any
 > other value.
 ```
 

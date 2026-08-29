@@ -1,8 +1,8 @@
-# OBST 0.1-apple binary format
+# OBST 0.2-apple binary format
 
 Parent: [Documentation index](README.md)
 
-Status: experimental, compatibility not frozen. The v0.1 vectors pin the
+Status: experimental, compatibility not frozen. The v0.2 vectors pin the
 current draft and change with intentional pre-freeze wire revisions.
 
 This document defines the language-neutral bytes of an OBST container. A
@@ -12,7 +12,7 @@ when the required decoders are available.
 
 ## Table of contents
 
-- [OBST 0.1-apple binary format](#obst-01-apple-binary-format)
+- [OBST 0.2-apple binary format](#obst-02-apple-binary-format)
 	- [Table of contents](#table-of-contents)
 	- [Format at a glance](#format-at-a-glance)
 		- [One container, several outcomes](#one-container-several-outcomes)
@@ -54,7 +54,7 @@ sizes, CRCs and hashes; the [format corpus](../src/obst/conformance/corpus/)
 contains complete byte vectors.
 
 ```text
-OBST 0.1 header                              # [1] opens the representation
+OBST 0.2 header                              # [1] opens the representation
 MANF                                         # [2] declares everything used below
   extension[0] = obst.bytes@1
   extension[1] = obst.delta8@1
@@ -100,7 +100,7 @@ or personalization. A logical chunk hash takes the exact logical chunk payload
 before the first Recipe Stage. Each digest is stored as its 16 raw bytes. The
 terminal content-hash input is defined with its record below.
 
-Readers of this format revision support exactly version 0.1. They reject
+Readers of this format revision support exactly version 0.2. They reject
 unknown flags, non-zero reserved fields, unsupported header sizes, trailing
 manifest bytes and references to undeclared streams or Recipes.
 
@@ -111,7 +111,7 @@ in [Python wire mapping](core/wire.md).
 
 ## Version identity
 
-The canonical human-readable label is `OBST 0.1-apple`. `apple` is the stable
+The canonical human-readable label is `OBST 0.2-apple`. `apple` is the stable
 codename for major version `0`; every minor version in major version `0` keeps
 that codename. A codename is never reassigned to another major version.
 
@@ -122,18 +122,18 @@ that codename. A codename is never reassigned to another major version.
 The numeric major and minor are the machine-readable wire identity. Both the
 container and manifest headers store them, and both must match the version
 understood by the reader. The codename is derived from the major number and is
-not stored as another string in v0.1. Adding it would change the byte layout
+not stored as another string in v0.2. Adding it would change the byte layout
 without adding compatibility information.
 
 ## Container header
 
 The container starts with this 32-byte header:
 
-| Offset | Size | Type  | Field         | v0.1 value or meaning                   |
+| Offset | Size | Type  | Field         | v0.2 value or meaning                   |
 | -----: | ---: | ----- | ------------- | --------------------------------------- |
 |      0 |    4 | bytes | magic         | ASCII `OBST`                            |
 |      4 |    1 | u8    | version major | `0`                                     |
-|      5 |    1 | u8    | version minor | `1`                                     |
+|      5 |    1 | u8    | version minor | `2`                                     |
 |      6 |    2 | u16   | header size   | `32`                                    |
 |      8 |    4 | u32   | flags         | `0`                                     |
 |     12 |    4 | u32   | manifest size | complete manifest, including its header |
@@ -150,11 +150,11 @@ little-endian integer representation `TSBO` therefore produces invalid magic.
 The manifest begins immediately after the container header. It has a 24-byte
 header followed by a variable-size body:
 
-| Offset | Size | Type  | Field           | v0.1 value or meaning             |
+| Offset | Size | Type  | Field           | v0.2 value or meaning             |
 | -----: | ---: | ----- | --------------- | --------------------------------- |
 |      0 |    4 | bytes | magic           | ASCII `MANF`                      |
 |      4 |    1 | u8    | version major   | `0`                               |
-|      5 |    1 | u8    | version minor   | `1`                               |
+|      5 |    1 | u8    | version minor   | `2`                               |
 |      6 |    2 | u16   | header size     | `24`                              |
 |      8 |    4 | u32   | extension count | extension table entries           |
 |     12 |    4 | u32   | body size       | bytes following this header       |
@@ -286,7 +286,7 @@ one example.
 
 Each chunk has a 64-byte header followed immediately by its encoded payload:
 
-| Offset | Size | Type  | Field               | v0.1 value or meaning             |
+| Offset | Size | Type  | Field               | v0.2 value or meaning             |
 | -----: | ---: | ----- | ------------------- | --------------------------------- |
 |      0 |    4 | bytes | magic               | ASCII `CHNK`                      |
 |      4 |    2 | u16   | header size         | `64`                              |
@@ -323,7 +323,7 @@ not make conforming bytes invalid.
 Every container ends with exactly one 64-byte terminal commit. EOF before it is
 truncation, and any byte after it is invalid trailing data.
 
-| Offset | Size | Type  | Field                | v0.1 value or meaning                        |
+| Offset | Size | Type  | Field                | v0.2 value or meaning                        |
 | -----: | ---: | ----- | -------------------- | -------------------------------------------- |
 |      0 |    4 | bytes | magic                | ASCII `CMIT`                                 |
 |      4 |    2 | u16   | record size          | `64`                                         |
@@ -422,7 +422,7 @@ capabilities and the declared logical size and hash fields. Stage-specific
 parameter spaces remain in their independent contract suites instead of being
 duplicated here.
 
-Before the first compatibility release, an intentional v0.1 wire change updates
+Before the first compatibility release, an intentional v0.2 wire change updates
 this specification, the implementation and every affected vector together.
 After publication freezes a compatibility promise, an incompatible change
 requires a new format version and new vectors.

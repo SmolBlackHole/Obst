@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "obst-defaults"
-version = "0.1.0"
+version = "0.2.0"
 description = "Explicitly activated first-party tooling for OBST"
 readme = "README.md"
 license = "MPL-2.0"
 requires-python = ">=3.14"
-dependencies = ["obst==0.1.0"]
+dependencies = ["obst==0.2.0"]
 
 [project.optional-dependencies]
 dev = [

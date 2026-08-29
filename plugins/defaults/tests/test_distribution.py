@@ -46,7 +46,7 @@ def _run(
 
 
 def test_installed_distribution_publishes_all_plugin_contributions() -> None:
-    assert version("obst-defaults") == "0.1.0"
+    assert version("obst-defaults") == "0.2.0"
     assert metadata("obst-defaults")["License-Expression"] == "MPL-2.0"
     contributions = {
         (entry.group, entry.name, entry.value)

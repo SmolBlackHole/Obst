@@ -50,7 +50,7 @@ Untrusted OBST bytes alone never acquire or execute new code.
 A distribution, plugin, Extension and command are separate identities:
 
 ```text
-Python distribution: obst-example-adaptive-zlib 0.1.0
+Python distribution: obst-example-adaptive-zlib 0.2.0
     -> plugin name: adaptive-zlib
         -> Extension ID: org.example/adaptive-zlib@1
         -> command name: adaptive-pack
