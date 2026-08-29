@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Public contracts for plugin-contributed OBST CLI commands."""
 
 from __future__ import annotations

@@ -2,6 +2,11 @@
 
 Parent: [Portable files](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 `FileArchiver.open_sources()` turns explicitly selected regular files into
 bounded logical stream sources. This page owns source-handle validation and
 shows how callers combine those sources with their chosen Recipe, Packager and

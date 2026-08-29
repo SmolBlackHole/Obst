@@ -1,6 +1,11 @@
 # Stream profiles
 
-Parent: [Extension system](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 A stream profile gives recovered logical bytes application meaning. It owns a
 versioned stream-type ID, metadata bytes and the rules for interpreting the
@@ -118,7 +123,7 @@ provider to that contract's documented value type before invoking it.
 
 Application adapters may define narrower optional capabilities outside the
 core. The
-[`obst-defaults` file adapter](../../plugins/defaults/docs/files/profiles.md), for
+[`obst-defaults` file adapter](../../../plugins/defaults/docs/files/profiles.md), for
 example, recognizes file-source and file-materializer protocols. It resolves
 them by exact stream-profile ID and permits at most one provider for each
 capability under that ID. These protocols remain distinct from generic
@@ -130,7 +135,7 @@ filesystem promises.
 The registry advertises an extension's optional `interpret_metadata()`
 capability but does not execute it during registration. Inspection invokes it
 only when the host permits that profile ID through an explicit
-[`InspectionInterpretationPolicy`](../core/inspection.md#optional-interpretation).
+[`InspectionInterpretationPolicy`](../inspection.md#optional-interpretation).
 
 Inspection fields use exact built-in `str`, `int`, `bool` or `None` values and
 unique string names. Labels and errors are exact non-empty strings when
@@ -155,10 +160,10 @@ something much less reasonable.
 
 ## Stream-contract examples
 
-| Stream type    | Meaning                                | Normative contract                                                       | Python integration                                          |
-| -------------- | -------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| `obst.bytes@1` | Opaque bytes with empty metadata       | [Bytes](../contracts/streams/bytes.md)                                   | Core contract                                               |
-| `obst.file@1`  | Plugin-defined portable file semantics | [Plugin contract](../../plugins/defaults/docs/contracts/streams/file.md) | [Plugin guide](../../plugins/defaults/docs/files/README.md) |
+| Stream type    | Meaning                                | Normative contract                                                          | Python integration                                             |
+| -------------- | -------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `obst.bytes@1` | Opaque bytes with empty metadata       | [Bytes](../../format.md#obstbytes1-stream-contract)                         | Core contract                                                  |
+| `obst.file@1`  | Plugin-defined portable file semantics | [Plugin contract](../../../plugins/defaults/docs/contracts/streams/file.md) | [Plugin guide](../../../plugins/defaults/docs/files/README.md) |
 
 `obst.bytes@1` is the sole core stream contract and needs no registry entry.
 The installable `obst-defaults` plugin supplies the second example as an

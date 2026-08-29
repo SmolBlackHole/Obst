@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults documentation](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 `obst-defaults` supplies the `obst.delta8@1` byte transform. It is an ordinary
 Stage Extension intended to expose patterns to a later codec.
 
@@ -32,7 +37,7 @@ operations in reverse order.
 
 ## Contract boundary
 
-The generic [Stage API](../../../docs/extensions/stages.md) owns binding,
+The generic [Stage API](../../../docs/toolchain/extension-api/stages.md) owns binding,
 provider failures and chunk-local execution. Lossy conversion is not a
 reversible Stage; application-level numeric meaning belongs to a versioned
-[stream profile](../../../docs/extensions/profiles.md).
+[stream profile](../../../docs/toolchain/extension-api/profiles.md).

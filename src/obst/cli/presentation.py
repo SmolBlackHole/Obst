@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Shared safe presentation primitives for host and plugin CLI commands."""
 
 from __future__ import annotations

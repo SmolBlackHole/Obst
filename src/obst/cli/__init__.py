@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """OBST command-line host and public command contribution contracts."""
 
 from obst.cli.commands import CliCommand, CliCommandError, CliContext

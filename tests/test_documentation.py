@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 from __future__ import annotations
 
 import ast
@@ -308,10 +312,10 @@ def test_public_docs_include_canonical_executable_examples() -> None:
         for document, example_index, _source in EXECUTABLE_PYTHON_EXAMPLES
     }
     assert identities == {
-        ("docs/core/README.md", 1),
-        ("docs/core/resources.md", 1),
-        ("docs/extensions/profiles.md", 1),
-        ("docs/extensions/stages.md", 1),
+        ("docs/toolchain/README.md", 1),
+        ("docs/toolchain/resources.md", 1),
+        ("docs/toolchain/extension-api/profiles.md", 1),
+        ("docs/toolchain/extension-api/stages.md", 1),
     }
 
 

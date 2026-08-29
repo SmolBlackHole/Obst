@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults](../README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This documentation describes only the capabilities supplied by the
 `obst-defaults` distribution. The OBST project documentation remains
 authoritative for the byte format, public runtime protocols, plugin trust
@@ -40,6 +45,6 @@ boundary and generic Extension behavior.
 ## OBST runtime references
 
 - [OBST documentation](../../../docs/README.md)
-- [Extension protocols](../../../docs/extensions/README.md)
-- [Plugin loading and trust](../../../docs/extensions/plugins.md)
+- [Extension protocols](../../../docs/toolchain/extensions.md)
+- [Plugin loading and trust](../../../docs/toolchain/plugins.md)
 - [Format specification](../../../docs/format.md)

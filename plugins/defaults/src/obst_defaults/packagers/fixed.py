@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Shipped deterministic fixed-recipe packaging policy."""
 
 from __future__ import annotations

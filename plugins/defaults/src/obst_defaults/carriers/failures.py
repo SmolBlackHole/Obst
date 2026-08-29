@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Internal failure normalization shared by concrete default carriers."""
 
 from typing import Never

@@ -1,5 +1,10 @@
 # OBST: OBST Binary Storage & Transformations
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 <p align="center">
   <img src="docs/assets/Hero.png" alt="OBST logo: a layered apple-shaped binary container" width="960"><br>
 <sub>Illustration generated with ChatGPT.</sub>
@@ -70,6 +75,12 @@ The container records which logical streams exist, how each chunk was
 represented and what a decoder needs to recover the original bytes. The
 encoder may be simple or absurdly sophisticated. The decoder should not have
 to care.
+
+The versioned [format specification](docs/format.md) is the canonical
+definition of valid OBST bytes. Anyone may implement that contract. Modified
+specifications and incompatible formats do not become official OBST revisions;
+the [name-use policy](TRADEMARKS.md) keeps technical interoperability separate
+from project identity.
 
 ## Try it in 20 seconds (I timed it! :D)
 
@@ -156,11 +167,11 @@ Installing a distribution only makes its plugin discoverable. Persistent
 enablement, one-shot selection or an explicit conformance test is the separate
 host decision that permits its Python code to execute.
 
-The [command-line guide](docs/cli.md) documents stdin, flags, JSON output and
-archive safety rules. The [runtime error reference](docs/errors.md) owns exit
+The [command-line guide](docs/toolchain/cli.md) documents stdin, flags, JSON output and
+archive safety rules. The [runtime error reference](docs/toolchain/errors.md) owns exit
 codes and failure examples. For a complete snapshot of the current toolchain,
-see the [human-readable CLI output](docs/cli-output-reference.md) and the
-[JSON output reference](docs/cli-json-output-reference.md).
+see the [human-readable CLI output](docs/toolchain/cli-output-reference.md) and
+the [JSON output reference](docs/toolchain/cli-json-output-reference.md).
 
 ## But why would I want another container format?
 
@@ -264,8 +275,8 @@ registry and provider contracts. There is no first-party VIP entrance.
 
 Only Stage and stream-profile IDs enter container bytes. Carriers and
 packagers are runtime capabilities chosen by the host. The
-[extension guide](docs/extensions/README.md) maps those boundaries, while the
-[plugin guide](docs/extensions/plugins.md) explains installation, activation
+[Extension guide](docs/toolchain/extensions.md) maps those boundaries, while the
+[plugin guide](docs/toolchain/plugins.md) explains installation, activation
 and the trusted-code boundary.
 
 ## How do the pieces fit together?
@@ -296,7 +307,7 @@ No. The byte stream is the format. A `.obst` file is one possible carrier.
 The same bytes may live in memory, flash, a database BLOB, an object store or
 anything else that can move binary data without becoming creative about it.
 
-The [reader is single-pass](docs/core/reading.md#structural-reading) and does
+The [reader is single-pass](docs/toolchain/reading.md#structural-reading) and does
 not require seeking, so bytes may arrive through stdin, a socket or an HTTP
 body before somebody stores them in a place they will eventually call
 cloud-native. The carrier changes. The container does not.
@@ -306,7 +317,7 @@ is an adapter around the core, not a secret filesystem model hiding inside it.
 
 ## What happens if a decoder is missing?
 
-The container remains [structurally inspectable](docs/core/inspection.md). The
+The container remains [structurally inspectable](docs/toolchain/inspection.md). The
 manifest declares the available recipes and stages before the first payload
 chunk arrives. Which stages are actually required depends on the recipes
 referenced by the chunks.
@@ -420,7 +431,7 @@ Start with the [documentation index](docs/README.md). It routes format authors,
 application developers, extension authors and CLI users to the authoritative
 page instead of making this README impersonate a small book. For the shortest
 paths, see the [anatomy](docs/anatomy.md), [format specification](docs/format.md),
-[CLI guide](docs/cli.md), [extension guide](docs/extensions/README.md) and
+[CLI guide](docs/toolchain/cli.md), [toolchain guide](docs/toolchain/README.md) and
 [roadmap](ROADMAP.md).
 
 ## Status
@@ -434,7 +445,8 @@ capabilities. The explicitly activated `obst-defaults` plugin supplies Delta8,
 zlib and portable-file tooling without a privileged loading path.
 
 The reference implementation and first-party tooling are open source under the
-[Mozilla Public License 2.0](LICENSE).
+[Mozilla Public License 2.0](LICENSES/MPL-2.0.txt). Normative format and
+Extension contracts use [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt).
 
 ## How this happened
 
@@ -483,11 +495,28 @@ another excuse to keep turning random things into fruit. Thank you! :D
 
 ## License
 
-OBST is licensed under the [Mozilla Public License 2.0](LICENSE). MPL-2.0
-applies file-level copyleft: changes to covered files remain available under
-MPL-2.0, while independently written Extensions may use another license.
+This is a multi-license repository. The SPDX metadata in each file, or its
+matching `REUSE.toml` annotation, is authoritative.
 
-The license does not force an independent Extension to publish its decoder.
-Wire-visible Extensions proposed for first-party distribution must therefore
-document their decoding contract publicly. An encoder may remain proprietary;
-recovering the bytes must not require guessing what it did.
+| Material                                                   | License                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------- |
+| OBST format specification and normative contracts          | [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt)                     |
+| Reference implementation, tooling and general project docs | [MPL 2.0](LICENSES/MPL-2.0.txt)                               |
+| Unsplash sample images and containers that embed them      | [Unsplash License](LICENSES/LicenseRef-Unsplash.txt)          |
+| Files with an explicit SPDX identifier                     | The identifier or `REUSE.toml` annotation governing that file |
+
+CC BY-ND permits redistribution of the canonical specification with
+attribution but not publication of altered versions under that license. MPL
+2.0 applies file-level copyleft to the covered toolchain files, while
+independently written Extensions may use another license.
+
+Neither license grants rights to the OBST name or branding. The
+[name-use policy](TRADEMARKS.md) permits truthful compatibility statements and
+reserves official project identity. Citation metadata lives in
+[`CITATION.cff`](CITATION.cff).
+
+An independent Extension is not forced to publish its decoder merely because
+it interoperates with OBST. Wire-visible Extensions proposed for first-party
+distribution must document their decoding contract publicly. An encoder may
+remain proprietary; recovering the bytes must not require guessing what it
+did.

@@ -1,9 +1,14 @@
 # OBST command-line guide
 
-Parent: [Documentation index](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 This page documents the CLI that exists. The
-[roadmap](../ROADMAP.md) owns unfinished commands and delivery order.
+[roadmap](../../ROADMAP.md) owns unfinished commands and delivery order.
 
 The runtime CLI owns format inspection, plugin management, capability inventory
 and help. Explicitly activated plugins may contribute additional commands. The
@@ -45,7 +50,7 @@ The table uses `obst-defaults` only as a real contributed-command example:
 | `limits`     | Inspect and manage local resource limit profiles      | No          |
 | `help`       | Show general or command-specific help                 | No          |
 
-The [`obst-defaults` CLI guide](../plugins/defaults/docs/cli.md) owns the
+The [`obst-defaults` CLI guide](../../plugins/defaults/docs/cli.md) owns the
 behavior and policy of its `pack` and `unpack` commands.
 
 Installation does not activate any plugin. The persisted host state may enable
@@ -53,7 +58,7 @@ Installation does not activate any plugin. The persisted host state may enable
 command may also add one exact `--plugin` name to its operation without changing
 that state. This cannot make a command from an inactive plugin appear, because
 the host builds its command tree only from already enabled plugins. See
-[Extension packages and plugin discovery](extensions/plugins.md) for the
+[Extension packages and plugin discovery](plugins.md) for the
 factory contract and trust boundary.
 
 Generic version output and help for native commands do not load contributed
@@ -209,7 +214,7 @@ object pipeline can change arbitrary binary bytes before OBST receives them.
 
 ### What inspection validates
 
-The [container anatomy](anatomy.md#the-pieces-at-a-glance) defines the manifest,
+The [container anatomy](../anatomy.md#the-pieces-at-a-glance) defines the manifest,
 streams, recipes, chunks and stages named below.
 
 Inspection consumes the complete container in one pass. The input does not
@@ -322,7 +327,7 @@ either URL or load provider code.
 For first-party containers, declared and local URLs normally match because the
 packer copied the same registered descriptor that the CLI registers for
 inspection. A mismatch is still displayed rather than silently resolved. See
-[Container inspection](core/inspection.md) for the complete provenance model.
+[Container inspection](inspection.md) for the complete provenance model.
 
 `stream_details.metadata_hex` and every stage's `parameters_hex` are the raw,
 authoritative bytes. Interpreter output is optional additional meaning. An
@@ -458,7 +463,7 @@ Crossing a ceiling reports `obst: resource_limit: ...` with exit code `10`.
 Malformed or unavailable profile state reports `obst: limit_state: ...` with
 exit code `12`. Neither failure labels the container corrupt. The complete
 typed API, defaults and accounting scopes live in the
-[resource guide](core/resources.md).
+[resource guide](resources.md).
 
 ## Black magic that already works
 

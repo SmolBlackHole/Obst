@@ -1,6 +1,11 @@
 # Codec Stages
 
-Parent: [Extension system](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 A codec is a [Stage Extension](stages.md) whose main purpose is compression or
 another stored representation. It is a design role, not a separate registry
@@ -42,11 +47,11 @@ parallel execution. A provider must never fetch code or capabilities based on
 container input.
 
 See the [Stage guide](stages.md) for complete provider protocols and
-[Recipe execution](../core/recipes.md) for forward and inverse ordering.
+[Recipe execution](../internals/recipes.md) for forward and inverse ordering.
 
 ## Concrete examples
 
 The separately distributed
-[`obst-defaults` codec guide](../../plugins/defaults/docs/codecs.md) documents
+[`obst-defaults` codec guide](../../../plugins/defaults/docs/codecs.md) documents
 its zlib providers. Those algorithms and parameter contracts are owned
 and tested by that plugin, not by this generic runtime page.

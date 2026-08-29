@@ -1,6 +1,11 @@
 # Extension registry
 
-Parent: [Core API](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 The extension registry is the host-controlled composition point between OBST
 core operations and installed extension objects. It validates offered
@@ -53,7 +58,7 @@ from obst.core import ExtensionRegistry
 registry = ExtensionRegistry(trusted_extensions)
 ```
 
-The [extension guides](../extensions/README.md) own the provider protocols and
+The [Extension guide](../extensions.md) owns the provider protocols and
 show how to implement an extension. The registry owns only validation,
 composition and lookup.
 
@@ -137,7 +142,7 @@ therefore build diagnostics, capability negotiation inputs or CLI output
 without reaching into registry internals.
 
 Installed-package discovery remains a separate, explicit host operation. The
-[plugin guide](../extensions/plugins.md) shows how inert entry-point metadata
+[plugin guide](../plugins.md) shows how inert entry-point metadata
 becomes ordinary extension values before registry construction.
 
 ## Compose adapter-specific capabilities
@@ -152,7 +157,7 @@ for contribution in registry.contributions():
 
 This is the supported attachment point for application adapters that define
 their own optional protocols. The
-[`obst-defaults` file adapter](../../plugins/defaults/docs/files/profiles.md), for
+[`obst-defaults` file adapter](../../../plugins/defaults/docs/files/profiles.md), for
 example, recognizes file-source and file-materializer methods without teaching
 the core what a file is.
 
@@ -328,7 +333,7 @@ metadata_interpreter = registry.get_stream_metadata_interpreter(stream_type)
 ```
 
 These methods return the registered interpreter provider or `None`. Lookup does
-not invoke extension code. [`inspect_container()`](inspection.md) calls an
+not invoke extension code. [`inspect_container()`](../inspection.md) calls an
 interpreter only when the host explicitly includes its ID in an
 `InspectionInterpretationPolicy`.
 
@@ -353,8 +358,8 @@ host trusts.
 
 ## Related documentation
 
-- [Extension system](../extensions/README.md)
-- [Stage providers](../extensions/stages.md)
+- [Extension system](../extensions.md)
+- [Stage providers](../extension-api/stages.md)
 - [Recipe and chunk execution](recipes.md)
-- [Container inspection](inspection.md)
+- [Container inspection](../inspection.md)
 - [Runtime errors](../errors.md)

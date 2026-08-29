@@ -1,6 +1,11 @@
 # Resource policy and accounting
 
-Parent: [Core API](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 Resource policy answers one question: how much local work may this operation
 perform? Accounting answers the next one: how much work has this operation
@@ -101,7 +106,7 @@ For an operation using only Core defaults:
 accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
 ```
 
-The [`obst limits`](../cli.md#resource-limit-profiles) commands manage local
+The [`obst limits`](cli.md#resource-limit-profiles) commands manage local
 profiles. Plugin profiles remain inert until the host selects one.
 
 ## Core resources

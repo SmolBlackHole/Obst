@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults documentation](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This distribution owns a static, portable conformance suite for every
 wire-visible contract it implements. The suite is package data and is exposed
 through the ordinary `obst.conformance` plugin entry point.
@@ -58,5 +63,5 @@ providers. Runtime-only Carriers and Packagers have no wire vectors; their
 request, lifecycle and publication behavior belongs to ordinary tests under
 `plugins/defaults/tests`.
 
-The root [conformance guide](../../../docs/conformance.md) owns the catalog
+The root [conformance guide](../../../docs/toolchain/conformance.md) owns the catalog
 schema, public runner API, format corpus and interoperability evidence.

@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults Packagers](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The fixed packager writes every logical source exactly once using the recipe
 already declared by that source. It performs no candidate search and no hidden
 codec selection. The resulting manifest and ID assignment are deterministic
@@ -76,7 +81,7 @@ terminal commit closes the representation.
 recipe execution and container writing. It never replaces the host selection
 with a local default.
 The
-[resource guide](../../../../docs/core/resources.md) documents the defaults and refusal
+[resource guide](../../../../docs/toolchain/resources.md) documents the defaults and refusal
 semantics.
 
 ## What fixed does not mean
@@ -87,6 +92,6 @@ may declare different recipes, and a stage provider may still have multiple
 valid encodings unless its own contract requires canonical output.
 
 Automatic candidate search and two-pass spooling are separate roadmap work.
-See the [packager overview](../../../../docs/extensions/packagers.md#third-party-policies) for the policy
-boundary and [core packaging](../../../../docs/core/packaging.md) for the shared operation
+See the [packager overview](../../../../docs/toolchain/extension-api/packagers.md#third-party-policies) for the policy
+boundary and [core packaging](../../../../docs/toolchain/internals/packaging.md) for the shared operation
 contracts.

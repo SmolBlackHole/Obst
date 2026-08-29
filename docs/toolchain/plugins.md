@@ -1,6 +1,11 @@
 # Extension plugins and the plugin manager
 
-Parent: [Extension system](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 An OBST Python plugin is one named set of contributions from an installed
 distribution. It may provide ordinary Extensions, CLI commands, resource
@@ -74,7 +79,7 @@ packager Extensions; one command factory may return several commands.
 
 ## Package layout and installation choices
 
-The [design notes](../design.md#python-distributions-and-activation) own the
+The [toolchain overview](README.md#distributions-and-activation) owns the
 repository's distribution split and the reason installation never implies
 activation. After installing `obst-defaults`, the host explicitly enables it:
 
@@ -117,7 +122,7 @@ def obst_extensions() -> tuple[Extension, ...]:
 ```
 
 Every returned object passes through the same
-[`ExtensionRegistry`](../core/registry.md) validation as directly imported
+[`ExtensionRegistry`](internals/registry.md) validation as directly imported
 Extension objects from `obst_defaults` or a third-party package. The plugin
 factory is not a second provider API and receives no privileged registration
 path.
@@ -235,7 +240,7 @@ Discovery remains inert. A resource factory runs only when its plugin is
 enabled or selected for one operation. Enabling the plugin makes its resources
 and profiles available; it never selects a profile. The host chooses a profile
 explicitly through `ResourceCatalog.policy()` or
-[`obst limits use`](../cli.md#resource-limit-profiles). Unknown overrides kept
+[`obst limits use`](cli.md#resource-limit-profiles). Unknown overrides kept
 in local state do not activate the missing plugin.
 
 ### Conformance contribution
@@ -262,7 +267,7 @@ def obst_conformance() -> ConformanceSuite:
 ```
 
 The package includes one `conformance_vectors/index.json`. The shared
-[conformance guide](../conformance.md#plugin-extension-suites) owns the catalog
+[conformance guide](conformance.md#plugin-extension-suites) owns the catalog
 schema, portable case kinds and public load, write and run APIs.
 
 The `obst.extensions`, `obst.commands`, `obst.resources` and
@@ -360,7 +365,7 @@ assert report.passed
 The manager loads the static suite and the target's Extension contribution
 when one exists, validates those Extensions through an isolated registry, then
 runs the portable cases through
-[`obst.conformance`](../conformance.md#plugin-extension-suites).
+[`obst.conformance`](conformance.md#plugin-extension-suites).
 The renderer-neutral report lists every case ID, kind, optional Extension ID,
 pass state and failure text.
 
@@ -402,7 +407,7 @@ augments the runtime for a command whose parser is already available and does
 not modify the enabled set. It cannot expose a command contributed only by that
 inactive plugin, because command parsers are built from the persistently
 enabled set. Enable a command-owning plugin before invoking its command. The
-[CLI guide](../cli.md#manage-plugins-and-inspect-capabilities) owns the exact
+[CLI guide](cli.md#manage-plugins-and-inspect-capabilities) owns the exact
 commands and JSON projections.
 
 ## Conflicts and dependencies

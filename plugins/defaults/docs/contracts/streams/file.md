@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults stream contracts](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
 Status: experimental first-party stream-profile contract.
 
 Contract type: logical stream profile.

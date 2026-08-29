@@ -1,8 +1,14 @@
 # Extending OBST
 
-Parent: [Documentation index](../README.md)
+Parent: [Python toolchain](README.md)
 
-OBST has one core stream contract: [`obst.bytes@1`](../contracts/streams/bytes.md).
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
+OBST has one core stream contract:
+[`obst.bytes@1`](../format.md#obstbytes1-stream-contract).
 Capabilities that give logical bytes additional meaning, transform their
 representation, select packaging policy or connect a host endpoint are
 extensions. First-party and third-party implementations use the same public
@@ -10,13 +16,13 @@ boundaries.
 
 | Boundary        | Owns                                             | Wire-visible ID | Guide                                        |
 | --------------- | ------------------------------------------------ | --------------- | -------------------------------------------- |
-| Stage           | Reversible processing of chunk bytes             | Yes             | [Stages](stages.md)                          |
-| Codec           | Compression-oriented stage role                  | Yes, as a stage | [Codecs](codecs.md)                          |
-| Transform       | Structure-oriented stage role                    | Yes, as a stage | [Transforms](transforms.md)                  |
-| Stream profile  | Meaning and metadata of logical bytes            | Yes             | [Profiles](profiles.md)                      |
-| Carrier         | Reading, writing or publishing container bytes   | No              | [Carriers](carriers.md)                      |
-| Packager        | Policy for producing one valid container         | No              | [Packagers](packagers.md)                    |
-| Archiver        | Composition between domain inputs and containers | No              | [Archivers](archivers.md)                    |
+| Stage           | Reversible processing of chunk bytes             | Yes             | [Stages](extension-api/stages.md)            |
+| Codec           | Compression-oriented stage role                  | Yes, as a stage | [Codecs](extension-api/codecs.md)            |
+| Transform       | Structure-oriented stage role                    | Yes, as a stage | [Transforms](extension-api/transforms.md)    |
+| Stream profile  | Meaning and metadata of logical bytes            | Yes             | [Profiles](extension-api/profiles.md)        |
+| Carrier         | Reading, writing or publishing container bytes   | No              | [Carriers](extension-api/carriers.md)        |
+| Packager        | Policy for producing one valid container         | No              | [Packagers](extension-api/packagers.md)      |
+| Archiver        | Composition between domain inputs and containers | No              | [Archivers](extension-api/archivers.md)      |
 | Plugin command  | Host-facing composition supplied by a plugin     | No              | [Plugins](plugins.md)                        |
 | Resource policy | Typed local ceilings and inert named profiles    | No              | [Plugins](plugins.md#resource-contributions) |
 | Plugin          | Named contributions from one distribution        | No new ID kind  | [Plugins](plugins.md)                        |
@@ -96,17 +102,17 @@ The object itself implements the structural protocols for the capabilities it
 offers. `ExtensionDescriptor` contains local descriptive metadata and does not
 repeat the ID. The registry is immutable once composed, and one provider per
 capability and Extension ID is the limit. The
-[registry guide](../core/registry.md) owns conflict rules, snapshots, lookups
+[registry guide](internals/registry.md) owns conflict rules, snapshots, lookups
 and the host trust boundary.
 
 Registration inspects provider shape without executing providers or optional
-interpreters. [Recipe execution](../core/recipes.md) owns Stage binding;
-[inspection](../core/inspection.md) owns its explicit interpretation policy.
+interpreters. [Recipe execution](internals/recipes.md) owns Stage binding;
+[inspection](inspection.md) owns its explicit interpretation policy.
 
 The [contract index](../contracts/README.md) owns the built-in stream contract
 and routes to contracts published by provider distributions. These pages
 document the Python implementation boundary. The
-[recipe execution guide](../core/recipes.md) shows how a registry participates
+[recipe execution guide](internals/recipes.md) shows how a registry participates
 in encoding and decoding.
 
 The separately installed

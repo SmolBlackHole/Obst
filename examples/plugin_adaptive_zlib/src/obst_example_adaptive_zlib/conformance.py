@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Static portable conformance suite shipped by the example plugin."""
 
 from importlib.resources import files

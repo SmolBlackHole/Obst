@@ -2,6 +2,11 @@
 
 Parent: [Portable files](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The Defaults file adapter discovers directional file capabilities by exact
 stream-profile ID. This page owns those Python protocols and their composition;
 the [`obst.file@1` contract](../contracts/streams/file.md) separately owns the
@@ -26,7 +31,7 @@ wire-visible basename and logical-byte rules.
 The caller owns the registry, Recipe, Packager, Carrier, resource policy and
 publication lifecycle. `FileArchiver` receives one immutable registry and
 never discovers plugins or chooses hidden codec policy. The general
-[application-adapter guide](../../../../docs/extensions/archivers.md#compose-an-adapter)
+[application-adapter guide](../../../../docs/toolchain/extension-api/archivers.md#compose-an-adapter)
 owns that flow.
 
 For one Extension ID there may be at most one file-source provider and one

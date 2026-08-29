@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Replaceable runtime adapters for publishing OBST byte streams."""
 
 from __future__ import annotations

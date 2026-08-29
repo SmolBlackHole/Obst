@@ -1,6 +1,11 @@
 # Runtime errors
 
-Parent: [Documentation index](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 OBST distinguishes malformed container bytes, unavailable capabilities,
 extension failures and endpoint failures. Callers should catch the narrowest
@@ -152,7 +157,7 @@ except MissingStageError as error:
     assert error.capability == "decoder"
 ```
 
-Structural [inspection](core/inspection.md) can still describe such a
+Structural [inspection](inspection.md) can still describe such a
 container. Logical decoding cannot recover chunks that actually use the
 missing stage.
 
@@ -223,7 +228,7 @@ except ResourceLimitError as error:
 
 The CLI reports the same family as `resource_limit` and returns exit code `10`.
 Changing local policy may make the operation acceptable without changing the
-container bytes. See [Resource policy](core/resources.md).
+container bytes. See [Resource policy](resources.md).
 
 ## CLI failure contract
 
@@ -254,7 +259,7 @@ Native `inspect` reports failures opening or reading its local path or stdin as
 `io_error` with exit code `5`. Contributed commands may define additional
 error kinds and exit codes through `CliCommandError`; the contributing plugin
 owns their documentation. For example, `obst-defaults` documents its
-[file and Carrier failures](../plugins/defaults/docs/errors.md) separately.
+[file and Carrier failures](../../plugins/defaults/docs/errors.md) separately.
 
 `obst inspect --require-decodable` returns `4` without an error kind when the
 stored container is valid but a stage required by an actual payload chunk is

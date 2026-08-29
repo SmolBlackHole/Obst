@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Ordinary plugin factory for the extensions shipped by this distribution."""
 
 from __future__ import annotations

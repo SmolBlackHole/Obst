@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Package-owned conformance checks for the OBST wire format."""
 
 from __future__ import annotations

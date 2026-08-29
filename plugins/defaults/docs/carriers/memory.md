@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults Carriers](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The memory carrier adapts one complete OBST byte stream to or from immutable
 Python `bytes`. It is useful for tests, examples and applications that already
 own the complete container in memory. It is intentionally not a streaming or
@@ -75,5 +80,5 @@ boundary around a prepared package operation.
 The completed container must fit in memory, and committing creates an immutable
 byte string from the internal buffer. For large or continuously arriving data,
 select a carrier with a streaming writer or an external transactional target.
-The [resource policy](../../../../docs/core/resources.md) bounds OBST parsing and recipe
+The [resource policy](../../../../docs/toolchain/resources.md) bounds OBST parsing and recipe
 work, but it does not turn this adapter into bounded external storage.

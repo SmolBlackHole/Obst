@@ -1,3 +1,13 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
+include CITATION.cff
+include LICENSE
+include LICENSES/CC-BY-ND-4.0.txt
 include ROADMAP.md
+include REUSE.toml
+include TRADEMARKS.md
 recursive-include docs *.md *.png
-recursive-include conformance *.md *.json *.hex
+prune docs/audits
+prune docs/history

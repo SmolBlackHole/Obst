@@ -2,6 +2,11 @@
 
 Parent: [Documentation index](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
 OBST sits between logical byte streams and the place that carries the finished
 container bytes. This page introduces the parts inside that boundary and shows
 how they fit together. The [binary format](format.md) owns exact fields, sizes
@@ -30,16 +35,16 @@ and validity rules.
 | [Manifest](format.md#manifest)                              | The declarations that chunks may reference: Extension IDs, Recipes and logical streams.  |
 | [Extension declaration](format.md#extension-table)          | One versioned stream-profile or Stage ID, plus an optional specification URL.            |
 | [Stream](#streams-own-logical-identity)                     | One ordered logical byte sequence with a stream-profile ID, metadata and default Recipe. |
-| [Stream profile](extensions/profiles.md)                    | A versioned contract for the meaning of one stream's recovered bytes and metadata.       |
-| [Stage](extensions/stages.md)                               | One versioned, reversible byte-to-byte operation applied to an individual chunk.         |
+| [Stream profile](toolchain/extension-api/profiles.md)       | A versioned contract for the meaning of one stream's recovered bytes and metadata.       |
+| [Stage](toolchain/extension-api/stages.md)                  | One versioned, reversible byte-to-byte operation applied to an individual chunk.         |
 | [Recipe](#recipes-describe-reversible-representation)       | An ordered list of Stages and their parameter bytes.                                     |
 | [Chunk](#chunks-make-the-stream-bounded)                    | One independently framed part of a stream, stored through one Recipe.                    |
 | [Terminal commit](#the-terminal-commit-proves-completeness) | The closing record that proves the container is complete.                                |
-| [Carrier](extensions/carriers.md)                           | Runtime tooling that connects a complete OBST byte stream to a source or destination.    |
+| [Carrier](toolchain/extension-api/carriers.md)              | Runtime tooling that connects a complete OBST byte stream to a source or destination.    |
 
-The container names contracts, not Python classes or installed packages. A
-trusted local registry can provide implementations for those contracts, but
-the registry itself is not part of the container.
+The container names contracts, not classes or installed packages. A local
+implementation may provide those contracts, but its loading and composition
+mechanism is not part of the container.
 
 ## The outer shape
 
@@ -106,7 +111,8 @@ measurements.bin    -> Recipe 1
 photo.jpg           -> Recipe 2
 ```
 
-The built-in profile and plugin-owned contract catalogs are routed through the
+The built-in profile is defined by the [format specification](format.md#obstbytes1-stream-contract).
+Independent versioned contracts are routed through the
 [contract index](contracts/README.md).
 
 ## Recipes describe reversible representation
@@ -159,8 +165,8 @@ lets readers validate and decode bounded pieces without seeking or loading the
 whole container into memory.
 
 The [format specification](format.md#chunk-framing) defines the fields and
-validation rules. The [reading guide](core/reading.md) explains how the Python
-runtime exposes encoded and recovered chunks.
+validation rules. The [reading guide](toolchain/reading.md) explains how the
+Python runtime exposes encoded and recovered chunks.
 
 ## The terminal commit proves completeness
 
@@ -173,7 +179,8 @@ commitment and EOF rules.
 A streaming reader may yield individually validated chunks before it reaches
 the commit. Consumers must therefore delay publication of recovered output
 until the complete operation finishes successfully. The Python lifecycle is
-documented under [reading](core/reading.md) and [writing](core/writing.md).
+documented under [reading](toolchain/reading.md) and
+[writing](toolchain/writing.md).
 
 ## Unknown does not mean invalid
 
@@ -184,10 +191,9 @@ OBST separates three questions:
 3. Does the application understand each stream profile?
 
 A container that uses `org.example/something-strange@2` may pass structural
-inspection even when the local registry has no decoder for that Stage. If all
-Stages are available but a stream profile is unknown, an implementation may
-still recover the logical bytes without understanding their application
-meaning.
+inspection even when no decoder for that Stage is available. If all Stages are
+available but a stream profile is unknown, an implementation may still recover
+the logical bytes without understanding their application meaning.
 
 This distinction keeps framing, byte recovery and application semantics from
 collapsing into one all-or-nothing result.
@@ -207,9 +213,10 @@ flowchart LR
 ```
 
 A filesystem path, database key, HTTP request or object-store credential is a
-carrier concern. The core receives binary endpoints, not those host-specific
-details.
+carrier concern. An OBST reader or writer receives binary endpoints, not those
+host-specific details.
 
 Continue with the [binary format](format.md) for exact bytes, the
-[core API](core/) for Python operations, or the [extension system](extensions/)
-for provider contracts and composition.
+[toolchain guide](toolchain/) for Python operations, or the
+[Extension system](toolchain/extensions.md) for provider contracts and
+composition.

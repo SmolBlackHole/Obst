@@ -1,6 +1,11 @@
 # Packager extensions
 
-Parent: [Extension system](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 A packager turns declared logical sources into one valid OBST container under
 a provider-defined policy. Sources may already declare Recipes and chunk
@@ -45,7 +50,7 @@ trusted-code boundary.
 - fixed, tuned, incremental or repacking strategy; and
 - the resource policy passed through the operation.
 
-The [core packaging contracts](../core/packaging.md) define logical sources,
+The [core packaging contracts](../internals/packaging.md) define logical sources,
 prepared operations and results without selecting any one policy.
 
 ## What a packager does not own
@@ -62,7 +67,7 @@ logical bytes.
 ## Concrete packagers
 
 The separately installable `obst-defaults` plugin documents its
-[`obst.fixed@1` policy](../../plugins/defaults/docs/packagers/fixed.md). It
+[`obst.fixed@1` policy](../../../plugins/defaults/docs/packagers/fixed.md). It
 enters the registry through the same provider path as every other Packager.
 
 ## Third-party policies
@@ -72,6 +77,6 @@ while changing their representation. An incremental packager may reuse prior
 work. These policies can implement the same provider boundary without changing
 the OBST wire format or teaching a carrier how packaging works.
 
-Unimplemented production policies remain [roadmap](../../ROADMAP.md) work; the
+Unimplemented production policies remain [roadmap](../../../ROADMAP.md) work; the
 extension point does not imply that the reference implementation already ships
 them.

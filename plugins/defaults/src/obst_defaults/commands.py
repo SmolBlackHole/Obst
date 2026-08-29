@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """First-party CLI commands contributed through the ordinary plugin path."""
 
 from __future__ import annotations

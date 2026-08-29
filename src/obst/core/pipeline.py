@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Core forward and reverse execution of registered stage recipes."""
 
 from __future__ import annotations

@@ -2,99 +2,86 @@
 
 Parent: [Project README](../README.md)
 
-OBST is a self-describing, streamable representation layer for logical byte
-streams, between domain formats and storage or transport. This directory maps
-the format, reference API, extensions and supporting project documentation.
-Start with the [project README](../README.md) if you have not met the fruit yet.
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
+OBST and its Python toolchain answer different questions. The format documents
+define valid container bytes. The toolchain documents explain how this
+repository reads, writes, inspects and extends those bytes.
+
+Start with the [project README](../README.md) for the short introduction. Use
+this page when you already know what you want to build or verify.
 
 ## Table of contents
 
 - [OBST documentation](#obst-documentation)
 	- [Table of contents](#table-of-contents)
-	- [I want to... (break free)](#i-want-to-break-free)
-	- [Documentation by layer](#documentation-by-layer)
-		- [Concepts and format](#concepts-and-format)
-		- [Python core](#python-core)
-		- [Extensions and adapters](#extensions-and-adapters)
-		- [Contract catalogs](#contract-catalogs)
-		- [Project support](#project-support)
+	- [Choose a starting point](#choose-a-starting-point)
+	- [The OBST format](#the-obst-format)
+	- [The Python toolchain](#the-python-toolchain)
+	- [Project documentation](#project-documentation)
 	- [Status markers](#status-markers)
 
-## I want to... (break free)
+## Choose a starting point
 
-| Read                                                                               | To                                   |
-| ---------------------------------------------------------------------------------- | ------------------------------------ |
-| [Anatomy of an OBST container](anatomy.md)                                         | understand the container             |
-| [Binary format](format.md) and [contracts](contracts/)                             | implement a reader or writer         |
-| [CLI installation guide](cli.md#install-and-identify-the-format)                   | install the Python packages          |
-| [Conformance](conformance.md) and [format corpus](../src/obst/conformance/corpus/) | check independent interoperability   |
-| [Core API](core/)                                                                  | use the Python library               |
-| [Extension system](extensions/)                                                    | build or ship an extension           |
-| [`obst-defaults` file adapter](../plugins/defaults/docs/files/README.md)           | package or extract regular files     |
-| [CLI guide](cli.md)                                                                | use the command line                 |
-| [Runtime errors](errors.md)                                                        | understand a failure or exit code    |
-| [Design notes](design.md)                                                          | understand an architectural decision |
-| [Roadmap](../ROADMAP.md)                                                           | see unfinished work                  |
+| Goal                             | Start here                                   |
+| -------------------------------- | -------------------------------------------- |
+| Understand the container         | [Container anatomy](anatomy.md)              |
+| Implement OBST independently     | [Normative format](format.md)                |
+| Understand a format decision     | [Design notes](design.md)                    |
+| Use the Python API               | [Python toolchain](toolchain/README.md)      |
+| Build an Extension or plugin     | [Extension system](toolchain/extensions.md)  |
+| Use the command line             | [CLI guide](toolchain/cli.md)                |
+| Run interoperability checks      | [Conformance](toolchain/conformance.md)      |
+| Understand a failure             | [Runtime errors](toolchain/errors.md)        |
+| Package or extract regular files | [`obst-defaults`](../plugins/defaults/docs/) |
+| See unfinished work              | [Roadmap](../ROADMAP.md)                     |
 
-## Documentation by layer
+## The OBST format
 
-### Concepts and format
+The format side is language-neutral. It does not depend on Python packages,
+plugin activation, local resource profiles or a particular Carrier.
 
-| Page                                             | Contents                                                                       |
-| ------------------------------------------------ | ------------------------------------------------------------------------------ |
-| [Anatomy](anatomy.md)                            | Conceptual relationship between headers, manifest, streams, recipes and chunks |
-| [Binary format](format.md)                       | Normative framing, fields, limits and validation rules                         |
-| [Conformance](conformance.md)                    | Independent reconstruction evidence and coverage boundaries                    |
-| [Format corpus](../src/obst/conformance/corpus/) | Valid and invalid language-neutral container cases                             |
-| [Design](design.md)                              | Rationale for implemented architecture and ownership boundaries                |
-| [CLI](cli.md)                                    | Native commands, plugin-host behavior and output modes                         |
-| [Runtime errors](errors.md)                      | Python exceptions, CLI error kinds, exit codes and negative examples           |
+| Page                    | Authority                                                |
+| ----------------------- | -------------------------------------------------------- |
+| [Format](format.md)     | Normative records, validity rules and `obst.bytes@1`     |
+| [Anatomy](anatomy.md)   | Non-normative walkthrough of streams, Recipes and chunks |
+| [Design](design.md)     | Rationale behind format boundaries and non-goals         |
+| [Contracts](contracts/) | Independently versioned, wire-visible contract catalog   |
 
-### Python core
+`format.md` is the sole authority for whether a byte stream conforms to OBST.
+The other pages explain it or route to independent Extension contracts.
 
-| Page                                   | Contents                                                          |
-| -------------------------------------- | ----------------------------------------------------------------- |
-| [Core index](core/README.md)           | Public import boundary and navigation                             |
-| [Extension registry](core/registry.md) | Trusted capability composition and immutable lookup               |
-| [Wire mapping](core/wire.md)           | Python scalar descriptors, record layouts and CRC framing         |
-| [Reading](core/reading.md)             | Structural parsing and logical decoding                           |
-| [Writing](core/writing.md)             | Low-level manifest and chunk serialization                        |
-| [Recipes and chunks](core/recipes.md)  | Direct pipeline execution, chunk integrity and manifest preflight |
-| [Inspection](core/inspection.md)       | Renderer-neutral reports and capability provenance                |
-| [Packaging](core/packaging.md)         | Logical sources, package-operation contracts and result values    |
-| [Resource policy](core/resources.md)   | Typed local ceilings, profiles, accounting and refusal semantics  |
+## The Python toolchain
 
-### Extensions and adapters
+The [toolchain index](toolchain/README.md) owns the reference implementation's
+public boundary and navigation.
 
-| Page                                    | Contents                                                        |
-| --------------------------------------- | --------------------------------------------------------------- |
-| [Extension index](extensions/README.md) | Taxonomy, import boundaries and explicit composition            |
-| [Stages](extensions/stages.md)          | Self-describing providers, binding, limits and interpretation   |
-| [Codecs](extensions/codecs.md)          | Generic compression-oriented Stage guidance                     |
-| [Transforms](extensions/transforms.md)  | Generic reversible preprocessing guidance                       |
-| [Profiles](extensions/profiles.md)      | Logical semantics, metadata and profile interpretation          |
-| [Carriers](extensions/carriers.md)      | Reader, streaming-writer and transactional-publisher lifecycles |
-| [Packagers](extensions/packagers.md)    | Replaceable policy for constructing complete containers         |
-| [Archivers](extensions/archivers.md)    | General domain-to-stream application-adapter pattern            |
-| [Plugins](extensions/plugins.md)        | Opt-in package discovery, factories and trust boundary          |
+| Page                                    | Contents                                                |
+| --------------------------------------- | ------------------------------------------------------- |
+| [Reading](toolchain/reading.md)         | Structural parsing and logical decoding                 |
+| [Writing](toolchain/writing.md)         | Low-level writing and packaging entry points            |
+| [Inspection](toolchain/inspection.md)   | Renderer-neutral structure and capability reports       |
+| [Resources](toolchain/resources.md)     | Typed local ceilings, profiles and operation accounting |
+| [Extensions](toolchain/extensions.md)   | Capability taxonomy, composition and provider APIs      |
+| [Plugins](toolchain/plugins.md)         | Inert discovery, explicit activation and trust boundary |
+| [CLI](toolchain/cli.md)                 | Native commands, plugin-host behavior and output modes  |
+| [Errors](toolchain/errors.md)           | Python exceptions, CLI error kinds and exit codes       |
+| [Conformance](toolchain/conformance.md) | Portable corpus schema, provider suites and runner API  |
 
-### Contract catalogs
+Detailed wire mappings, Recipe execution, packaging internals and individual
+Extension protocols sit below those entry pages. They remain toolchain
+documentation even when they describe language-neutral contracts consumed by
+Python providers.
 
-| Catalog                                                                   | Owner                  |
-| ------------------------------------------------------------------------- | ---------------------- |
-| [Built-in OBST contracts](contracts/README.md)                            | OBST format            |
-| [`obst-defaults` contracts](../plugins/defaults/docs/contracts/README.md) | `obst-defaults` plugin |
+## Project documentation
 
-### Project support
-
-| Page                                                            | Contents                                |
-| --------------------------------------------------------------- | --------------------------------------- |
-| [Writing and maintaining docs](writing-and-maintaining-docs.md) | Authority, status and maintenance rules |
-| [Roadmap](../ROADMAP.md)                                        | Unfinished work and delivery order      |
-
-`format.md` and `contracts/` define bytes. API guides explain the Python
-reference implementation. `design.md` explains why the implemented boundaries
-exist. The roadmap alone owns unfinished work.
+| Page                                                            | Contents                              |
+| --------------------------------------------------------------- | ------------------------------------- |
+| [Writing and maintaining docs](writing-and-maintaining-docs.md) | Authority, structure and review rules |
+| [Roadmap](../ROADMAP.md)                                        | Unfinished work and delivery order    |
 
 ## Status markers
 

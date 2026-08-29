@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Portable static conformance suites for installed OBST Extensions."""
 
 from obst.conformance.catalog import (

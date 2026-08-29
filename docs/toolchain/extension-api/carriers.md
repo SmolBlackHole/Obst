@@ -1,6 +1,11 @@
 # Carriers
 
-Parent: [Extension system](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 A carrier moves an existing or newly produced OBST byte stream through a
 host-selected endpoint. It does not own manifests, recipes, logical streams or
@@ -110,7 +115,7 @@ model memory, databases and sockets equally well.
 ## Concrete carriers
 
 The separately installable `obst-defaults` plugin documents its
-[filesystem, memory and standard-input Carriers](../../plugins/defaults/docs/carriers/README.md).
+[filesystem, memory and standard-input Carriers](../../../plugins/defaults/docs/carriers/README.md).
 Those pages own adapter-specific requests, orchestration helpers, guarantees
 and limitations. This page owns only the provider and session contracts shared
 by every Carrier.
@@ -124,5 +129,5 @@ offer a writer rather than pretending it can roll them back.
 Credentials, transactions, keys, retries, durability and cleanup belong to
 the adapter. The core sees only a bounded `BinaryReader` or `BinaryWriter`.
 Range reads and selective remote extraction remain separate
-[roadmap](../../ROADMAP.md#later-directions) concerns because they
+[roadmap](../../../ROADMAP.md#later-directions) concerns because they
 need indexing and resource policy, not a larger blocking stream interface.

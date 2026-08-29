@@ -2,9 +2,14 @@
 
 Parent: [Documentation index](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
 This page explains why the implemented architecture has its boundaries. Exact
 bytes live in the [binary format](format.md), Python behavior in the
-[core guides](core/README.md), and unfinished work in the
+[toolchain guide](toolchain/README.md), and unfinished work in the
 [roadmap](../ROADMAP.md).
 
 The central rule is simple: applications own meaning, OBST owns reversible
@@ -17,7 +22,6 @@ representation and framing, and callers own storage or transport. The
 	- [Table of contents](#table-of-contents)
 	- [Ownership follows the bytes](#ownership-follows-the-bytes)
 	- [Wire-visible and runtime extension points](#wire-visible-and-runtime-extension-points)
-	- [Python distributions and activation](#python-distributions-and-activation)
 	- [Manifest-first, chunked operation](#manifest-first-chunked-operation)
 	- [Stream semantics are not container semantics](#stream-semantics-are-not-container-semantics)
 	- [Recipes and contract identity](#recipes-and-contract-identity)
@@ -26,7 +30,6 @@ representation and framing, and callers own storage or transport. The
 	- [Numeric representation and scale](#numeric-representation-and-scale)
 	- [Recursion is composition](#recursion-is-composition)
 	- [Design goals and non-goals](#design-goals-and-non-goals)
-	- [Python operation boundaries](#python-operation-boundaries)
 
 ## Ownership follows the bytes
 
@@ -67,30 +70,6 @@ decoder needs the chosen Stage and stream contracts. It does not need to know
 which Packager selected them, which adapter supplied the logical bytes or
 which Carrier moved the completed container.
 
-First-party providers use the same Extension and registry contracts as
-third-party providers. The [Extension guides](extensions/README.md) define
-those Python surfaces.
-
-## Python distributions and activation
-
-The reference project separates runtime code from replaceable providers:
-
-| Distribution    | Contains                                                                  |
-| --------------- | ------------------------------------------------------------------------- |
-| `obst`          | `obst`, the Carrier-neutral core, plugin manager, CLI host and inspection |
-| `obst-defaults` | First-party Extensions and the file-oriented `pack` and `unpack` commands |
-
-`obst-defaults` publishes ordinary `obst.extensions`, `obst.commands` and
-`obst.conformance` entry points. The `obst` distribution neither imports it
-directly nor depends on it. Installation exposes inert metadata; an explicit
-host decision admits plugin code into an operation.
-
-A distribution is an installation unit. A plugin is one named set of entry
-point contributions. An Extension is one registry object with an exact
-capability ID. Container bytes may name Stage and stream contracts, but cannot
-select a distribution, enable a plugin or expand the host's trust set. The
-[plugin guide](extensions/plugins.md) owns commands, state and trust warnings.
-
 ## Manifest-first, chunked operation
 
 The manifest declares Extension IDs, Recipes and streams before the first
@@ -112,11 +91,11 @@ tracked in the [roadmap](../ROADMAP.md#later-production-encoding).
 ## Stream semantics are not container semantics
 
 A stream is logical bytes plus a versioned stream-type ID and opaque metadata.
-The core can recover the bytes without knowing whether they represent a file,
+A decoder can recover the bytes without knowing whether they represent a file,
 table or temperature series. Understanding that meaning is a separate profile
-capability.
+contract.
 
-`obst.bytes@1` is the generic no-metadata contract. Plugins can define richer
+`obst.bytes@1` is the generic no-metadata contract. Publishers can define richer
 profiles without teaching the core their domain model. The independently owned
 [`obst.file@1` contract](../plugins/defaults/docs/contracts/streams/file.md) is
 one example.
@@ -136,10 +115,10 @@ logical bytes -> transform -> codec -> encoded bytes
 logical bytes <- inverse   <- decode <- encoded bytes
 ```
 
-An Extension ID names a language-neutral contract, not a Python class or
-package. That contract owns parameter bytes, representation, inverse behavior,
-invalid inputs and resource rules. Incompatible behavior receives a new ID
-version.
+An Extension ID names a language-neutral contract, not an implementation class
+or package. That contract owns parameter bytes, representation, inverse
+behavior, invalid inputs and resource rules. Incompatible behavior receives a
+new ID version.
 
 Finding a decoder permits an attempt; it does not prove the provider correct.
 OBST verifies recovered chunks against their declared logical size and hash.
@@ -168,9 +147,7 @@ identity Recipe | codec | transform -> codec
 
 Rejected candidates are diagnostics, not container data. Cleverness may also
 live inside one Stage when its selected representation is fully described by
-that Stage's parameters. The installable
-[`adaptive-zlib` example](../examples/plugin_adaptive_zlib/README.md) shows
-that model.
+that Stage's parameters.
 
 ## Structure discovery through transforms
 
@@ -230,9 +207,7 @@ that work remains in the [roadmap](../ROADMAP.md#later-directions).
 
 The same boundary applies to application adapters. A profile owns semantic
 metadata and materialization while the caller separately selects packaging and
-storage. The
-[`obst-defaults` file guide](../plugins/defaults/docs/files/profiles.md#composition-boundary)
-shows one concrete composition.
+storage.
 
 ## Design goals and non-goals
 
@@ -250,37 +225,3 @@ OBST aims to be:
 OBST does not replace specialized semantic formats. PNG understands images,
 Parquet understands columnar analytics and video codecs understand video. OBST
 provides generic framing and reversible representation where that is useful.
-
-## Python operation boundaries
-
-The Python implementation follows the same ownership in both directions:
-
-```mermaid
-flowchart LR
-    Adapter["Profile or adapter"] --> Source["LogicalStreamSource"]
-    Source --> Packager["Packager"]
-    Packager --> Encoder["ChunkEncoder"]
-    Registry["ExtensionRegistry"] --> Encoder
-    Encoder --> Writer["ContainerWriter"]
-    Writer --> Output["BinaryWriter"]
-
-    Input["BinaryReader"] --> Reader["ContainerReader"]
-    Reader --> Decoder["ChunkDecoder"]
-    Registry --> Decoder
-    Decoder --> Consumer["Profile or consumer"]
-    Reader --> Inspector["Inspection"]
-```
-
-Profiles and adapters own logical sources and consumers. Recipe and chunk
-operations use the immutable registry selected for that operation. The
-container reader and writer own framing and integrity only.
-
-A transactional Carrier keeps output unpublished until the selected operation
-succeeds, then commits it. Failure aborts that output. A streaming Carrier may
-publish progressively and cannot promise rollback. The
-[Carrier guide](extensions/carriers.md) owns those lifecycles, and the
-[core guides](core/README.md) own individual operations.
-
-Plugin distributions own their provider documentation, vectors and tests.
-`obst.bytes@1` remains the sole core stream contract; zlib, Delta8,
-`obst.file@1`, Carriers, Packagers and archivers remain replaceable Extensions.

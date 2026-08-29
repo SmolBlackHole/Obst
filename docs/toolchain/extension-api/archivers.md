@@ -1,6 +1,11 @@
 # Archivers and application adapters
 
-Parent: [Extension system](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 An archiver turns domain inputs into logical OBST streams and reconstructs
 domain outputs from recovered streams. It has no wire ID, registry entry or
@@ -46,12 +51,12 @@ The caller composes each boundary explicitly:
 
 1. the domain adapter creates metadata and bounded logical chunks;
 2. it exposes them as
-   [`LogicalStreamSource`](../core/packaging.md#define-one-logical-source) values;
+   [`LogicalStreamSource`](../internals/packaging.md#define-one-logical-source) values;
 3. a selected [packager](packagers.md) prepares the container-writing
    operation;
 4. a selected [carrier](carriers.md) owns the binary endpoint and publication
    lifecycle; and
-5. recovery uses the [container reader](../core/reading.md), the caller's
+5. recovery uses the [container reader](../reading.md), the caller's
    registry and the adapter's own materialization policy.
 
 The adapter does not receive hidden access to registry internals, wire framing
@@ -74,13 +79,13 @@ The following boundaries are errors, not conveniences:
 | put storage credentials in stream metadata | metadata describes the logical stream, not how this operation reached it |
 | teach the core what a table or file means  | application meaning belongs to the profile and adapter                   |
 
-The [packaging guide](../core/packaging.md) owns the shared source and operation
+The [packaging guide](../internals/packaging.md) owns the shared source and operation
 contracts. A domain-specific stream ID still needs a language-neutral contract
 and a matching recovery path.
 
 ## Concrete application adapter
 
-The [`obst-defaults` file adapter](../../plugins/defaults/docs/files/README.md)
+The [`obst-defaults` file adapter](../../../plugins/defaults/docs/files/README.md)
 is one implementation of this pattern. Its documentation owns the Python API,
 source validation, extraction behavior, filesystem limits and wire-visible
 file contract. This page owns only the composition pattern shared by

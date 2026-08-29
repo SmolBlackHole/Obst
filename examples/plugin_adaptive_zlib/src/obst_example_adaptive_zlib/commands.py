@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """CLI composition contributed by the adaptive-zlib example plugin."""
 
 from __future__ import annotations

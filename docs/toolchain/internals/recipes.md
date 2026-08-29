@@ -1,12 +1,17 @@
 # Recipe and chunk execution
 
-Parent: [Core API](README.md)
+Parent: [Writing containers](../writing.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 This page owns the Python operations that apply an already registered
-[Recipe](../anatomy.md#recipes-describe-reversible-representation) or turn its
-result into a [Chunk](../anatomy.md#chunks-make-the-stream-bounded). The
-[Stage guide](../extensions/stages.md#provider-protocols) owns provider
-implementation, and [writing](writing.md) owns container framing.
+[Recipe](../../anatomy.md#recipes-describe-reversible-representation) or turn its
+result into a [Chunk](../../anatomy.md#chunks-make-the-stream-bounded). The
+[Stage guide](../extension-api/stages.md#provider-protocols) owns provider
+implementation, and [writing](../writing.md) owns container framing.
 
 ## Table of contents
 
@@ -137,7 +142,7 @@ Use the session types when processing several Chunks:
 is not serialized and does not contain byte offsets.
 
 Chunk helpers return model values. `ContainerWriter` adds the stored header,
-payload CRC and terminal commitment. The [format specification](../format.md)
+payload CRC and terminal commitment. The [format specification](../../format.md)
 defines those bytes.
 
 ## Validate manifest resources
@@ -173,7 +178,7 @@ such as packaging a container and later recovering it. Reusing only the
 immutable `ResourcePolicy` would reset all totals and is therefore not an
 operation boundary.
 
-The [resource guide](resources.md) owns limits and accounting. The
+The [resource guide](../resources.md) owns limits and accounting. The
 [packaging guide](packaging.md) composes forward execution across logical
-sources, while [reading](reading.md#selective-chunk-decoding) composes selective
+sources, while [reading](../reading.md#selective-chunk-decoding) composes selective
 recovery through `ChunkDecoder`.

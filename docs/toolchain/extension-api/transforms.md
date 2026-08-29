@@ -1,6 +1,11 @@
 # Transform Stages
 
-Parent: [Extension system](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 A transform is a [Stage Extension](stages.md) that rearranges or recodes bytes
 so another Stage can represent them more effectively. It is a design role, not
@@ -43,5 +48,5 @@ meaning explicitly.
 ## Concrete example
 
 The separately distributed
-[`obst-defaults` transform guide](../../plugins/defaults/docs/transforms.md)
+[`obst-defaults` transform guide](../../../plugins/defaults/docs/transforms.md)
 documents its Delta8 provider and normative contract.

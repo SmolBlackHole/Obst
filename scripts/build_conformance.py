@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Build the language-neutral OBST conformance vector corpus."""
 
 from __future__ import annotations

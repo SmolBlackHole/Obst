@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults documentation](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 `obst-defaults` supplies two codec Stage Extensions. They use the ordinary
 OBST Stage registry and binding contracts; there is no first-party execution
 path.
@@ -74,6 +79,6 @@ their language-neutral representation.
 
 ## Related documentation
 
-- [Generic Stage API](../../../docs/extensions/stages.md)
-- [Recipe execution](../../../docs/core/recipes.md)
+- [Generic Stage API](../../../docs/toolchain/extension-api/stages.md)
+- [Recipe execution](../../../docs/toolchain/internals/recipes.md)
 - [Plugin contract index](contracts/README.md)

@@ -2,6 +2,11 @@
 
 Parent: [Documentation index](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
 Status: experimental, compatibility not frozen. The v0.2 vectors pin the
 current draft and change with intentional pre-freeze wire revisions.
 
@@ -9,6 +14,12 @@ This document defines the language-neutral bytes of an OBST container. A
 conforming implementation can use it to recognize the format, read every
 record, decide whether the representation is valid and recover logical bytes
 when the required decoders are available.
+
+This versioned document in the canonical OBST repository is the normative
+definition of valid OBST container bytes. Anyone may implement it. A modified
+or forked specification does not become an official OBST revision unless the
+canonical project publishes it as one. Name and branding rules are separate
+from interoperability and live in the [name-use policy](../TRADEMARKS.md).
 
 ## Table of contents
 
@@ -26,6 +37,10 @@ when the required decoders are available.
 	- [Chunk framing](#chunk-framing)
 	- [Terminal commit record](#terminal-commit-record)
 	- [Validity, availability and recovery](#validity-availability-and-recovery)
+	- [`obst.bytes@1` stream contract](#obstbytes1-stream-contract)
+		- [Logical bytes](#logical-bytes)
+		- [Metadata](#metadata)
+		- [Empty streams](#empty-streams)
 	- [Conformance vectors](#conformance-vectors)
 
 ## Format at a glance
@@ -50,36 +65,30 @@ Carrier.
 ### One container, several outcomes
 
 This record-level example shows how the declarations connect. It omits exact
-sizes, CRCs and hashes; the [format corpus](../src/obst/conformance/corpus/)
-contains complete byte vectors.
+sizes, CRCs and hashes; the canonical conformance corpus contains complete byte
+vectors.
 
 ```text
 OBST 0.2 header                              # [1] opens the representation
 MANF                                         # [2] declares everything used below
   extension[0] = obst.bytes@1
-  extension[1] = obst.delta8@1
-  extension[2] = obst.zlib@1
-  recipe[0] = extension[1] -> extension[2]
+  recipe[0] = identity
   stream[0] = type extension[0], recipe[0]
 CHNK stream=0 sequence=0 recipe=0            # [3] stores one encoded chunk
 CMIT                                         # [4] binds all preceding bytes
 ```
 
 `[1]` tells a reader which fixed layouts follow. `[2]` gives later numeric
-references their versioned meaning. `[3]` applies Delta8 and then zlib while
-encoding; decoding runs their inverses in reverse order. `[4]` proves that the
-stream reached its declared end without requiring a seekable Carrier.
-
-The concrete Stage IDs come from the
-[`obst-defaults` contracts](../plugins/defaults/docs/contracts/stages/README.md).
-They make the example readable but are not built into this format.
+references their versioned meaning. `[3]` stores the logical bytes unchanged
+because Recipe 0 contains no Stages. `[4]` proves that the stream reached its
+declared end without requiring a seekable transport.
 
 Starting from the example, these changes exercise the main outcomes:
 
 | Change                                                       | Result                                                                   |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| encode by Recipe and match every size, CRC and hash          | valid and recoverable when both Stage decoders are available             |
-| remove the local `obst.zlib@1` decoder                       | still structurally valid; the chunk cannot be recovered locally          |
+| encode by Recipe and match every size, CRC and hash          | valid and recoverable when every required Stage decoder is available     |
+| use an unavailable Stage in the referenced Recipe            | still structurally valid; the chunk cannot be recovered locally          |
 | make the first chunk sequence `1`                            | structurally invalid; every stream must begin at sequence `0`            |
 | remove the chunk and update the terminal commit              | valid edge case; the declared stream contains no chunks                  |
 | remove the terminal commit                                   | truncated; EOF is not a successful end marker                            |
@@ -105,9 +114,7 @@ unknown flags, non-zero reserved fields, unsupported header sizes, trailing
 manifest bytes and references to undeclared streams or Recipes.
 
 Non-normative rationale for chunking, Recipes, capability checks, numeric
-streams and recursion lives in [Design notes](design.md). The Python reference
-implementation maps the fixed fields to reusable scalar and record descriptors
-in [Python wire mapping](core/wire.md).
+streams and recursion lives in [Design notes](design.md).
 
 ## Version identity
 
@@ -199,7 +206,7 @@ letter or digit. `.`, `_` and `-` are single separators and must be followed by
 at least one lowercase ASCII letter or digit. Adjacent separators are invalid,
 including two different separator characters. The version is a positive
 decimal integer without a leading zero: `@1` is valid, while `@0` and `@01` are
-not. Complete examples are `obst.zlib@1`, `obst.bytes@1` and
+not. Complete examples are `obst.bytes@1`, `org.example/compress@1` and
 `org.example/custom-transform@2`.
 
 The `obst` namespace is reserved for contracts published as part of OBST.
@@ -251,11 +258,9 @@ A Recipe with zero Stages is the canonical identity representation. Its
 forward and reverse execution both return the input bytes unchanged, it needs
 no Stage provider, and it adds no Stage contract to the Extension table.
 
-The container format does not define Stage behavior. Provider distributions
-publish those contracts independently. The
-[`obst-defaults` contract catalog](../plugins/defaults/docs/contracts/stages/README.md)
-contains the first-party examples; their algorithms and parameter bytes are
-not part of this specification.
+The container format does not define Stage behavior. Stage publishers define
+those contracts independently; their algorithms and parameter bytes are not
+part of this specification.
 
 ### Stream entries
 
@@ -276,11 +281,8 @@ declared Recipe.
 The declared stream type alone interprets the logical payload and metadata.
 OBST core assigns no timestamp, channel, sample, unit or shape semantics.
 
-[`obst.bytes@1`](contracts/streams/bytes.md) is the sole core stream contract.
-Other first-party and third-party profiles remain independent contracts owned
-by their implementing distributions. The plugin-owned
-[`obst.file@1` contract](../plugins/defaults/docs/contracts/streams/file.md) is
-one example.
+[`obst.bytes@1`](#obstbytes1-stream-contract) is the sole core stream contract.
+Every other stream profile remains an independent, versioned contract.
 
 ## Chunk framing
 
@@ -310,13 +312,9 @@ zero-length chunk remains a chunk: it participates in sequencing, the terminal
 chunk count and the terminal content commitment. It is distinct from a stream
 with no chunks.
 
-A reader applies its configured encoded-size ceiling before reading the
-payload. Configured resource ceilings are implementation policy rather than
-wire validity. The Python reference resolves one `ResourcePolicy` and tracks
-reading, writing and processing through one operation-local
-`ResourceAccounting`. [Resource policy and accounting](core/resources.md)
-documents the defaults and recording rules. A local refusal does
-not make conforming bytes invalid.
+An implementation may apply a configured encoded-size ceiling before reading
+the payload. Resource ceilings are local policy rather than wire validity. A
+local refusal does not make otherwise conforming bytes invalid.
 
 ## Terminal commit record
 
@@ -357,20 +355,19 @@ code. It covers magic, versions, fixed sizes, reserved fields, canonical
 manifest order, references, sequences, stored record and payload lengths,
 every CRC, terminal counters and the terminal commitment.
 
-A structurally valid container remains valid when the local registry lacks a
-decoder for a declared Stage. Only Stages used by Recipes referenced by actual
+A structurally valid container remains valid when the local implementation
+lacks a decoder for a declared Stage. Only Stages used by Recipes referenced by actual
 chunks are required for recovery. Attempting to decode an affected chunk fails
 with a missing-Stage error, not a corruption error.
 
-A registered decoder means that the local implementation claims the named
-language-neutral contract. Registration permits a decode attempt. Afterward,
-the logical operation verifies both the declared logical size and the logical
-BLAKE2s-128 hash. A wrong implementation under the same ID therefore fails for
-that chunk unless it produces a hash collision.
+An available decoder claims the named language-neutral contract and permits a
+decode attempt. Successful recovery then verifies both the declared logical
+size and the logical BLAKE2s-128 hash. A wrong implementation under the same ID
+therefore fails for that chunk unless it produces a hash collision.
 
-Inspection never runs Recipe Stages. It validates the chunk header CRC and
-encoded payload CRC, reports decoder availability and leaves declared logical
-size and hash verification to recovery.
+Structural inspection does not require Recipe execution. It can validate the
+chunk header CRC and encoded payload CRC while leaving declared logical size
+and hash verification to recovery.
 
 ```mermaid
 flowchart TD
@@ -397,22 +394,44 @@ prove that a decoder follows its contract for every input, and an actor able to
 rewrite a container can recompute them. Stage publishers still need independent
 conformance tests and golden vectors.
 
+## `obst.bytes@1` stream contract
+
+`obst.bytes@1` identifies one opaque logical byte sequence. It is the only
+stream contract defined by OBST itself.
+
+### Logical bytes
+
+Concatenating the decoded chunks in ascending sequence order reconstructs the
+logical byte sequence. Chunk boundaries carry no additional meaning. Any valid
+Recipe may represent a chunk as long as its inverse recovers the exact logical
+bytes required by the container's size and hash fields.
+
+### Metadata
+
+The metadata byte string is empty. A producer that writes non-empty metadata
+does not conform to `obst.bytes@1`. A structural reader may still preserve such
+metadata as opaque bytes because container validity and profile conformance are
+separate questions.
+
+### Empty streams
+
+A declaration with no chunks represents an empty logical byte sequence.
+
 ## Conformance vectors
 
-The packaged [format corpus](../src/obst/conformance/corpus/) contains
-structural cases with 2 broad results:
+The canonical format corpus accompanies this specification with structural
+cases in 2 broad groups:
 
 - accepted vectors require structural acceptance and the cataloged set of
   missing required Stages; and
 - rejected vectors require the exact cataloged language-neutral outcome:
   invalid structure, corruption, truncation or unsupported version.
 
-Catalog schema 2 can also express provider-owned logical recovery, but the core
-format corpus deliberately contains only structural cases. An unavailable
-Stage is therefore never confused with a corrupt container. The
-machine-readable catalog owns exact bytes, SHA-256 digests, structural outcomes
-and missing Extension IDs. Stage, profile and recovery vectors live in suites
-owned by the distributions that implement those contracts.
+The core corpus deliberately contains only structural cases, so an unavailable
+Stage is never confused with a corrupt container. Stage, profile and recovery
+vectors belong to the publishers of those independent contracts. The
+[conformance guide](toolchain/conformance.md) documents the portable catalog
+and reference runner.
 
 The generated corpus covers every field of the 4 fixed records, truncation at
 each record boundary, manifest ordering and reference rules, representative

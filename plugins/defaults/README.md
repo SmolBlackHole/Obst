@@ -1,5 +1,10 @@
 # obst-defaults
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 `obst-defaults` is the explicitly activated first-party plugin for the OBST
 Python runtime. It supplies replaceable Stage, stream-profile, Carrier and
 Packager capabilities through the same entry-point contracts as third-party

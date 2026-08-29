@@ -1,11 +1,16 @@
 # Conformance and interoperability
 
-Parent: [Documentation index](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 Conformance checks whether an implementation follows the published OBST
 contracts without depending on Python internals. This page owns the shared
 conformance model, the format corpus and the evidence from documentation-only
-readers. The [binary format](format.md) and versioned Extension contracts remain
+readers. The [binary format](../format.md) and versioned Extension contracts remain
 normative.
 
 ## Table of contents
@@ -100,8 +105,8 @@ too easy to infer from the Python implementation:
 - `obst.file@1` needed an exact Unicode control-character rule; and
 - Windows-reserved filenames needed an explicit case-comparison rule.
 
-Those rules now live in the [binary format](format.md#extension-table) and the
-plugin-owned [`obst.file@1` contract](../plugins/defaults/docs/contracts/streams/file.md#metadata),
+Those rules now live in the [binary format](../format.md#extension-table) and the
+plugin-owned [`obst.file@1` contract](../../plugins/defaults/docs/contracts/streams/file.md#metadata),
 where an independent implementation can find them.
 
 ## Portable suites
@@ -130,7 +135,7 @@ providers. Other languages can consume the same JSON without importing Python.
 ### Format corpus
 
 The `obst` distribution ships 80 structural cases in the packaged
-[format corpus](../src/obst/conformance/corpus/). They cover valid containers,
+[format corpus](../../src/obst/conformance/corpus/). They cover valid containers,
 invalid structure, corruption, truncation, unsupported versions and missing
 local Stage capabilities. The corpus imports no production Extension provider.
 
@@ -141,7 +146,7 @@ plugin path used by other distributions:
 obst plugins test obst-format
 ```
 
-The [format specification](format.md#conformance-vectors) owns the exact wire
+The [format specification](../format.md#conformance-vectors) owns the exact wire
 coverage. The corpus file owns the exact bytes and expected results.
 
 ### Plugin extension suites
@@ -152,13 +157,13 @@ stream-profile providers must cover each of those providers. It may also
 include complete-container recovery cases with explicit Extension
 dependencies.
 
-The [`obst-defaults` conformance guide](../plugins/defaults/docs/conformance.md)
+The [`obst-defaults` conformance guide](../../plugins/defaults/docs/conformance.md)
 documents its concrete cases and regeneration command. Runtime-only Carriers
 and Packagers have no wire vectors; their request, lifecycle and publication
 behavior belongs in that distribution's ordinary tests.
 
 Publishing and selecting an `obst.conformance` entry point is documented in the
-[plugin guide](extensions/plugins.md#conformance-contribution). Reading the
+[plugin guide](plugins.md#conformance-contribution). Reading the
 static JSON does not execute plugin code. Loading its factory or running cases
 against its providers does, so conformance execution is not a sandbox.
 
@@ -173,5 +178,5 @@ not improve that independence claim.
 The generated corpus is reproducible, but it is still generated and exercised
 by the reference project. Preserved cross-language execution against the full
 corpus remains open in the
-[current stabilization milestone](../ROADMAP.md#now-pre-public-stabilization).
+[current stabilization milestone](../../ROADMAP.md#now-pre-public-stabilization).
 The corpus now pins the canonical Zero-Stage identity Recipe directly.

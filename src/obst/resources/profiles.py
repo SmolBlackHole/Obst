@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Local named resource-profile state for an OBST toolchain host."""
 
 from __future__ import annotations

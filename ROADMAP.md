@@ -1,10 +1,15 @@
 # OBST Roadmap
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This file records the next meaningful OBST milestones. It is direction, not a
 completion ledger, public defect register or detailed implementation plan.
 
 Present behavior belongs to the [documentation index](docs/README.md), the
-[binary format](docs/format.md), the [extension guides](docs/extensions/README.md)
+[binary format](docs/format.md), the [Extension guides](docs/toolchain/extensions.md)
 and the [design notes](docs/design.md). Detailed audits remain private working
 material. An approved plan may stay visible while its breaking change is in
 flight. Completed work disappears from this page once its implementation,

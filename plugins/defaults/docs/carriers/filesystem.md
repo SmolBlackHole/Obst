@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults Carriers](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The filesystem carrier binds OBST container bytes to one caller-selected path.
 It can read an existing container or publish a newly completed container
 transactionally. Paths, overwrite policy and filesystem guarantees remain
@@ -55,7 +60,7 @@ finally:
 
 The session opens the path once and returns that same binary handle. Opening or
 closing failures are reported as `CarrierError`. The core sees a
-[`BinaryReader`](../../../../docs/core/reading.md), not the path.
+[`BinaryReader`](../../../../docs/toolchain/reading.md), not the path.
 
 ## Publish a new container
 
@@ -106,5 +111,5 @@ than additional pathname checks in the shared carrier contract.
 - Repeating an invalid lifecycle operation raises `CarrierStateError`.
 - Existing output is refused unless the request explicitly enables overwrite.
 
-The general [carrier lifecycle](../../../../docs/extensions/carriers.md#writer-and-publisher-semantics)
+The general [carrier lifecycle](../../../../docs/toolchain/extension-api/carriers.md#writer-and-publisher-semantics)
 defines how these outcomes compose with packaging failures.

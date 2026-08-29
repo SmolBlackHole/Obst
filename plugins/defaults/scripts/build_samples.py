@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Build the checked-in OBST image samples and their attribution manifest."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Human and JSON output owned by the adaptive pack example command."""
 
 from __future__ import annotations

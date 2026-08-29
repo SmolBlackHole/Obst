@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Portable file stream-profile contract and first-party implementation."""
 
 from __future__ import annotations

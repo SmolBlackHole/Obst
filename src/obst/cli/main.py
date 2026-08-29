@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Generic OBST command host and explicit plugin composition root."""
 
 from __future__ import annotations

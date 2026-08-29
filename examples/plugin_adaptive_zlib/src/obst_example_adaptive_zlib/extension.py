@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Adaptive zlib Stage extension implemented only through public OBST APIs."""
 
 from __future__ import annotations

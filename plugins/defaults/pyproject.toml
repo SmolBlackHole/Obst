@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
@@ -8,6 +12,7 @@ version = "0.2.0"
 description = "Explicitly activated first-party tooling for OBST"
 readme = "README.md"
 license = "MPL-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = ["obst==0.2.0"]
 

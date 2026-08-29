@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Public first-party portable-file profile and adapter API."""
 
 from obst_defaults.files.adapter import DEFAULT_FILE_CHUNK_SIZE, FileArchiver

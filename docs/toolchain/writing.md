@@ -1,10 +1,15 @@
 # Structural writing
 
-Parent: [Core API](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 `ContainerWriter` serializes one final manifest and already
-[encoded chunks](recipes.md#execute-one-chunk). It is deliberately lower-level
-than a [packager](packaging.md): it does not choose recipes, execute stages,
+[encoded chunks](internals/recipes.md#execute-one-chunk). It is deliberately
+lower-level than a [packager](internals/packaging.md): it does not choose recipes, execute stages,
 split input or know where the bytes will be stored.
 
 ## Table of contents
@@ -65,8 +70,8 @@ written. Any validation, resource or target failure during `write_chunk()` or
 write or finish attempt with `OperationStateError`. Recovery is a carrier
 concern, not an invitation to append more bytes to an uncertain stream.
 
-Use [Packaging](packaging.md) when starting from logical bytes. Use an
-[output carrier](../extensions/carriers.md) when publication needs a commit and
+Use [Packaging](internals/packaging.md) when starting from logical bytes. Use an
+[output carrier](extension-api/carriers.md) when publication needs a commit and
 abort lifecycle around the binary target.
 
 ## Resource accounting
@@ -83,5 +88,5 @@ an independent model and format rule. The complete contract lives in
 [Resource policy](resources.md).
 
 The exact Python layouts used for these records are described in
-[Python wire mapping](wire.md). The [binary format specification](../format.md)
+[Python wire mapping](internals/wire.md). The [binary format specification](../format.md)
 remains authoritative for their stored bytes and validity rules.

@@ -2,6 +2,11 @@
 
 Parent: [Examples](../README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This directory is a complete, installable third-party OBST plugin. Its Stage
 tries several reversible byte layouts and preset dictionaries for every chunk,
 then stores only the smallest zlib representation it found. The decoder reads

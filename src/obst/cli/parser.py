@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Argument parser composition for native and plugin-contributed commands."""
 
 from __future__ import annotations

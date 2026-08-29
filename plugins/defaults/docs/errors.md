@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults documentation](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The plugin owns file-profile, archive and Carrier failures raised by its
 providers and maps them to contributed CLI error families. Core container and
 plugin-manager errors remain documented by the OBST runtime.
@@ -59,6 +64,6 @@ operation.
 
 ## Related errors
 
-The root [runtime error reference](../../../docs/errors.md) owns core
+The root [runtime error reference](../../../docs/toolchain/errors.md) owns core
 exceptions, provider rejection boundaries, native CLI errors and the generic
 diagnostic format.

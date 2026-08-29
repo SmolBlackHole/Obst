@@ -2,9 +2,14 @@
 
 Parent: [Documentation index](../README.md)
 
-OBST owns one built-in logical-stream contract. Every other wire-visible
-Extension contract is published and tested by the distribution that implements
-it.
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
+OBST defines its one built-in logical-stream contract directly in the format
+specification. Every other wire-visible Extension contract is published and
+tested by the distribution that implements it.
 
 ## Table of contents
 
@@ -15,7 +20,8 @@ it.
 
 ## Built-in contract
 
-- [`obst.bytes@1`](streams/bytes.md): opaque logical bytes with empty metadata.
+- [`obst.bytes@1`](../format.md#obstbytes1-stream-contract): opaque logical
+  bytes with empty metadata.
 
 ## Plugin contract catalogs
 

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Run the defaults distribution's formatting, analysis and tests."""
 
 from __future__ import annotations

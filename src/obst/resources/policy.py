@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Public resource contracts shared across the OBST toolchain."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Cross-operation laws preserved by the core architecture overhaul."""
 
 from __future__ import annotations

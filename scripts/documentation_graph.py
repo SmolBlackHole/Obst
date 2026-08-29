@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Report how every repository Markdown page is reached from README.md."""
 
 from __future__ import annotations

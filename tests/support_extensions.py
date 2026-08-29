@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Minimal neutral Extensions used by the ``obst`` runtime tests."""
 
 from __future__ import annotations

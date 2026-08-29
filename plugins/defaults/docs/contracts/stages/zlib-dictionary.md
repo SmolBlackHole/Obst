@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults Stage contracts](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
 Status: experimental first-party stage contract.
 
 Contract type: reversible, chunk-local compression codec.

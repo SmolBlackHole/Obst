@@ -2,6 +2,11 @@
 
 Parent: [Portable files](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 `FileArchiver.extract()` restores every compatible logical stream through the
 materializer registered for its exact stream-profile ID. This page owns the
 Defaults adapter's filesystem validation, extraction budgets and publication
@@ -61,7 +66,7 @@ member bytes are never imported, launched, dispatched to a shell or handed to
 an operating-system file association.
 
 Container framing, chunk integrity, Stage execution and file extraction use the
-same [resource policy](../../../../docs/core/resources.md). No second
+same [resource policy](../../../../docs/toolchain/resources.md). No second
 file-specific policy object exists.
 
 ### Rejected requests

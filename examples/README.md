@@ -2,6 +2,11 @@
 
 Parent: [OBST](../README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This directory contains executable examples of the public Python API and
 extension packaging boundary. The API walkthrough keeps every byte in memory;
 the adaptive-zlib package demonstrates installed-plugin discovery and a

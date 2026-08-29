@@ -1,6 +1,11 @@
 # Container inspection
 
-Parent: [Core API](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 `inspect_container()` consumes a `ContainerReader` once and returns a renderer-
 neutral `ContainerInspection` dataclass. The CLI's human and JSON views are two
@@ -41,7 +46,7 @@ inspection = inspect_container(
 )
 ```
 
-The [extension registry](registry.md) is an immutable host-approved capability
+The [extension registry](internals/registry.md) is an immutable host-approved capability
 set. Passing one reports descriptors and decoder availability but does not
 authorize interpreter callbacks.
 
@@ -179,8 +184,8 @@ inspection = inspect_container(
 ```
 
 Passing a registry alone never opts its interpreters in. The [extension
-registry](registry.md#keep-the-trust-boundary-explicit) owns the trust decision;
-the [runtime error reference](../errors.md) owns failure classification.
+registry](internals/registry.md#keep-the-trust-boundary-explicit) owns the trust decision;
+the [runtime error reference](errors.md) owns failure classification.
 
 The command-line presentation and JSON schema are documented in the
-[CLI guide](../cli.md).
+[CLI guide](cli.md).

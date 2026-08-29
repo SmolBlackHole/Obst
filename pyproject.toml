@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
@@ -7,10 +11,12 @@ name = "obst"
 version = "0.2.0"
 description = "Open binary container for chunked data and reversible pipelines"
 license = "MPL-2.0"
+license-files = ["LICENSES/MPL-2.0.txt"]
 requires-python = ">=3.14"
 
 [project.optional-dependencies]
 dev = [
+    "build>=1.2",
     "hypothesis>=6.165",
     "isort>=5.13",
     "mypy>=1.14",
@@ -18,6 +24,7 @@ dev = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "pytest-timeout>=2.3",
+    "reuse[charset-normalizer]>=5.0",
     "ruff>=0.9",
     "setuptools>=77",
 ]

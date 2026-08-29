@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Build the deterministic suite shipped by the adaptive-zlib example."""
 
 from __future__ import annotations

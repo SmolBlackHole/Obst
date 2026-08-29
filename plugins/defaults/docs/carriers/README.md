@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults documentation](../README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 These runtime-only Extensions bind complete OBST byte streams to concrete
 endpoints. Their IDs never enter container bytes and activating them never
 changes format validity.
@@ -23,4 +28,4 @@ abort and cleanup semantics.
 ## Shared contract
 
 The OBST runtime owns the generic [Carrier provider and lifecycle
-contracts](../../../../docs/extensions/carriers.md).
+contracts](../../../../docs/toolchain/extension-api/carriers.md).

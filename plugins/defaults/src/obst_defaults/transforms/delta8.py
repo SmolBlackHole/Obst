@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Shipped modulo-256 delta transform for opaque byte streams."""
 
 from __future__ import annotations

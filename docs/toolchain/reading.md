@@ -1,6 +1,11 @@
 # Reading and decoding
 
-Parent: [Core API](README.md)
+Parent: [Python toolchain](README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 `ContainerReader` parses one OBST byte stream into a validated
 [manifest](../format.md#manifest) and a single-consumption sequence of
@@ -67,8 +72,8 @@ Reading it before completion raises `OperationStateError`.
 ## Logical decoding
 
 Decoding is a separate operation because it requires an explicitly composed
-[extension registry](registry.md) containing trusted local
-[stage providers](../extensions/stages.md#provider-protocols):
+[extension registry](internals/registry.md) containing trusted local
+[stage providers](extension-api/stages.md#provider-protocols):
 
 ```python
 from io import BytesIO
@@ -97,7 +102,7 @@ complete container and materializes one selected stream, bounded by
 `CoreResource.MATERIALIZED_STREAM_BYTES` in the selected policy.
 
 Direct recipe and chunk helpers are documented under
-[Recipe and chunk execution](recipes.md).
+[Recipe and chunk execution](internals/recipes.md).
 
 Every decoded chunk is checked against its declared logical size and
 BLAKE2s-128 hash. A missing decoder raises `MissingStageError`; invalid stage
@@ -130,7 +135,7 @@ logical bytes or Stage executions.
 already has a `Manifest` can construct `ManifestIndex(manifest)` directly, so
 indexed or non-reader adapters can feed the same `ChunkDecoder` contract.
 
-The [runtime error reference](../errors.md) explains why unavailable
+The [runtime error reference](errors.md) explains why unavailable
 capabilities, invalid stage payloads and corrupted logical bytes are separate
 failure classes.
 
@@ -148,5 +153,5 @@ under the wire format. [Resource policy](resources.md) owns the defaults,
 override rules and exact accounting scopes.
 
 The Python representation of fixed fields and records is described in
-[Python wire mapping](wire.md). The language-neutral validity rules remain in
+[Python wire mapping](internals/wire.md). The language-neutral validity rules remain in
 the [binary format specification](../format.md).

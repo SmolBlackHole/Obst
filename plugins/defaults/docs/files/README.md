@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults documentation](../README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The first-party file feature maps explicit regular files to portable
 `obst.file@1` logical streams and restores compatible file streams to a
 filesystem. Its contracts, directional capabilities and adapter operations
@@ -24,8 +29,8 @@ a chunk size.
 
 ## Shared runtime contracts
 
-The OBST runtime owns generic [stream profiles](../../../../docs/extensions/profiles.md),
-[application adapters](../../../../docs/extensions/archivers.md),
-[packaging](../../../../docs/core/packaging.md) and
-[Carriers](../../../../docs/extensions/carriers.md). This plugin documents only
+The OBST runtime owns generic [stream profiles](../../../../docs/toolchain/extension-api/profiles.md),
+[application adapters](../../../../docs/toolchain/extension-api/archivers.md),
+[packaging](../../../../docs/toolchain/internals/packaging.md) and
+[Carriers](../../../../docs/toolchain/extension-api/carriers.md). This plugin documents only
 the concrete file capabilities and policies it supplies.

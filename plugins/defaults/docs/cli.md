@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults documentation](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The activated `obst-defaults` plugin contributes `pack` and `unpack` to the
 ordinary OBST command host. Without this plugin, those commands are absent.
 
@@ -28,7 +33,7 @@ Installation only makes the contribution discoverable. Persistent enablement
 is required before the contributed `pack` and `unpack` parsers exist. A
 one-shot `--plugin NAME` can add capabilities to one of those already available
 commands, but cannot make an inactive command contribution appear. The generic
-[plugin guide](../../../docs/extensions/plugins.md) owns that loading and trust
+[plugin guide](../../../docs/toolchain/plugins.md) owns that loading and trust
 boundary.
 
 ## Pack explicit files
@@ -99,11 +104,11 @@ The command host supplies one operation-local `ResourceAccounting` to Pack,
 Unpack and every nested operation. `obst-defaults` contributes its file-member
 resources through `obst.resources`; it does not maintain a second extraction
 policy or select a profile when the plugin is enabled. Use the native
-[`obst limits`](../../../docs/cli.md#resource-limit-profiles) commands to create,
+[`obst limits`](../../../docs/toolchain/cli.md#resource-limit-profiles) commands to create,
 inspect and select local overrides.
 
 Crossing a local ceiling reports `resource_limit` rather than calling valid
-wire data corrupt. The core [resource guide](../../../docs/core/resources.md)
+wire data corrupt. The toolchain [resource guide](../../../docs/toolchain/resources.md)
 owns operation-wide accounting, while [file extraction](files/extraction.md#resource-accounting)
 owns the adapter-specific ceilings.
 
@@ -114,5 +119,5 @@ directory trees, filesystem metadata profiles, recursive repacking or
 autotuned Recipe selection.
 
 See [plugin-owned errors](errors.md) for the contributed exit codes and the
-root [CLI guide](../../../docs/cli.md) for the command host, native inspection
+root [CLI guide](../../../docs/toolchain/cli.md) for the command host, native inspection
 and terminal behavior.

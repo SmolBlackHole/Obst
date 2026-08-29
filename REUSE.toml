@@ -1,0 +1,56 @@
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 SmolBlackHole"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = [
+    "docs/format.md",
+    "docs/anatomy.md",
+    "docs/design.md",
+    "docs/contracts/**",
+    "plugins/defaults/docs/contracts/**",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 SmolBlackHole"
+SPDX-License-Identifier = "CC-BY-ND-4.0"
+
+[[annotations]]
+path = "samples/images/**"
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "an_vision",
+    "Fernando Andrade",
+    "Jo Sonn",
+    "Mockup Graphics",
+    "Quaritsch Photography",
+    "Tijana Drndarski",
+]
+SPDX-License-Identifier = "LicenseRef-Unsplash"
+
+[[annotations]]
+path = "samples/apple.obst"
+precedence = "override"
+SPDX-FileCopyrightText = "an_vision"
+SPDX-License-Identifier = "LicenseRef-Unsplash"
+
+[[annotations]]
+path = "samples/pineapple.obst"
+precedence = "override"
+SPDX-FileCopyrightText = "Fernando Andrade"
+SPDX-License-Identifier = "LicenseRef-Unsplash"
+
+[[annotations]]
+path = "samples/fruit-bowl.obst"
+precedence = "override"
+SPDX-FileCopyrightText = "Jo Sonn"
+SPDX-License-Identifier = "LicenseRef-Unsplash"
+
+[[annotations]]
+path = "samples/all-fruit.obst"
+precedence = "override"
+SPDX-FileCopyrightText = ["an_vision", "Fernando Andrade", "Jo Sonn"]
+SPDX-License-Identifier = "LicenseRef-Unsplash"

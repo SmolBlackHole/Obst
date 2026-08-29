@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults contracts](../README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
 Each Stage contract is independently versioned. Recipes may combine these
 Stages with each other or with compatible Stages from other plugins.
 
@@ -15,4 +20,4 @@ Stages with each other or with compatible Stages from other plugins.
 ## Provider guide
 
 See [Codecs](../../codecs.md), [Transforms](../../transforms.md) and the generic
-[Stage API](../../../../../docs/extensions/stages.md).
+[Stage API](../../../../../docs/toolchain/extension-api/stages.md).

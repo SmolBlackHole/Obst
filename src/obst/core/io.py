@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Public minimal binary I/O contracts used by the OBST core."""
 
 from __future__ import annotations

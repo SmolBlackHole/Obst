@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Core structural reader and writer for the OBST v0 wire format."""
 
 from __future__ import annotations

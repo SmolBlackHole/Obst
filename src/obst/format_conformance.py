@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Package-owned conformance suite for the OBST wire format."""
 
 from importlib.resources import files

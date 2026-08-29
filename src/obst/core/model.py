@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Core language-neutral concepts represented as Python value objects."""
 
 from __future__ import annotations

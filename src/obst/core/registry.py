@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Explicit composition and immutable lookup of trusted OBST extensions."""
 
 from __future__ import annotations

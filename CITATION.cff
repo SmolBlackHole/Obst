@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
+cff-version: 1.2.0
+message: "If you use OBST or the reference toolchain, please cite this project."
+title: "OBST: OBST Binary Storage & Transformations"
+type: software
+authors:
+  - name: "SmolBlackHole"
+version: 0.2.0
+date-released: 2026-08-29
+repository-code: "https://github.com/SmolBlackHole/Obst"
+url: "https://github.com/SmolBlackHole/Obst"
+license: MPL-2.0
+abstract: >-
+  OBST is a self-describing, streamable binary container for logical byte
+  streams and reversible representation pipelines. This repository provides
+  the format specification and its Python reference toolchain.

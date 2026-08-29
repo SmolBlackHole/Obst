@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Package, inspect, and recover 2 in-memory OBST byte streams."""
 
 from __future__ import annotations

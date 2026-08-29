@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Public contracts and provider helpers for ID-bearing OBST extensions."""
 
 from __future__ import annotations

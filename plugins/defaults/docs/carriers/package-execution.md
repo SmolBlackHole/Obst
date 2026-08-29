@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults Carriers](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 The Defaults plugin supplies `write_package()` and `publish_package()` for
 executing any prepared `PackageWriteOperation` through a bound Carrier session.
 This page owns their close, commit, abort and cleanup semantics.
@@ -23,7 +28,7 @@ operation and calls `commit()` only after packaging succeeds. A packaging
 failure triggers `abort()` instead. An abort failure is attached as a note to
 the primary exception rather than replacing it.
 
-The generic [Carrier lifecycle](../../../../docs/extensions/carriers.md#writer-and-publisher-semantics)
+The generic [Carrier lifecycle](../../../../docs/toolchain/extension-api/carriers.md#writer-and-publisher-semantics)
 defines the provider contract. This helper supplies the Defaults orchestration
 around that contract.
 

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Run the repository's formatting, static analysis and test checks."""
 
 from __future__ import annotations
@@ -69,6 +73,7 @@ def main() -> None:
     run_isort(("--check-only", *TARGETS))
     run_module(("mypy",))
     run_module(("pyright",))
+    run_module(("reuse", "lint"))
     run_module(("pytest", "-m", "not distribution"))
     for workspace in WORKSPACE_TESTS:
         run_module(

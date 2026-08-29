@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Canonical core encoding for the OBST v0 manifest."""
 
 from __future__ import annotations

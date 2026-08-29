@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Native CLI inspection over local paths or the standard binary input."""
 
 from __future__ import annotations

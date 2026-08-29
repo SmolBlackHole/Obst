@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """CLI output projections grouped by host domain."""
 
 from obst.cli.output.extensions import (

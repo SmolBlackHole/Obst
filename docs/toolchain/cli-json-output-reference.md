@@ -2,6 +2,11 @@
 
 Parent: [OBST command-line guide](cli.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This non-normative snapshot collects every command in the repository that
 accepts `--json`. It is meant for reviewing the machine interface in one place;
 the command owner still defines each schema's meaning and compatibility.

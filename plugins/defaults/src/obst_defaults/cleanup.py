@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Internal cleanup rules shared by first-party adapters."""
 
 from __future__ import annotations

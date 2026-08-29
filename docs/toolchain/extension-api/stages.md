@@ -1,10 +1,15 @@
 # Stage extensions
 
-Parent: [Extension system](README.md)
+Parent: [Extension system](../extensions.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 A stage is a versioned, reversible byte-to-byte contract applied to one
-[chunk](../anatomy.md#chunks-make-the-stream-bounded). Encoding follows
-[recipe](../core/recipes.md) order; decoding applies the inverse stages in
+[chunk](../../anatomy.md#chunks-make-the-stream-bounded). Encoding follows
+[recipe](../internals/recipes.md) order; decoding applies the inverse stages in
 reverse order.
 
 ## Table of contents
@@ -221,7 +226,7 @@ binding is lazy: only a recipe referenced by a decoded chunk is resolved and
 bound. Within either recipe, all required providers are resolved before its
 first bind callback runs.
 
-The [recipe execution guide](../core/recipes.md) owns the operation lifecycle.
+The [recipe execution guide](../internals/recipes.md) owns the operation lifecycle.
 
 ## Register the extension
 
@@ -229,7 +234,7 @@ The complete example above constructs the extension and places it in an
 explicit, immutable registry before executing either direction.
 
 Registry construction, split directional providers, conflicts and immutable
-snapshots belong to the [registry guide](../core/registry.md). A stage package
+snapshots belong to the [registry guide](../internals/registry.md). A stage package
 only exports its self-describing class or a configured instance. It does not
 mutate a process-global registry during import.
 
@@ -294,7 +299,7 @@ refusals. `BaseException` subclasses outside `Exception` are not converted.
 Providers are trusted local code with the complete authority of the host
 process. These checks produce stable diagnostics for broken contracts; they do
 not sandbox extensions. The [runtime error reference](../errors.md) owns the
-complete hierarchy, while [resource limits](../core/resources.md) owns shared
+complete hierarchy, while [resource limits](../resources.md) owns shared
 operation accounting.
 
 ### Invalid parameters
@@ -355,7 +360,7 @@ Inspection calls the method only when the host includes the extension ID in an
 explicit `InspectionInterpretationPolicy`. Structural inspection remains
 callback-free. Raised exceptions and invalid returns stop inspection with
 `ExtensionContractError` while preserving the original cause. The
-[inspection guide](../core/inspection.md#optional-interpretation) defines that
+[inspection guide](../inspection.md#optional-interpretation) defines that
 policy boundary.
 
 ## Reentrancy and determinism

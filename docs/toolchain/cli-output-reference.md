@@ -2,6 +2,11 @@
 
 Parent: [OBST command-line guide](cli.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This page is a non-normative snapshot of every human-readable command exposed
 by the runtime and the installed example plugins used in this repository. It
 exists to review the CLI as one interface. Command behavior remains owned by

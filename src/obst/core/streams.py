@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Core conversion between logical bytes and wire-ready chunks."""
 
 from __future__ import annotations

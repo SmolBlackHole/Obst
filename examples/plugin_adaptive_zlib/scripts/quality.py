@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Run the adaptive-zlib distribution's formatting, analysis and tests."""
 
 from __future__ import annotations

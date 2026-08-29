@@ -2,6 +2,11 @@
 
 Parent: [Documentation index](README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 OBST documentation has one owner for each fact. A useful new page removes an
 ambiguity or answers a concrete reader question. It should not create a second
 place that must be kept vaguely in sync.
@@ -27,32 +32,33 @@ place that must be kept vaguely in sync.
 
 ## Choose the document by authority
 
-| Content                                             | Owner                                   |
-| --------------------------------------------------- | --------------------------------------- |
-| Project purpose, first use and navigation           | Root `README.md`                        |
-| Conceptual container walkthrough                    | `docs/anatomy.md`                       |
-| Container framing and structural validity           | `docs/format.md`                        |
-| Python mapping of fixed wire fields and layouts     | `docs/core/wire.md`                     |
-| Interoperability evidence and conformance coverage  | `docs/conformance.md`                   |
-| Portable valid and invalid format corpus            | `src/obst/conformance/corpus/`          |
-| One plugin's portable Extension vector suite        | That plugin's package data              |
-| Built-in `obst.bytes@1` contract                    | Root `docs/contracts/`                  |
-| Meaning of another versioned Extension ID           | Implementing plugin's `docs/contracts/` |
-| Python core operations                              | `docs/core/`                            |
-| Extension composition and capability lookup         | `docs/core/registry.md`                 |
-| Generic Extension and adapter protocols             | `docs/extensions/`                      |
-| Python distribution layout and activation rationale | `docs/design.md`                        |
-| Shared carrier lifecycle and provider contracts     | `docs/extensions/carriers.md`           |
-| One concrete adapter or Carrier                     | Implementing plugin's docs              |
-| Packager provider boundary                          | `docs/extensions/packagers.md`          |
-| One concrete packaging policy                       | Implementing plugin's docs              |
-| Native command-host behavior                        | `docs/cli.md`                           |
-| One contributed command's behavior                  | Contributing plugin's docs              |
-| One plugin resource or shipped limit profile        | Contributing plugin's docs              |
-| Core and native CLI failures                        | `docs/errors.md`                        |
-| Provider-specific errors and exit codes             | Owning plugin's docs                    |
-| Rationale for implemented boundaries                | `docs/design.md`                        |
-| Unimplemented work                                  | `ROADMAP.md`                            |
+| Content                                             | Owner                                       |
+| --------------------------------------------------- | ------------------------------------------- |
+| Project purpose, first use and navigation           | Root `README.md`                            |
+| Conceptual container walkthrough                    | `docs/anatomy.md`                           |
+| Container framing and structural validity           | `docs/format.md`                            |
+| Built-in `obst.bytes@1` contract                    | `docs/format.md`                            |
+| Rationale for format boundaries                     | `docs/design.md`                            |
+| Meaning of another versioned Extension ID           | Implementing plugin's `docs/contracts/`     |
+| Python toolchain boundary and navigation            | `docs/toolchain/README.md`                  |
+| Python mapping of fixed wire fields and layouts     | `docs/toolchain/internals/wire.md`          |
+| Interoperability evidence and conformance coverage  | `docs/toolchain/conformance.md`             |
+| Portable valid and invalid format corpus            | `src/obst/conformance/corpus/`              |
+| One plugin's portable Extension vector suite        | That plugin's package data                  |
+| Python reading, writing and inspection              | `docs/toolchain/`                           |
+| Extension composition and capability lookup         | `docs/toolchain/internals/registry.md`      |
+| Generic Extension and adapter protocols             | `docs/toolchain/extension-api/`             |
+| Python distribution layout and activation rationale | `docs/toolchain/README.md`                  |
+| Shared Carrier lifecycle and provider contracts     | `docs/toolchain/extension-api/carriers.md`  |
+| One concrete adapter or Carrier                     | Implementing plugin's docs                  |
+| Packager provider boundary                          | `docs/toolchain/extension-api/packagers.md` |
+| One concrete packaging policy                       | Implementing plugin's docs                  |
+| Native command-host behavior                        | `docs/toolchain/cli.md`                     |
+| One contributed command's behavior                  | Contributing plugin's docs                  |
+| One plugin resource or shipped limit profile        | Contributing plugin's docs                  |
+| Core and native CLI failures                        | `docs/toolchain/errors.md`                  |
+| Provider-specific errors and exit codes             | Owning plugin's docs                        |
+| Unimplemented work                                  | `ROADMAP.md`                                |
 
 If a paragraph fits two rows, split the facts by authority and link between
 them. Do not copy the paragraph.
@@ -89,13 +95,21 @@ The root documentation uses this shape:
 
 ```text
 docs/README.md
-  Part I: understand OBST
-  Part II: use the Python runtime
-  Part III: extend OBST
-  Part IV: use the tools
-  Reference and appendices
-  Project
+  OBST format
+    format.md
+    anatomy.md
+    design.md
+    contracts/
+  Python toolchain
+    toolchain/README.md
+    toolchain/*.md
+  Project documentation
 ```
+
+The split is an authority boundary. `format.md` alone decides whether bytes are
+a valid OBST container. `toolchain/` documents this repository's Python APIs,
+plugins, local policy and commands. Explanatory pages may link across the
+boundary, but they do not copy or redefine the other's contract.
 
 A plugin mirrors the pattern with its own subject:
 

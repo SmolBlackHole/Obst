@@ -2,6 +2,11 @@
 
 Parent: [obst-defaults contracts](../README.md)
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: CC-BY-ND-4.0
+-->
+
 These contracts define application-owned metadata around logical OBST byte
 streams. They remain independent of Recipes and the Stages used to represent
 the stream's chunks.
@@ -10,5 +15,5 @@ the stream's chunks.
 
 - [`obst.file@1`](file.md): one portable basename and its exact file bytes.
 
-The generic [stream-profile API](../../../../../docs/extensions/profiles.md)
+The generic [stream-profile API](../../../../../docs/toolchain/extension-api/profiles.md)
 owns provider composition and optional metadata interpretation.

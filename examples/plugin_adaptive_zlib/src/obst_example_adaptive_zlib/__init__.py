@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Installable example of a self-describing adaptive OBST plugin."""
 
 from __future__ import annotations

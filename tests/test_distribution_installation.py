@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Installation checks owned by the ``obst`` distribution."""
 
 from __future__ import annotations
@@ -5,6 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tarfile
 import zipfile
 from pathlib import Path
 
@@ -118,13 +123,50 @@ def test_runtime_wheel_contains_its_license_and_format_corpus(
     (wheel,) = tuple(wheelhouse.glob("obst-*.whl"))
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
-        license_names = [
-            name for name in names if name.endswith(".dist-info/licenses/LICENSE")
-        ]
+        license_names = [name for name in names if ".dist-info/licenses/" in name]
         assert len(license_names) == 1
-        assert archive.read(license_names[0]) == (PROJECT_ROOT / "LICENSE").read_bytes()
+        assert license_names[0].endswith(".dist-info/licenses/LICENSES/MPL-2.0.txt")
+        assert (
+            archive.read(license_names[0])
+            == (PROJECT_ROOT / "LICENSES" / "MPL-2.0.txt").read_bytes()
+        )
         assert "obst/py.typed" in names
         assert "obst/conformance/corpus/index.json" in names
         assert not any(
             name.startswith("obst/conformance/corpus/vectors/") for name in names
         )
+
+
+@pytest.mark.distribution
+@pytest.mark.timeout(120)
+def test_source_distribution_keeps_private_working_documents_out(
+    tmp_path: Path,
+) -> None:
+    distribution_dir = tmp_path / "distributions"
+    environment = _environment(tmp_path / "config")
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "build",
+            "--sdist",
+            "--no-isolation",
+            "--outdir",
+            distribution_dir,
+            PROJECT_ROOT,
+        ],
+        environment=environment,
+    )
+
+    (source_distribution,) = tuple(distribution_dir.glob("obst-*.tar.gz"))
+    with tarfile.open(source_distribution, "r:gz") as archive:
+        names = archive.getnames()
+
+    root = "obst-0.2.0"
+    assert f"{root}/LICENSES/MPL-2.0.txt" in names
+    assert f"{root}/LICENSES/CC-BY-ND-4.0.txt" in names
+    assert f"{root}/REUSE.toml" in names
+    assert f"{root}/TRADEMARKS.md" in names
+    assert f"{root}/docs/format.md" in names
+    assert not any(f"{root}/docs/audits/" in name for name in names)
+    assert not any(f"{root}/docs/history/" in name for name in names)

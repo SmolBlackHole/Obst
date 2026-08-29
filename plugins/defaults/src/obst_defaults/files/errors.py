@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Errors owned by the first-party portable-file feature."""
 
 from obst.core.errors import ObstError

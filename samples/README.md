@@ -1,5 +1,10 @@
 # OBST samples
 
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
+
 This directory contains three inspectable OBST image containers, one nested
 archive and the JPEG files from which they were built.
 

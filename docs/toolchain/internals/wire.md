@@ -1,12 +1,17 @@
 # Python wire mapping
 
-Parent: [Core API](README.md)
+Parent: [Python toolchain](../README.md)
+
+<!--
+SPDX-FileCopyrightText: 2026 SmolBlackHole
+SPDX-License-Identifier: MPL-2.0
+-->
 
 `obst.core.wire` is the Python reference implementation's canonical mapping
 from OBST wire fields to typed fixed records and declaration layouts. It keeps
 format identity, widths, byte order, record sizes, CRC framing and structural
 validation in one place. The language-neutral byte contract remains the
-[binary format specification](../format.md).
+[binary format specification](../../format.md).
 
 ## Table of contents
 
@@ -60,23 +65,23 @@ fields use the BLAKE2s-128 contract defined by the format.
 
 `FormatVersion` and `format_version` own the numeric and named Python identity
 of the supported wire format. Runtime policies live in
-[`ResourceAccounting`](resources.md); the wire version is a format fact, not a
+[`ResourceAccounting`](../resources.md); the wire version is a format fact, not a
 configurable limit.
 
 ## Record layouts
 
 The module maps every fixed v0.2 record to one immutable Python record:
 
-| Python mapping          | Representation        | Normative definition                                   |
-| ----------------------- | --------------------- | ------------------------------------------------------ |
-| `ContainerHeader`       | typed fixed record    | [Container header](../format.md#container-header)      |
-| `ManifestHeader`        | typed fixed record    | [Manifest](../format.md#manifest)                      |
-| `ChunkHeader`           | typed fixed record    | [Chunk framing](../format.md#chunk-framing)            |
-| `TerminalCommit`        | typed fixed record    | [Terminal commit](../format.md#terminal-commit-record) |
-| `extension_declaration` | internal plain layout | [Extension table](../format.md#extension-table)        |
-| `recipe_declaration`    | internal plain layout | [Recipe entries](../format.md#recipe-entries)          |
-| `stage_declaration`     | internal plain layout | [Recipe entries](../format.md#recipe-entries)          |
-| `stream_declaration`    | internal plain layout | [Stream entries](../format.md#stream-entries)          |
+| Python mapping          | Representation        | Normative definition                                      |
+| ----------------------- | --------------------- | --------------------------------------------------------- |
+| `ContainerHeader`       | typed fixed record    | [Container header](../../format.md#container-header)      |
+| `ManifestHeader`        | typed fixed record    | [Manifest](../../format.md#manifest)                      |
+| `ChunkHeader`           | typed fixed record    | [Chunk framing](../../format.md#chunk-framing)            |
+| `TerminalCommit`        | typed fixed record    | [Terminal commit](../../format.md#terminal-commit-record) |
+| `extension_declaration` | internal plain layout | [Extension table](../../format.md#extension-table)        |
+| `recipe_declaration`    | internal plain layout | [Recipe entries](../../format.md#recipe-entries)          |
+| `stage_declaration`     | internal plain layout | [Recipe entries](../../format.md#recipe-entries)          |
+| `stream_declaration`    | internal plain layout | [Stream entries](../../format.md#stream-entries)          |
 
 The table names the Python mapping. The linked format sections remain the
 authority for offsets, meanings, reserved values and validation rules.
@@ -123,7 +128,7 @@ and hostile stream contracts. The public `ContainerReader` and
 
 ## Keeping the mapping honest
 
-[`tests/test_wire.py`](../../tests/test_wire.py) checks fixed-record identities
+[`tests/test_wire.py`](../../../tests/test_wire.py) checks fixed-record identities
 and round trips, declaration format strings, unsigned bounds and CRC behavior.
 Container, manifest, vector and sample tests exercise the records as complete
 wire representations.
@@ -135,7 +140,7 @@ together with the implementation.
 
 ## Related documentation
 
-- [Binary format specification](../format.md)
-- [Structural reading](reading.md)
-- [Structural writing](writing.md)
+- [Binary format specification](../../format.md)
+- [Structural reading](../reading.md)
+- [Structural writing](../writing.md)
 - [Runtime errors](../errors.md)

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
 """Static JSON catalogs for plugin-owned conformance suites."""
 
 from __future__ import annotations
