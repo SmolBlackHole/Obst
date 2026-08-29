@@ -16,6 +16,7 @@ from obst.core import (
     Chunk,
     ContainerReader,
     ContainerWriter,
+    CoreResource,
     CorruptContainerError,
     ExtensionDescriptor,
     ExtensionRegistry,
@@ -25,7 +26,7 @@ from obst.core import (
     PipelineError,
     Recipe,
     ResourceLimitError,
-    ResourceLimits,
+    ResourcePolicy,
     StageSpec,
     Stream,
     TruncatedContainerError,
@@ -39,7 +40,6 @@ from obst.core import (
 )
 from obst.core.errors import InvalidContainerError
 from obst.core.extensions import ExtensionKind, require_no_parameters
-from obst.core.resources import DEFAULT_RESOURCE_LIMITS
 from obst.core.streams import ChunkDecoder, ChunkEncoder
 from obst.core.wire import (
     ChunkHeader,
@@ -49,14 +49,15 @@ from obst.core.wire import (
 )
 from tests.support_extensions import CompressionExtension as ZlibExtension
 from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_resources import policy as _policy
 
-_DEFAULT_MANIFEST_CEILING = cast(int, DEFAULT_RESOURCE_LIMITS.max_manifest_bytes)
+_DEFAULT_MANIFEST_CEILING = cast(int, CoreResource.MANIFEST_BYTES.default_maximum)
 _DEFAULT_CHUNK_CEILING = cast(
     int,
-    DEFAULT_RESOURCE_LIMITS.max_encoded_chunk_bytes,
+    CoreResource.ENCODED_CHUNK_BYTES.default_maximum,
 )
-_DEFAULT_STREAM_CEILING = cast(int, DEFAULT_RESOURCE_LIMITS.max_streams)
-_DEFAULT_RECIPE_CEILING = cast(int, DEFAULT_RESOURCE_LIMITS.max_recipes)
+_DEFAULT_STREAM_CEILING = cast(int, CoreResource.STREAMS.default_maximum)
+_DEFAULT_RECIPE_CEILING = cast(int, CoreResource.RECIPES.default_maximum)
 
 
 @dataclass(frozen=True, slots=True)
@@ -222,26 +223,26 @@ def test_container_reader_enforces_manifest_count_limits() -> None:
     with pytest.raises(ResourceLimitError, match="streams"):
         ContainerReader(
             io.BytesIO(encoded),
-            limits=ResourceLimits(max_streams=1),
+            policy=_policy((CoreResource.STREAMS, 1)),
         )
 
 
 @pytest.mark.parametrize(
-    ("limits", "message"),
+    ("policy", "message"),
     (
-        (ResourceLimits(max_recipes=0), "recipes"),
-        (ResourceLimits(max_streams=0), "streams"),
+        (_policy((CoreResource.RECIPES, 0)), "recipes"),
+        (_policy((CoreResource.STREAMS, 0)), "streams"),
     ),
 )
 def test_container_reader_rejects_declared_counts_before_reading_manifest(
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
     message: str,
 ) -> None:
     encoded = write_container(raw_manifest(), b"payload")
     source = _HeaderOnlyReader(encoded[: ContainerHeader.size])
 
     with pytest.raises(ResourceLimitError, match=message):
-        ContainerReader(source, limits=limits)
+        ContainerReader(source, policy=policy)
 
     assert source.requested_sizes == [ContainerHeader.size]
 
@@ -253,7 +254,7 @@ def test_extension_count_is_checked_before_manifest_body_read() -> None:
     with pytest.raises(ResourceLimitError, match="extensions"):
         ContainerReader(
             source,
-            limits=ResourceLimits(max_extensions=0),
+            policy=_policy((CoreResource.EXTENSIONS, 0)),
         )
 
     assert source.requested_sizes == [ContainerHeader.size, ManifestHeader.size]
@@ -685,10 +686,10 @@ def test_decode_rejects_tampered_logical_hash_after_inspection() -> None:
 
 def test_declared_sizes_are_checked_before_payload_read() -> None:
     encoded = write_container(raw_manifest(), b"payload")
-    limits = ResourceLimits(max_encoded_chunk_bytes=3)
+    policy = _policy((CoreResource.ENCODED_CHUNK_BYTES, 3))
 
     with pytest.raises(ResourceLimitError, match="encoded_chunk_bytes"):
-        inspect_container(ContainerReader(io.BytesIO(encoded), limits=limits))
+        inspect_container(ContainerReader(io.BytesIO(encoded), policy=policy))
 
 
 def test_container_byte_budget_accepts_exact_size_and_refuses_one_byte_less() -> None:
@@ -697,7 +698,7 @@ def test_container_byte_budget_accepts_exact_size_and_refuses_one_byte_less() ->
     inspection = inspect_container(
         ContainerReader(
             io.BytesIO(encoded),
-            limits=ResourceLimits(max_container_bytes=len(encoded)),
+            policy=_policy((CoreResource.CONTAINER_BYTES, len(encoded))),
         )
     )
     assert inspection.encoded_size == len(encoded)
@@ -706,10 +707,10 @@ def test_container_byte_budget_accepts_exact_size_and_refuses_one_byte_less() ->
         inspect_container(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(max_container_bytes=len(encoded) - 1),
+                policy=_policy((CoreResource.CONTAINER_BYTES, len(encoded) - 1)),
             )
         )
-    assert error.value.resource == "container_bytes"
+    assert error.value.resource is CoreResource.CONTAINER_BYTES
 
 
 def test_trailing_probe_does_not_charge_committed_container_budget() -> None:
@@ -717,7 +718,7 @@ def test_trailing_probe_does_not_charge_committed_container_budget() -> None:
     source = io.BytesIO(valid + b"x")
     reader = ContainerReader(
         source,
-        limits=ResourceLimits(max_container_bytes=len(valid)),
+        policy=_policy((CoreResource.CONTAINER_BYTES, len(valid))),
     )
 
     with pytest.raises(InvalidContainerError, match="trailing bytes"):
@@ -734,7 +735,7 @@ def test_chunk_count_budget_accepts_exact_count_and_refuses_next_chunk() -> None
         inspect_container(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(max_chunks=2),
+                policy=_policy((CoreResource.CHUNKS, 2)),
             )
         ).chunk_count
         == 2
@@ -744,20 +745,20 @@ def test_chunk_count_budget_accepts_exact_count_and_refuses_next_chunk() -> None
         inspect_container(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(max_chunks=1),
+                policy=_policy((CoreResource.CHUNKS, 1)),
             )
         )
-    assert error.value.resource == "chunks"
+    assert error.value.resource is CoreResource.CHUNKS
     assert error.value.observed == 2
 
 
 def test_inspection_does_not_charge_logical_recovery_budget() -> None:
     encoded = write_container(raw_manifest(), b"payload")
-    refused_limits = ResourceLimits(max_total_logical_bytes=0)
+    refused_policy = _policy((CoreResource.LOGICAL_BYTES, 0))
 
     assert (
         inspect_container(
-            ContainerReader(io.BytesIO(encoded), limits=refused_limits)
+            ContainerReader(io.BytesIO(encoded), policy=refused_policy)
         ).chunk_count
         == 1
     )
@@ -766,7 +767,7 @@ def test_inspection_does_not_charge_logical_recovery_budget() -> None:
         materialize_stream(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(max_total_logical_bytes=7),
+                policy=_policy((CoreResource.LOGICAL_BYTES, 7)),
             ),
             0,
             _stage_registry(),
@@ -776,11 +777,11 @@ def test_inspection_does_not_charge_logical_recovery_budget() -> None:
 
     with pytest.raises(ResourceLimitError) as error:
         materialize_stream(
-            ContainerReader(io.BytesIO(encoded), limits=refused_limits),
+            ContainerReader(io.BytesIO(encoded), policy=refused_policy),
             0,
             _stage_registry(),
         )
-    assert error.value.resource == "logical_bytes"
+    assert error.value.resource is CoreResource.LOGICAL_BYTES
 
 
 def test_successfully_consumed_reader_is_complete_and_single_use() -> None:
@@ -830,7 +831,7 @@ def test_materialize_stream_enforces_combined_output_limit() -> None:
         materialize_stream(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(max_materialized_stream_bytes=8),
+                policy=_policy((CoreResource.MATERIALIZED_STREAM_BYTES, 8)),
             ),
             0,
             _stage_registry(),
@@ -841,7 +842,7 @@ def test_materialize_stream_enforces_combined_output_limit() -> None:
         materialize_stream(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(max_materialized_stream_bytes=7),
+                policy=_policy((CoreResource.MATERIALIZED_STREAM_BYTES, 7)),
             ),
             0,
             _stage_registry(),
@@ -885,7 +886,7 @@ def test_chunk_decoder_needs_only_manifest_index_and_validated_chunks() -> None:
     decoder = ChunkDecoder(
         reader.index,
         _stage_registry(),
-        limits=reader.limits,
+        policy=reader.policy,
     )
 
     recovered = b"".join(decoder.decode(chunk) for chunk in chunks)
@@ -943,7 +944,7 @@ def test_materialize_stream_skips_unselected_chunks_without_decode_budget() -> N
         materialize_stream(
             ContainerReader(
                 io.BytesIO(target.getvalue()),
-                limits=ResourceLimits(max_stage_executions=1),
+                policy=_policy((CoreResource.STAGE_EXECUTIONS, 1)),
             ),
             1,
             registry,
@@ -960,13 +961,13 @@ def test_recovery_stage_budget_spans_all_chunks() -> None:
             iter_decoded_chunks(
                 ContainerReader(
                     io.BytesIO(encoded),
-                    limits=ResourceLimits(max_stage_executions=1),
+                    policy=_policy((CoreResource.STAGE_EXECUTIONS, 1)),
                 ),
                 _stage_registry(),
             )
         )
 
-    assert error.value.resource == "stage_executions"
+    assert error.value.resource is CoreResource.STAGE_EXECUTIONS
     assert error.value.observed == 2
 
 
@@ -1275,10 +1276,10 @@ def test_writer_rejects_invalid_chunk_references_and_sequences(
 
 
 @pytest.mark.parametrize(
-    ("limits", "chunk", "message"),
+    ("policy", "chunk", "message"),
     [
         (
-            ResourceLimits(max_logical_chunk_bytes=3),
+            _policy((CoreResource.LOGICAL_CHUNK_BYTES, 3)),
             Chunk(
                 0,
                 0,
@@ -1290,7 +1291,7 @@ def test_writer_rejects_invalid_chunk_references_and_sequences(
             "logical_chunk_bytes",
         ),
         (
-            ResourceLimits(max_encoded_chunk_bytes=3),
+            _policy((CoreResource.ENCODED_CHUNK_BYTES, 3)),
             Chunk(
                 0,
                 0,
@@ -1304,12 +1305,12 @@ def test_writer_rejects_invalid_chunk_references_and_sequences(
     ],
 )
 def test_writer_rejects_chunks_above_its_size_limits(
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
     chunk: Chunk,
     message: str,
 ) -> None:
     target = io.BytesIO()
-    writer = ContainerWriter(target, raw_manifest(), limits=limits)
+    writer = ContainerWriter(target, raw_manifest(), policy=policy)
     header_size = len(target.getvalue())
 
     with pytest.raises(ResourceLimitError, match=message):
@@ -1325,7 +1326,7 @@ def test_writer_rejects_oversized_manifest_before_publishing_bytes() -> None:
         ContainerWriter(
             target,
             raw_manifest(),
-            limits=ResourceLimits(max_manifest_bytes=0),
+            policy=_policy((CoreResource.MANIFEST_BYTES, 0)),
         )
 
     assert target.getvalue() == b""
@@ -1339,7 +1340,7 @@ def test_writer_reserves_terminal_commit_before_publishing_header() -> None:
     writer = ContainerWriter(
         target,
         manifest,
-        limits=ResourceLimits(max_container_bytes=len(complete)),
+        policy=_policy((CoreResource.CONTAINER_BYTES, len(complete))),
     )
     summary = writer.finish()
 
@@ -1351,9 +1352,9 @@ def test_writer_reserves_terminal_commit_before_publishing_header() -> None:
         ContainerWriter(
             refused_target,
             manifest,
-            limits=ResourceLimits(max_container_bytes=len(complete) - 1),
+            policy=_policy((CoreResource.CONTAINER_BYTES, len(complete) - 1)),
         )
-    assert error.value.resource == "container_bytes"
+    assert error.value.resource is CoreResource.CONTAINER_BYTES
     assert error.value.observed == len(complete)
     assert refused_target.getvalue() == b""
 
@@ -1373,14 +1374,14 @@ def test_writer_reserves_terminal_commit_before_publishing_chunk() -> None:
     writer = ContainerWriter(
         target,
         manifest,
-        limits=ResourceLimits(max_container_bytes=len(complete) - 1),
+        policy=_policy((CoreResource.CONTAINER_BYTES, len(complete) - 1)),
     )
     prefix = target.getvalue()
 
     with pytest.raises(ResourceLimitError) as error:
         writer.write_chunk(chunk)
 
-    assert error.value.resource == "container_bytes"
+    assert error.value.resource is CoreResource.CONTAINER_BYTES
     assert error.value.observed == len(complete)
     assert target.getvalue() == prefix
 
@@ -1391,7 +1392,7 @@ def test_writer_refuses_chunk_count_before_publishing_rejected_chunk() -> None:
     writer = ContainerWriter(
         target,
         manifest,
-        limits=ResourceLimits(max_chunks=0),
+        policy=_policy((CoreResource.CHUNKS, 0)),
     )
     size_before_chunk = len(target.getvalue())
 
@@ -1406,7 +1407,7 @@ def test_writer_refuses_chunk_count_before_publishing_rejected_chunk() -> None:
             )
         )
 
-    assert error.value.resource == "chunks"
+    assert error.value.resource is CoreResource.CHUNKS
     assert len(target.getvalue()) == size_before_chunk
 
 
@@ -1416,14 +1417,14 @@ def test_writer_preflight_refuses_known_chunk_work_without_mutating_state() -> N
     writer = ContainerWriter(
         target,
         manifest,
-        limits=ResourceLimits(max_total_logical_bytes=3),
+        policy=_policy((CoreResource.LOGICAL_BYTES, 3)),
     )
     size_before_chunk = len(target.getvalue())
 
     with pytest.raises(ResourceLimitError) as error:
         writer.preflight_chunk(4)
 
-    assert error.value.resource == "logical_bytes"
+    assert error.value.resource is CoreResource.LOGICAL_BYTES
     assert len(target.getvalue()) == size_before_chunk
     writer.preflight_chunk(3)
     writer.write_chunk(
@@ -1443,9 +1444,9 @@ def test_writer_preflights_cumulative_terminal_totals_before_chunk_output() -> N
     writer = ContainerWriter(
         target,
         manifest,
-        limits=ResourceLimits(
-            max_logical_chunk_bytes=None,
-            max_total_logical_bytes=None,
+        policy=_policy(
+            (CoreResource.LOGICAL_CHUNK_BYTES, None),
+            (CoreResource.LOGICAL_BYTES, None),
         ),
     )
     maximum = (1 << 64) - 1
@@ -1466,9 +1467,9 @@ def test_chunk_size_limit_accepts_boundary_and_rejects_larger_value() -> None:
         materialize_stream(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(
-                    max_encoded_chunk_bytes=5,
-                    max_logical_chunk_bytes=5,
+                policy=_policy(
+                    (CoreResource.ENCODED_CHUNK_BYTES, 5),
+                    (CoreResource.LOGICAL_CHUNK_BYTES, 5),
                 ),
             ),
             0,
@@ -1480,9 +1481,9 @@ def test_chunk_size_limit_accepts_boundary_and_rejects_larger_value() -> None:
         materialize_stream(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(
-                    max_encoded_chunk_bytes=4,
-                    max_logical_chunk_bytes=4,
+                policy=_policy(
+                    (CoreResource.ENCODED_CHUNK_BYTES, 4),
+                    (CoreResource.LOGICAL_CHUNK_BYTES, 4),
                 ),
             ),
             0,
@@ -1494,7 +1495,7 @@ def test_chunk_size_limit_accepts_boundary_and_rejects_larger_value() -> None:
         inspect_container(
             ContainerReader(
                 io.BytesIO(encoded),
-                limits=ResourceLimits(max_logical_chunk_bytes=3),
+                policy=_policy((CoreResource.LOGICAL_CHUNK_BYTES, 3)),
             )
         )
 

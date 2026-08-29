@@ -308,8 +308,8 @@ with no chunks.
 
 A reader applies its configured encoded-size ceiling before reading the
 payload. Configured resource ceilings are implementation policy rather than
-wire validity. The Python reference uses one `ResourceLimits` policy for
-reading, writing and processing. [Resource limits](core/resources.md)
+wire validity. The Python reference uses one `ResourcePolicy` for
+reading, writing and processing. [Resource policy](core/resources.md)
 documents its defaults and complete-operation budgets. A local refusal does
 not make conforming bytes invalid.
 

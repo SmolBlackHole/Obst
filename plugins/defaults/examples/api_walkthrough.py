@@ -7,6 +7,7 @@ from typing import cast
 
 from obst.core import (
     BYTES_STREAM_TYPE,
+    DEFAULT_RESOURCE_POLICY,
     ContainerReader,
     ExtensionRegistry,
     LogicalStreamDescriptor,
@@ -67,7 +68,9 @@ def main() -> None:
     )
 
     target = BytesIO()
-    operation = packager.prepare_package(FixedPackageRequest(registry, sources))
+    operation = packager.prepare_package(
+        FixedPackageRequest(registry, sources, DEFAULT_RESOURCE_POLICY)
+    )
     package = operation.write_to(target)
     container_bytes = target.getvalue()
 

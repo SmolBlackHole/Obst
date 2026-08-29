@@ -6,8 +6,13 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Literal, Protocol, cast, runtime_checkable
 
-from obst.core.errors import ProviderRejectedError, ResourceLimitError
+from obst.core.errors import ProviderRejectedError
 from obst.core.model import validate_extension_id, validate_specification_url
+from obst.core.resources import (
+    CoreResource,
+    ResourceLimitError,
+    require_resource_limit,
+)
 
 if TYPE_CHECKING:
     from obst.core.io import BinaryReader, BinaryWriter
@@ -331,15 +336,16 @@ def require_stage_output_size(
             raise ValueError("max_output_size must be non-negative")
     if operation not in {"encode", "decode"}:
         raise ValueError("operation must be 'encode' or 'decode'")
-    if max_output_size is not None and observed_size > max_output_size:
-        resource_limit = ResourceLimitError(
-            resource="intermediate_bytes",
+    try:
+        require_resource_limit(
+            CoreResource.INTERMEDIATE_BYTES,
             scope=stage_id,
             maximum=max_output_size,
             observed=observed_size,
             phase=f"stage_{operation}",
         )
-        raise _ProviderOutputLimitRejected(resource_limit)
+    except ResourceLimitError as resource_limit:
+        raise _ProviderOutputLimitRejected(resource_limit) from resource_limit
 
 
 def extend_stage_output(

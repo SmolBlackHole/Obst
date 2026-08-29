@@ -60,7 +60,7 @@ fields use the BLAKE2s-128 contract defined by the format.
 
 `FormatVersion` and `format_version` own the numeric and named Python identity
 of the supported wire format. Runtime policies live in
-[`ResourceLimits`](resources.md); the wire version is a format fact, not a
+[`ResourcePolicy`](resources.md); the wire version is a format fact, not a
 configurable limit.
 
 ## Record layouts

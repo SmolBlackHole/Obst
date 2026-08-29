@@ -48,6 +48,7 @@ place that must be kept vaguely in sync.
 | One concrete packaging policy                       | Implementing plugin's docs              |
 | Native command-host behavior                        | `docs/cli.md`                           |
 | One contributed command's behavior                  | Contributing plugin's docs              |
+| One plugin resource or shipped limit profile        | Contributing plugin's docs              |
 | Core and native CLI failures                        | `docs/errors.md`                        |
 | Provider-specific errors and exit codes             | Owning plugin's docs                    |
 | Rationale for implemented boundaries                | `docs/design.md`                        |

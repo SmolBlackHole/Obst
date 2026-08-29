@@ -23,10 +23,18 @@ from obst.conformance import (
 from obst.core.errors import ExtensionError, ObstError
 from obst.core.extensions import Extension
 from obst.core.registry import ExtensionRegistry
+from obst.core.resources import (
+    DEFAULT_LIMIT_PROFILE,
+    CoreResource,
+    ResourceCatalog,
+    ResourceContribution,
+    ResourceKind,
+)
 
 EXTENSION_ENTRY_POINT_GROUP = "obst.extensions"
 COMMAND_ENTRY_POINT_GROUP = "obst.commands"
 CONFORMANCE_ENTRY_POINT_GROUP = "obst.conformance"
+RESOURCE_ENTRY_POINT_GROUP = "obst.resources"
 PLUGIN_STATE_SCHEMA_VERSION = 1
 
 _PLUGIN_NAME_PATTERN = re.compile(r"[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?")
@@ -95,6 +103,7 @@ class PluginStatus:
     extension_reference: str | None = None
     command_reference: str | None = None
     conformance_reference: str | None = None
+    resource_reference: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +112,7 @@ class PluginRuntime:
 
     plugin_names: tuple[str, ...]
     registry: ExtensionRegistry
+    resources: ResourceCatalog
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +157,7 @@ class _InstalledPlugin:
     extension_entry_point: metadata.EntryPoint | None
     command_entry_point: metadata.EntryPoint | None
     conformance_entry_point: metadata.EntryPoint | None
+    resource_entry_point: metadata.EntryPoint | None
     distribution_name: str | None
     distribution_version: str | None
     summary: str | None
@@ -186,19 +197,30 @@ class PluginManager:
             entry_points,
             CONFORMANCE_ENTRY_POINT_GROUP,
         )
+        resource_entries = _index_entry_points(
+            entry_points,
+            RESOURCE_ENTRY_POINT_GROUP,
+        )
         installed: dict[str, _InstalledPlugin] = {}
         names = (
             extension_entries.keys()
             | command_entries.keys()
             | conformance_entries.keys()
+            | resource_entries.keys()
         )
         for name in sorted(names):
             extension_entry = extension_entries.get(name)
             command_entry = command_entries.get(name)
             conformance_entry = conformance_entries.get(name)
+            resource_entry = resource_entries.get(name)
             entries = tuple(
                 entry
-                for entry in (extension_entry, command_entry, conformance_entry)
+                for entry in (
+                    extension_entry,
+                    command_entry,
+                    conformance_entry,
+                    resource_entry,
+                )
                 if entry is not None
             )
             _require_same_distribution(name, entries)
@@ -209,6 +231,7 @@ class PluginManager:
                 extension_entry_point=extension_entry,
                 command_entry_point=command_entry,
                 conformance_entry_point=conformance_entry,
+                resource_entry_point=resource_entry,
                 distribution_name=(None if distribution is None else distribution.name),
                 distribution_version=(
                     None if distribution is None else distribution.version
@@ -241,10 +264,14 @@ class PluginManager:
     def enable(self, name: str) -> PluginStatus:
         """Persistently enable one installed plugin without loading its code."""
         plugin = self._require_installed(name)
-        if plugin.extension_entry_point is None and plugin.command_entry_point is None:
+        if (
+            plugin.extension_entry_point is None
+            and plugin.command_entry_point is None
+            and plugin.resource_entry_point is None
+        ):
             raise PluginActivationError(
                 name,
-                "plugin publishes no Extension or command contribution",
+                "plugin publishes no Extension, command or resource contribution",
             )
         if name not in self._enabled:
             enabled = self._enabled | {name}
@@ -274,9 +301,19 @@ class PluginManager:
             seen.add(name)
             selected.append(name)
         extensions: list[Extension] = []
+        contributed_resources: list[tuple[_InstalledPlugin, ResourceContribution]] = []
         for name in selected:
             plugin = self._require_installed(name)
-            extensions.extend(self._load_extensions(plugin))
+            owned_extensions = self._load_extensions(plugin)
+            extensions.extend(owned_extensions)
+            contribution = self._load_resource_contribution(plugin)
+            if contribution is not None:
+                _validate_resource_contribution_ownership(
+                    plugin,
+                    contribution,
+                    owned_extensions,
+                )
+                contributed_resources.append((plugin, contribution))
         try:
             registry = ExtensionRegistry(tuple(extensions))
         except ExtensionError as exc:
@@ -285,9 +322,18 @@ class PluginManager:
                 names,
                 f"extension registry rejected the selected plugin set: {exc}",
             ) from exc
+        try:
+            resources = _compose_resource_catalog(contributed_resources)
+        except (TypeError, ValueError) as exc:
+            names = ", ".join(selected) or "<none>"
+            raise PluginLoadError(
+                names,
+                f"resource catalog rejected the selected plugin set: {exc}",
+            ) from exc
         return PluginRuntime(
             tuple(selected),
             registry,
+            resources,
         )
 
     def commands(self) -> tuple[CliCommand, ...]:
@@ -351,6 +397,7 @@ class PluginManager:
         conformance_entry = plugin.conformance_entry_point
         extension_entry = plugin.extension_entry_point
         command_entry = plugin.command_entry_point
+        resource_entry = plugin.resource_entry_point
         return PluginStatus(
             name=name,
             installed=True,
@@ -365,6 +412,9 @@ class PluginManager:
             command_reference=None if command_entry is None else command_entry.value,
             conformance_reference=(
                 None if conformance_entry is None else conformance_entry.value
+            ),
+            resource_reference=(
+                None if resource_entry is None else resource_entry.value
             ),
         )
 
@@ -443,6 +493,39 @@ class PluginManager:
             )
         return tuple(commands)
 
+    @staticmethod
+    def _load_resource_contribution(
+        plugin: _InstalledPlugin,
+    ) -> ResourceContribution | None:
+        entry_point = plugin.resource_entry_point
+        if entry_point is None:
+            return None
+        try:
+            factory = entry_point.load()
+        except Exception as exc:
+            raise PluginLoadError(
+                plugin.name,
+                f"resource entry point raised {type(exc).__name__}: {exc}",
+            ) from exc
+        if not callable(factory):
+            raise PluginLoadError(
+                plugin.name,
+                "resource entry point must resolve to a callable",
+            )
+        try:
+            contribution = factory()
+        except Exception as exc:
+            raise PluginLoadError(
+                plugin.name,
+                f"resource factory raised {type(exc).__name__}: {exc}",
+            ) from exc
+        if type(contribution) is not ResourceContribution:
+            raise PluginLoadError(
+                plugin.name,
+                "resource factory must return one exact ResourceContribution",
+            )
+        return contribution
+
 
 def default_plugin_state_path() -> Path:
     """Return the platform-local plugin activation-state path."""
@@ -456,6 +539,48 @@ def default_plugin_state_path() -> Path:
     root = os.environ.get("XDG_CONFIG_HOME")
     base = Path(root) if root else Path.home() / ".config"
     return base / "obst" / "plugins.json"
+
+
+def _validate_resource_contribution_ownership(
+    plugin: _InstalledPlugin,
+    contribution: ResourceContribution,
+    extensions: tuple[Extension, ...],
+) -> None:
+    try:
+        owned_extension_ids = frozenset(
+            extension.extension_id for extension in extensions
+        )
+    except Exception as exc:
+        raise PluginLoadError(
+            plugin.name,
+            f"cannot read Extension identity for resource ownership: "
+            f"{type(exc).__name__}: {exc}",
+        ) from exc
+    for identifier in (
+        *(str(resource) for resource in contribution.resources),
+        *(profile.profile_id for profile in contribution.profiles),
+    ):  # some black magic shit
+        owner, separator, _local_name = identifier.rpartition("/")
+        if not separator or owner not in owned_extension_ids:
+            raise PluginLoadError(
+                plugin.name,
+                f"resource contribution identifier {identifier} must be qualified "
+                "by an Extension ID owned by the same plugin",
+            )
+
+
+def _compose_resource_catalog(
+    contributions: list[tuple[_InstalledPlugin, ResourceContribution]],
+) -> ResourceCatalog:
+    resources: list[ResourceKind] = list(CoreResource)
+    profiles = [DEFAULT_LIMIT_PROFILE]
+    for _plugin, contribution in contributions:
+        resources.extend(contribution.resources)
+        profiles.extend(contribution.profiles)
+    return ResourceCatalog(
+        tuple(sorted(resources, key=str)),
+        tuple(sorted(profiles, key=lambda profile: profile.profile_id)),
+    )
 
 
 def _index_entry_points(
@@ -662,6 +787,7 @@ __all__ = [
     "CONFORMANCE_ENTRY_POINT_GROUP",
     "EXTENSION_ENTRY_POINT_GROUP",
     "PLUGIN_STATE_SCHEMA_VERSION",
+    "RESOURCE_ENTRY_POINT_GROUP",
     "PluginActivationError",
     "PluginConformanceError",
     "PluginDiscoveryError",

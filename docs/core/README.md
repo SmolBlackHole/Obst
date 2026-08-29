@@ -132,7 +132,7 @@ object stores and transactional publication remain adapter concerns.
 | Execute recipes and individual chunks         | [Recipes and chunks](recipes.md)     |
 | Inspect structure without decoding            | [Inspection](inspection.md)          |
 | Turn logical chunk sources into one container | [Packaging](packaging.md)            |
-| Configure bounded local work                  | [Resource limits](resources.md)      |
+| Configure bounded local work                  | [Resource policy](resources.md)      |
 | Understand Python's scalar and record layouts | [Wire mapping](wire.md)              |
 | Handle runtime failures                       | [Error reference](../errors.md)      |
 | Understand the exact bytes                    | [Format specification](../format.md) |
@@ -153,7 +153,7 @@ from obst.core import (
     ManifestIndex,
     RecipeDecoder,
     RecipeEncoder,
-    ResourceLimits,
+    ResourcePolicy,
 )
 ```
 

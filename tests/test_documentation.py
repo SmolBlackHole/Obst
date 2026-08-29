@@ -29,6 +29,7 @@ _MARKDOWN_HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*#*$")
 _PARENT_LINK = re.compile(r"^Parent: \[[^]]+]\(([^)]+)\)$")
 _URL_SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 _TABLE_OF_CONTENTS_HEADING = "## Table of contents"
+_PRE_TOC_SAFETY_HEADINGS = frozenset({"## Trust boundary"})
 _UNSUPPORTED_MERMAID_RENDERER = re.compile(
     r"(?:layout\s*:\s*elk|defaultRenderer\s*:\s*['\"]?elk)",
     re.IGNORECASE,
@@ -197,8 +198,34 @@ def test_documentation_page_opens_with_introduction_and_useful_toc(
         len(section_indexes) >= 4 or has_nested_sections
     ):
         assert toc_index is not None, "expected a table of contents"
-        assert toc_index < section_indexes[0]
-        toc_lines = lines[toc_index + 1 : section_indexes[0]]
+        pre_toc_sections = [index for index in section_indexes if index < toc_index]
+        unexpected_pre_toc_sections = [
+            lines[index]
+            for index in pre_toc_sections
+            if lines[index] not in _PRE_TOC_SAFETY_HEADINGS
+        ]
+        assert not unexpected_pre_toc_sections, (
+            "only explicit safety sections may precede the table of contents: "
+            f"{unexpected_pre_toc_sections}"
+        )
+        for index in pre_toc_sections:
+            next_boundary = min(
+                (
+                    candidate
+                    for candidate in (*section_indexes, toc_index)
+                    if candidate > index
+                ),
+                default=len(lines),
+            )
+            assert any(
+                line.strip() == "> [!WARNING]"
+                for line in lines[index + 1 : next_boundary]
+            ), "a safety section before the table of contents must be a warning"
+        first_section_after_toc = min(
+            (index for index in section_indexes if index > toc_index),
+            default=len(lines),
+        )
+        toc_lines = lines[toc_index + 1 : first_section_after_toc]
         assert any(_MARKDOWN_LINK.search(line) for line in toc_lines), (
             "expected generated links below the table of contents heading"
         )
@@ -282,6 +309,7 @@ def test_public_docs_include_canonical_executable_examples() -> None:
     }
     assert identities == {
         ("docs/core/README.md", 1),
+        ("docs/core/resources.md", 1),
         ("docs/extensions/profiles.md", 1),
         ("docs/extensions/stages.md", 1),
     }

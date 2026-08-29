@@ -30,6 +30,10 @@ from obst_example_adaptive_zlib.extension import (
     AdaptiveZlibExtension,
     AdaptiveZlibParameters,
 )
+from obst_example_adaptive_zlib.output import (
+    AdaptivePackResult,
+    write_adaptive_pack_result,
+)
 
 _RAW_STAGE_ID = "obst.raw@1"
 _CHUNK_SIZE = 64 * 1024
@@ -57,6 +61,11 @@ class AdaptivePackCommand:
             default=9,
             metavar="0..9",
             help="adaptive zlib compression level (default: 9)",
+        )
+        parser.add_argument(
+            "--json",
+            action="store_true",
+            help="emit a stable machine-readable package result",
         )
 
     def run(self, args: argparse.Namespace, context: CliContext) -> int:
@@ -94,8 +103,8 @@ class AdaptivePackCommand:
         )
         logical = Path(args.input).read_bytes()
         target = BytesIO()
-        writer = ContainerWriter(target, manifest, limits=context.limits)
-        encoder = ChunkEncoder(registry, limits=context.limits)
+        writer = ContainerWriter(target, manifest, policy=context.policy)
+        encoder = ChunkEncoder(registry, policy=context.policy)
         encoder.preflight((recipe,))
         for sequence, offset in enumerate(range(0, len(logical), _CHUNK_SIZE)):
             chunk = logical[offset : offset + _CHUNK_SIZE]
@@ -111,13 +120,19 @@ class AdaptivePackCommand:
         result = writer.finish()
         container = target.getvalue()
         inspection = inspect_container(
-            ContainerReader(BytesIO(container), limits=context.limits),
+            ContainerReader(BytesIO(container), policy=context.policy),
             registry=registry,
         )
         _write_new_file(Path(args.output), container)
-        context.stdout.write(
-            f"Adaptive packed {len(logical)} bytes into {result.encoded_size} bytes "
-            f"across {inspection.chunk_count} chunks.\n"
+        write_adaptive_pack_result(
+            AdaptivePackResult(
+                destination=Path(args.output),
+                logical_size=len(logical),
+                container_size=result.encoded_size,
+                chunk_count=inspection.chunk_count,
+            ),
+            stdout=context.stdout,
+            json_output=args.json,
         )
         return EXIT_SUCCESS
 

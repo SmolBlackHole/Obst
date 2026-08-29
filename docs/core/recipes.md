@@ -28,7 +28,7 @@ expected logical size:
 from obst.core import (
     ExtensionRegistry,
     Recipe,
-    ResourceLimits,
+    ResourcePolicy,
     decode_recipe,
     encode_recipe,
 )
@@ -38,15 +38,15 @@ def round_trip_recipe(
     logical: bytes,
     recipe: Recipe,
     registry: ExtensionRegistry,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
 ) -> bytes:
-    encoded = encode_recipe(logical, recipe, registry, limits=limits)
+    encoded = encode_recipe(logical, recipe, registry, policy=policy)
     return decode_recipe(
         encoded,
         recipe,
         registry,
         expected_size=len(logical),
-        limits=limits,
+        policy=policy,
     )
 ```
 
@@ -62,12 +62,12 @@ operations use `RecipeEncoder` and `RecipeDecoder` instead:
 ```python
 from obst.core import RecipeDecoder, RecipeEncoder
 
-encoder = RecipeEncoder(registry, limits=limits)
+encoder = RecipeEncoder(registry, policy=policy)
 encoder.preflight(recipes)
 encoded_a = encoder.encode(logical_a, recipe_a)
 encoded_b = encoder.encode(logical_b, recipe_b)
 
-decoder = RecipeDecoder(registry, limits=limits)
+decoder = RecipeDecoder(registry, policy=policy)
 recovered_a = decoder.decode(
     encoded_a,
     recipe_a,
@@ -94,7 +94,7 @@ Recipe ID, recovers the bytes and verifies their declared size and hash:
 from obst.core import (
     ExtensionRegistry,
     Recipe,
-    ResourceLimits,
+    ResourcePolicy,
     decode_chunk_once,
     encode_chunk_once,
 )
@@ -104,7 +104,7 @@ def round_trip_chunk(
     logical: bytes,
     recipe: Recipe,
     registry: ExtensionRegistry,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
 ) -> bytes:
     chunk = encode_chunk_once(
         logical,
@@ -112,9 +112,9 @@ def round_trip_chunk(
         sequence=0,
         recipe=recipe,
         registry=registry,
-        limits=limits,
+        policy=policy,
     )
-    return decode_chunk_once(chunk, recipe, registry, limits=limits)
+    return decode_chunk_once(chunk, recipe, registry, policy=policy)
 ```
 
 Use the session types when processing several Chunks:
@@ -139,7 +139,7 @@ constructing its encoded body:
 ```python
 from obst.core import validate_manifest_resources
 
-validate_manifest_resources(manifest, limits=limits)
+validate_manifest_resources(manifest, policy=policy)
 ```
 
 The check invokes no Extension code. Encoder preflight separately resolves and
@@ -155,9 +155,9 @@ partially executed.
 ## Operation budgets
 
 Each standalone Recipe or Chunk helper owns an independent budget under the
-supplied `ResourceLimits`. Session objects retain cumulative logical-byte and
+supplied `ResourcePolicy`. Session objects retain cumulative logical-byte and
 Stage-execution counters across calls. Readers and writers own separate
-structural counters; sharing `ResourceLimits` shares policy, not mutable
+structural counters; sharing `ResourcePolicy` shares policy, not mutable
 accounting.
 
 The [resource guide](resources.md) owns limits and accounting. The

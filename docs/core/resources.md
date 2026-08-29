@@ -1,155 +1,160 @@
-# Resource limits
+# Resource policy
 
 Parent: [Core API](README.md)
 
-OBST applies one immutable local resource policy to each core operation. The
-policy bounds work and allocation without changing whether container bytes are
-valid under the wire format.
+OBST applies one immutable `ResourcePolicy` to each operation. The policy
+bounds local work and allocation. It does not change the wire format and it
+does not make an otherwise invalid container valid.
 
 ## Table of contents
 
-- [Resource limits](#resource-limits)
+- [Resource policy](#resource-policy)
 	- [Table of contents](#table-of-contents)
-	- [Configure one operation](#configure-one-operation)
-	- [Default policy](#default-policy)
-	- [Accounting semantics](#accounting-semantics)
-	- [Policy refusal](#policy-refusal)
-	- [Extension boundary](#extension-boundary)
-	- [Adapter-owned limits](#adapter-owned-limits)
+	- [The public model](#the-public-model)
+	- [Select ceilings for an operation](#select-ceilings-for-an-operation)
+	- [Core resources and defaults](#core-resources-and-defaults)
+	- [Accounting and refusal](#accounting-and-refusal)
+	- [Plugins and isolation](#plugins-and-isolation)
 
-## Configure one operation
+## The public model
 
-`ResourceLimits` is frozen and keyword-only. Core readers, writers and
-[recipe execution and chunk helpers](recipes.md) accept it directly. A
-packager may expose the same policy through its provider-owned request, but
-that is not required by the generic Packager protocol. The
-[`obst-defaults` fixed policy](../../plugins/defaults/docs/packagers/fixed.md)
-is one concrete example:
+The resource API has five layers:
+
+```text
+ResourceDefinition  stable ID, display unit, default ceiling and summary
+ResourceKind       typed identity and default ceiling
+LimitProfile       named overrides
+ResourceCatalog    resources and inert profiles available to one runtime
+ResourcePolicy     one profile resolved over one catalog
+```
+
+`CoreResource` is the closed set measured by the Core runtime. Plugins may
+define their own `ResourceKind` enum and publish those definitions through a
+[`ResourceContribution`](../extensions/plugins.md#resource-contributions).
+
+Resource identities are typed. `CoreResource.CHUNKS` is not equal to the raw
+string `"chunks"`; `str(CoreResource.CHUNKS)` is its canonical serialized ID.
+Core IDs are short. Plugin-owned IDs are qualified by the responsible
+Extension ID, for example `obst.file@1/archive_members`.
+
+Every definition declares a typed `ResourceUnit`: `COUNT` or `BYTES`. Human
+tools can therefore render `16.0 GiB` without guessing from an identifier,
+while machine-readable output keeps the exact integer. Plugins use the same
+public type for their resources.
+
+## Select ceilings for an operation
+
+A profile contains only overrides. Every omitted resource falls back to the
+default declared by its `ResourceKind`. `None` disables that one local ceiling.
+
+> [!WARNING]
+> **Executable documentation:** The following Python block is executed by the
+> documentation test suite with the test process's current privileges.
 
 ```python
-from obst.core import ContainerReader, ResourceLimitError, ResourceLimits
+from obst.core import CoreResource, LimitProfile, ResourcePolicy
 
-limits = ResourceLimits(
-    max_manifest_bytes=8 * 1024 * 1024,
-    max_chunks=100_000,
-    max_total_logical_bytes=2 * 1024 * 1024 * 1024,
+profile = LimitProfile(
+    "local-large",
+    "Local policy for larger containers.",
+    (
+        (CoreResource.CONTAINER_BYTES, 32 * 1024**3),  # raise one ceiling
+        (CoreResource.CHUNKS, None),  # disable only the chunk-count ceiling
+    ),
 )
-reader = ContainerReader(source, limits=limits)
+policy = ResourcePolicy(profile=profile)
+
+assert policy.maximum(CoreResource.CONTAINER_BYTES) == 32 * 1024**3
+assert policy.maximum(CoreResource.CHUNKS) is None
+assert policy.maximum(CoreResource.STREAMS) == 65_536  # inherited default
 ```
 
-Omitted fields retain the OBST defaults. Setting one field to `None` disables
-only that local ceiling:
+Pass the same policy through the complete operation:
 
 ```python
-limits = ResourceLimits(max_container_bytes=None)
+reader = ContainerReader(source, policy=policy)
+decoder = ChunkDecoder(reader.index, registry, policy=policy)
 ```
 
-There is no global unlimited mode. Wire field widths, framing rules and model
-validity remain unconditional even when every local ceiling involved in an
-operation is disabled.
+The generic CLI does this for Inspect and every contributed command. A
+Packager owns its request contract, but cooperating readers, writers, chunk
+operations and adapters must receive the host-selected policy rather than
+inventing local defaults halfway through the flow.
 
-## Default policy
+`DEFAULT_RESOURCE_POLICY` resolves the immutable `default` profile over Core
+resources. The CLI can create and select local profiles with
+[`obst limits`](../cli.md#resource-limit-profiles).
 
-`DEFAULT_RESOURCE_LIMITS` is the value used when an operation receives no
-explicit policy.
+## Core resources and defaults
 
-| Resource                   | Field                           |   Default |
-| -------------------------- | ------------------------------- | --------: |
-| Manifest bytes             | `max_manifest_bytes`            |    16 MiB |
-| Encoded bytes in one chunk | `max_encoded_chunk_bytes`       |    64 MiB |
-| Logical bytes in one chunk | `max_logical_chunk_bytes`       |    64 MiB |
-| One pipeline intermediate  | `max_intermediate_bytes`        |    64 MiB |
-| One materialized stream    | `max_materialized_stream_bytes` |    64 MiB |
-| Extension declarations     | `max_extensions`                |     4,096 |
-| Recipes                    | `max_recipes`                   |     4,096 |
-| Streams                    | `max_streams`                   |    65,536 |
-| Stages across all recipes  | `max_total_stages`              |    65,536 |
-| Stages in one recipe       | `max_stages_per_recipe`         |        64 |
-| Complete container bytes   | `max_container_bytes`           |    16 GiB |
-| Chunks in one container    | `max_chunks`                    |   262,144 |
-| Logical bytes processed    | `max_total_logical_bytes`       |    16 GiB |
-| Stage executions           | `max_stage_executions`          | 1,048,576 |
+| Resource ID                 | Measures                                 |   Default |
+| --------------------------- | ---------------------------------------- | --------: |
+| `manifest_bytes`            | Bytes in one encoded manifest            |    16 MiB |
+| `encoded_chunk_bytes`       | Encoded bytes in one chunk               |    64 MiB |
+| `logical_chunk_bytes`       | Logical bytes in one chunk               |    64 MiB |
+| `intermediate_bytes`        | Bytes in one pipeline intermediate       |    64 MiB |
+| `materialized_stream_bytes` | Bytes in one materialized stream         |    64 MiB |
+| `extensions`                | Extension declarations in one manifest   |     4,096 |
+| `recipes`                   | Recipes in one manifest                  |     4,096 |
+| `streams`                   | Streams in one manifest                  |    65,536 |
+| `total_stages`              | Stages across all recipes                |    65,536 |
+| `stages_per_recipe`         | Stages in one recipe                     |        64 |
+| `container_bytes`           | Bytes in one complete container          |    16 GiB |
+| `chunks`                    | Chunks in one container                  |   262,144 |
+| `logical_bytes`             | Logical bytes processed by one operation |    16 GiB |
+| `stage_executions`          | Stage executions in one operation        | 1,048,576 |
 
-`max_container_bytes` counts bytes in the committed OBST representation. After
-a valid terminal commit, a reader may request one additional byte solely to
-distinguish clean endpoint exhaustion from invalid trailing data. That boundary
-probe is not part of `ContainerReader.bytes_consumed` and is not charged as a
-container byte.
+Every finite maximum is an exact, non-negative `int`. Booleans are rejected.
+Wire field widths, framing rules and model validity remain unconditional even
+if every relevant local ceiling is `None`.
 
-Every non-`None` value must be an exact, non-negative `int`. Booleans are not
-accepted as integers for this contract.
+`container_bytes` counts the committed OBST representation. After the terminal
+commit, a reader may request one extra byte only to distinguish clean endpoint
+exhaustion from trailing data. That probe is not part of
+`ContainerReader.bytes_consumed` and is not charged to the policy.
 
-## Accounting semantics
+## Accounting and refusal
 
-Each concrete operation owns its mutable accounting. `ResourceLimits` may be
-passed to several cooperating operations, but the immutable policy is shared,
-not one hidden `ResourceBudget`:
+Policy is immutable; accounting is operation-local. Readers and writers count
+container bytes and chunks. Recipe and chunk sessions count logical bytes and
+Stage executions. `materialize_stream()` additionally enforces
+`materialized_stream_bytes` because it constructs one complete `bytes` value;
+`iter_decoded_chunks()` remains streaming.
 
-- `ContainerReader` accounts structural input bytes and chunks;
-- `ContainerWriter` accounts structural output, chunks and declared totals;
-- `RecipeEncoder` and `RecipeDecoder` account cumulative logical bytes and
-  stage executions;
-- `ChunkEncoder` and `ChunkDecoder` add per-chunk checks around their recipe
-  sessions; and
-- `materialize_stream()` separately accounts the materialized result.
+Writers reserve the mandatory 64-byte terminal commit before accepting work.
+They therefore reject a prefix that fits by itself but could never become a
+complete container. Decoders reject declared output and Stage work before
+calling a provider, then check the returned result again.
 
-Structural inspection charges only the reader's structural work. It does not
-charge logical bytes or stage executions because inspection does not decode.
-Logical decoding refuses declared output and stage work before invoking a
-provider.
-
-`materialize_stream()` applies `max_materialized_stream_bytes` because it
-builds one complete `bytes` result. `iter_decoded_chunks()` remains streaming
-and does not inherit that materialization ceiling. A `ChunkDecoder` can
-selectively decode validated chunks; skipped chunks spend no logical or stage-
-execution budget.
-
-Readers and writers use the same default declaration and chunk policy. Output
-created under the default writer policy is therefore not rejected merely by
-the default reader policy of the same implementation.
-
-A writer reserves the mandatory 64-byte terminal commit when it opens and
-before it accepts each chunk. It therefore refuses a prefix that could fit the
-ceiling but could never become a complete OBST container.
-
-## Policy refusal
-
-Crossing a local ceiling raises `ResourceLimitError`. It exposes structured
-fields instead of requiring callers to parse its message:
+Crossing a finite ceiling raises `ResourceLimitError`:
 
 ```python
 try:
-    reader = ContainerReader(source, limits=limits)
+    reader = ContainerReader(source, policy=policy)
 except ResourceLimitError as error:
-    print(error.resource, error.scope)
+    print(str(error.resource), error.scope)
     print(error.maximum, error.observed, error.phase)
 ```
 
-A refused container may still be structurally valid. `ResourceLimitError` is
-therefore separate from `InvalidContainerError`, corruption and truncation.
-The CLI reports it as `resource_limit` with exit code `10`.
+`error.resource` is a `ResourceKind`, not a free-form string. A refusal says
+that local policy rejected an operation; the container may still be
+structurally valid. The CLI reports this as `resource_limit` with exit code
+`10`. Invalid profile state is a separate `limit_state` failure.
 
-## Extension boundary
+## Plugins and isolation
 
-[Stage encoders and decoders](../extensions/stages.md#provider-protocols)
-receive `max_output_size: int | None`. Compliant providers enforce a finite
-value before or while allocating output. The core then requires an exact
-built-in `bytes` result and checks its size again.
+Plugin resources enter a `ResourceCatalog` only when the host loads that
+plugin through the ordinary activation path. Plugin profiles are inert until
+the host selects one. Container bytes cannot contribute resources, load a
+plugin or select a profile.
 
-The core can validate what an in-process provider returns. It cannot interrupt
-a provider that blocks, loops, allocates outside the returned value or performs
-side effects. Untrusted provider code needs a process or stronger isolation
-boundary. The [extension registry](registry.md#keep-the-trust-boundary-explicit)
-owns the in-process trust decision; resource policy does not turn arbitrary
-extension code into a sandbox.
+Stage providers receive a finite `max_output_size` or `None` and must enforce
+it while producing output. The Core checks the exact returned `bytes` value,
+but it cannot interrupt a provider that blocks, loops, allocates elsewhere or
+performs side effects. Resource policy is not a sandbox.
 
-## Adapter-owned limits
-
-Container limits do not invent filesystem or network semantics. A file adapter
-may add limits for member count, one recovered file and total recovered
-filesystem bytes. The concrete
-[`obst-defaults` policy](../../plugins/defaults/docs/files/extraction.md#extraction-limits)
-is documented with its adapter.
-
-HTTP response sizes, deadlines and cancellation belong to the application or
-transport adapter. They are not implemented by `ResourceLimits`.
+Filesystem, HTTP and other adapter-specific resources belong to the adapter
+that measures them. The first-party file resources are documented with
+[`obst-defaults`](../../plugins/defaults/docs/files/extraction.md#resource-policy).
+CPU time, wall-clock deadlines and cancellation are not part of this resource
+contract.

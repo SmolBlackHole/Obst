@@ -178,6 +178,7 @@ obst_lab/
 # Private working documents
 /docs/audits/
 /docs/history/
+/RESOURCE_POLICY_OVERHAUL.md
 
 # SQLite runtime files
 *.db-shm

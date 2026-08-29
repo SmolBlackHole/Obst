@@ -18,6 +18,7 @@ The plugin contributes:
 
 - RAW, Delta8 and two zlib Stage contracts;
 - the portable `obst.file@1` stream profile and file adapter;
+- typed extraction resources for member count and recovered bytes;
 - filesystem, memory and standard-input Carrier capabilities;
 - the fixed packaging policy; and
 - the `pack` and `unpack` CLI commands.

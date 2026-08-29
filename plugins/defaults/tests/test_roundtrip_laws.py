@@ -11,11 +11,11 @@ from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
     ContainerWriter,
+    CoreResource,
     ExtensionKind,
     ExtensionRegistry,
     Manifest,
     Recipe,
-    ResourceLimits,
     StageCodecProvider,
     StageExtension,
     StageSpec,
@@ -36,6 +36,7 @@ from obst_defaults.codecs.zlib import (
     ZlibParameters,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
+from support_resources import policy as _policy
 
 _LOGICAL_STREAM_TYPE = "org.example/logical-bytes@1"
 _RAW = RawExtension()
@@ -75,7 +76,7 @@ def _assert_recipe_reverse_law(data: bytes, recipe: Recipe) -> None:
         data,
         recipe,
         registry,
-        limits=ResourceLimits(max_intermediate_bytes=encode_budget),
+        policy=_policy((CoreResource.INTERMEDIATE_BYTES, encode_budget)),
     )
 
     decoded = decode_recipe(
@@ -83,8 +84,8 @@ def _assert_recipe_reverse_law(data: bytes, recipe: Recipe) -> None:
         recipe,
         registry,
         expected_size=len(data),
-        limits=ResourceLimits(
-            max_intermediate_bytes=max(encode_budget, len(encoded)),
+        policy=_policy(
+            (CoreResource.INTERMEDIATE_BYTES, max(encode_budget, len(encoded)))
         ),
     )
 
@@ -94,7 +95,7 @@ def _assert_recipe_reverse_law(data: bytes, recipe: Recipe) -> None:
             data,
             recipe,
             registry,
-            limits=ResourceLimits(max_intermediate_bytes=encode_budget),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, encode_budget)),
         )
         == encoded
     )
@@ -244,7 +245,7 @@ def test_zlib_stage_reverse_law(data: bytes, compression_level: int) -> None:
         data,
         recipe,
         _stage_registry(),
-        limits=ResourceLimits(max_intermediate_bytes=max(len(data) + 64, 64)),
+        policy=_policy((CoreResource.INTERMEDIATE_BYTES, max(len(data) + 64, 64))),
     )
     assert encoded[1] & 0x20 == 0
 
@@ -279,7 +280,7 @@ def test_zlib_dictionary_stage_reverse_law(
         data,
         recipe,
         _stage_registry(),
-        limits=ResourceLimits(max_intermediate_bytes=max(len(data) + 64, 64)),
+        policy=_policy((CoreResource.INTERMEDIATE_BYTES, max(len(data) + 64, 64))),
     )
     assert encoded[1] & 0x20
 

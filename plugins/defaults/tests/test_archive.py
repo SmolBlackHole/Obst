@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import shutil
 import stat
-from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -13,6 +12,7 @@ from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
     ContainerWriter,
+    CoreResource,
     CorruptContainerError,
     ExtensionDescriptor,
     ExtensionRegistry,
@@ -20,7 +20,7 @@ from obst.core import (
     Recipe,
     RecipeSpec,
     ResourceLimitError,
-    ResourceLimits,
+    ResourcePolicy,
     StageSpec,
     Stream,
     encode_chunk_once,
@@ -38,19 +38,19 @@ from obst_defaults.carriers.filesystem import (
 )
 from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.files import (
-    DEFAULT_FILE_EXTRACTION_LIMITS,
     FileArchiveError,
     FileArchiver,
     FileExtension,
-    FileExtractionLimits,
     FileExtractionResult,
     FileMaterialization,
     FileProfileError,
+    FileResource,
 )
 from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
     FixedPackagerExtension,
 )
+from support_resources import policy as _policy
 
 
 def _raw_recipe() -> RecipeSpec:
@@ -76,7 +76,7 @@ def _publish(
         chunk_size=chunk_size,
     ) as sources:
         operation = FixedPackagerExtension().prepare_package(
-            FixedPackageRequest(archiver.registry, sources)
+            FixedPackageRequest(archiver.registry, sources, _policy())
         )
         return publish_package(
             operation,
@@ -89,57 +89,16 @@ def _extract(
     source: Path,
     output_directory: Path,
     *,
-    limits: ResourceLimits | None = None,
-    extraction_limits: FileExtractionLimits = DEFAULT_FILE_EXTRACTION_LIMITS,
+    policy: ResourcePolicy | None = None,
 ) -> FileExtractionResult:
+    selected_policy = _policy() if policy is None else policy
     with source.open("rb") as input_file:
-        reader = (
-            ContainerReader(input_file)
-            if limits is None
-            else ContainerReader(input_file, limits=limits)
-        )
+        reader = ContainerReader(input_file, policy=selected_policy)
         return archiver.extract(
             reader,
             output_directory,
-            limits=extraction_limits,
+            policy=selected_policy,
         )
-
-
-def _member_limit(value: object) -> FileExtractionLimits:
-    return FileExtractionLimits(max_members=cast(int | None, value))
-
-
-def _member_bytes_limit(value: object) -> FileExtractionLimits:
-    return FileExtractionLimits(max_member_bytes=cast(int | None, value))
-
-
-def _total_bytes_limit(value: object) -> FileExtractionLimits:
-    return FileExtractionLimits(max_total_bytes=cast(int | None, value))
-
-
-_EXTRACTION_LIMIT_FACTORIES: tuple[
-    Callable[[object], FileExtractionLimits],
-    ...,
-] = (_member_limit, _member_bytes_limit, _total_bytes_limit)
-
-
-@pytest.mark.parametrize("factory", _EXTRACTION_LIMIT_FACTORIES)
-@pytest.mark.parametrize("value", (None, 0, 1))
-def test_file_extraction_limits_accept_supported_values(
-    factory: Callable[[object], FileExtractionLimits],
-    value: object,
-) -> None:
-    factory(value)
-
-
-@pytest.mark.parametrize("factory", _EXTRACTION_LIMIT_FACTORIES)
-@pytest.mark.parametrize("value", (-1, True, 1.5, "1"))
-def test_file_extraction_limits_reject_invalid_values(
-    factory: Callable[[object], FileExtractionLimits],
-    value: object,
-) -> None:
-    with pytest.raises((TypeError, ValueError)):
-        factory(value)
 
 
 def test_file_archiver_preserves_names_and_bytes_through_public_composition(
@@ -306,10 +265,10 @@ def test_extraction_member_limit_refuses_chunkless_fanout_before_output(
             archiver,
             archive,
             output,
-            extraction_limits=FileExtractionLimits(max_members=1),
+            policy=_policy((FileResource.ARCHIVE_MEMBERS, 1)),
         )
 
-    assert error.value.resource == "archive_members"
+    assert error.value.resource is FileResource.ARCHIVE_MEMBERS
     assert not output.exists()
 
 
@@ -329,9 +288,9 @@ def test_extraction_byte_limits_accept_boundary_and_publish_nothing_above_it(
         archiver,
         archive,
         exact_output,
-        extraction_limits=FileExtractionLimits(
-            max_member_bytes=8,
-            max_total_bytes=8,
+        policy=_policy(
+            (FileResource.ARCHIVE_MEMBER_BYTES, 8),
+            (FileResource.ARCHIVE_TOTAL_BYTES, 8),
         ),
     )
     assert (exact_output / source.name).read_bytes() == source.read_bytes()
@@ -342,9 +301,9 @@ def test_extraction_byte_limits_accept_boundary_and_publish_nothing_above_it(
             archiver,
             archive,
             rejected_output,
-            extraction_limits=FileExtractionLimits(max_member_bytes=7),
+            policy=_policy((FileResource.ARCHIVE_MEMBER_BYTES, 7)),
         )
-    assert error.value.resource == "archive_member_bytes"
+    assert error.value.resource is FileResource.ARCHIVE_MEMBER_BYTES
     assert rejected_output.is_dir()
     assert list(rejected_output.iterdir()) == []
 
@@ -364,7 +323,7 @@ def test_streaming_extraction_does_not_materialize_whole_streams(
         archiver,
         archive,
         tmp_path / "output",
-        limits=ResourceLimits(max_materialized_stream_bytes=0),
+        policy=_policy((CoreResource.MATERIALIZED_STREAM_BYTES, 0)),
     )
 
     assert (tmp_path / "output" / source.name).read_bytes() == source.read_bytes()

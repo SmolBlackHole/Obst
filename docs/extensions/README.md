@@ -8,17 +8,18 @@ representation, select packaging policy or connect a host endpoint are
 extensions. First-party and third-party implementations use the same public
 boundaries.
 
-| Boundary       | Owns                                             | Wire-visible ID | Guide                       |
-| -------------- | ------------------------------------------------ | --------------- | --------------------------- |
-| Stage          | Reversible processing of chunk bytes             | Yes             | [Stages](stages.md)         |
-| Codec          | Compression-oriented stage role                  | Yes, as a stage | [Codecs](codecs.md)         |
-| Transform      | Structure-oriented stage role                    | Yes, as a stage | [Transforms](transforms.md) |
-| Stream profile | Meaning and metadata of logical bytes            | Yes             | [Profiles](profiles.md)     |
-| Carrier        | Reading, writing or publishing container bytes   | No              | [Carriers](carriers.md)     |
-| Packager       | Policy for producing one valid container         | No              | [Packagers](packagers.md)   |
-| Archiver       | Composition between domain inputs and containers | No              | [Archivers](archivers.md)   |
-| Plugin command | Host-facing composition supplied by a plugin     | No              | [Plugins](plugins.md)       |
-| Plugin         | Named contributions from one distribution        | No new ID kind  | [Plugins](plugins.md)       |
+| Boundary        | Owns                                             | Wire-visible ID | Guide                                        |
+| --------------- | ------------------------------------------------ | --------------- | -------------------------------------------- |
+| Stage           | Reversible processing of chunk bytes             | Yes             | [Stages](stages.md)                          |
+| Codec           | Compression-oriented stage role                  | Yes, as a stage | [Codecs](codecs.md)                          |
+| Transform       | Structure-oriented stage role                    | Yes, as a stage | [Transforms](transforms.md)                  |
+| Stream profile  | Meaning and metadata of logical bytes            | Yes             | [Profiles](profiles.md)                      |
+| Carrier         | Reading, writing or publishing container bytes   | No              | [Carriers](carriers.md)                      |
+| Packager        | Policy for producing one valid container         | No              | [Packagers](packagers.md)                    |
+| Archiver        | Composition between domain inputs and containers | No              | [Archivers](archivers.md)                    |
+| Plugin command  | Host-facing composition supplied by a plugin     | No              | [Plugins](plugins.md)                        |
+| Resource policy | Typed local ceilings and inert named profiles    | No              | [Plugins](plugins.md#resource-contributions) |
+| Plugin          | Named contributions from one distribution        | No new ID kind  | [Plugins](plugins.md)                        |
 
 Codecs and transforms are roles implemented through the same Stage Extension
 API. Stages, stream profiles, carriers and packagers all enter the same
@@ -26,7 +27,9 @@ API. Stages, stream profiles, carriers and packagers all enter the same
 and packager IDs remain host-selected runtime identities. Archivers compose
 those capabilities for an application workflow and are not registry entries.
 Plugin commands enter the generic command host rather than the registry.
-Native format tooling such as `inspect` is owned by the host itself and is not
+Resource contributions enter the operation's `ResourceCatalog`, not the
+Extension registry or container manifest. Native format tooling such as
+`inspect` and `limits` is owned by the host itself and is not
 an Extension or plugin contribution.
 In Python, `Extension.kind` uses the closed `ExtensionKind` enum. Extension
 objects assign `ExtensionKind.STAGE`, `ExtensionKind.STREAM_PROFILE`,

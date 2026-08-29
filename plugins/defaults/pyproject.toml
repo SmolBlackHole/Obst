@@ -36,6 +36,9 @@ obst-defaults = "obst_defaults.conformance:obst_conformance"
 [project.entry-points."obst.commands"]
 obst-defaults = "obst_defaults.commands:obst_commands"
 
+[project.entry-points."obst.resources"]
+obst-defaults = "obst_defaults.bundle:obst_resources"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["obst_defaults*"]

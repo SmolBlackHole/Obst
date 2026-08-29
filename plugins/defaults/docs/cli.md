@@ -12,6 +12,7 @@ ordinary OBST command host. Without this plugin, those commands are absent.
 	- [Activate the plugin](#activate-the-plugin)
 	- [Pack explicit files](#pack-explicit-files)
 	- [Unpack every file](#unpack-every-file)
+	- [Machine-readable results](#machine-readable-results)
 	- [Resource policy](#resource-policy)
 	- [Unsupported operations](#unsupported-operations)
 
@@ -33,7 +34,7 @@ boundary.
 ## Pack explicit files
 
 ```text
-obst pack [-h] -o OUTPUT [--plugin NAME] INPUT [INPUT ...]
+obst pack [-h] -o OUTPUT [--plugin NAME] [--json] INPUT [INPUT ...]
 ```
 
 Every positional `INPUT` is an existing regular file. `-o` or `--output`
@@ -60,7 +61,7 @@ file bytes and are not opened or recursively rewritten.
 ## Unpack every file
 
 ```text
-obst unpack [-h] -o OUTPUT_DIRECTORY [--plugin NAME] INPUT
+obst unpack [-h] -o OUTPUT_DIRECTORY [--plugin NAME] [--json] INPUT
 ```
 
 The destination is always explicit. The command extracts every stream for
@@ -78,17 +79,32 @@ On Windows, extracted files do not inherit an input container's NTFS
 `Zone.Identifier`. When detected, the command succeeds but warns that the
 recovered files may be treated as local files.
 
+## Machine-readable results
+
+Both commands accept `--json`. Successful output contains only one
+schema-versioned JSON document on stdout. Diagnostics and cleanup warnings
+remain on stderr, so stdout stays parseable.
+
+Pack schema `1` reports `destination`, exact `container_size`, one `files`
+record per input and any `cleanup_issues`. Each file record contains its
+portable `name`, exact `logical_size` and `chunks` count.
+
+Unpack schema `1` reports `destination`, every restored file's `name` and
+complete `path`, `cleanup_issues` and `windows_origin_not_propagated`. The
+last field records the same successful Windows-origin warning described above.
+
 ## Resource policy
 
-The command host supplies the finite core `DEFAULT_RESOURCE_LIMITS` policy.
-Extraction additionally uses `DEFAULT_FILE_EXTRACTION_LIMITS` for member
-count, one recovered file and total recovered filesystem bytes. Library
-callers can pass deployment-specific values; the CLI does not expose a matrix
-of limit flags.
+The command host supplies the currently selected `ResourcePolicy` to Pack,
+Unpack and every nested operation. `obst-defaults` contributes its file-member
+resources through `obst.resources`; it does not maintain a second extraction
+policy or select a profile when the plugin is enabled. Use the native
+[`obst limits`](../../../docs/cli.md#resource-limit-profiles) commands to create,
+inspect and select local overrides.
 
 Crossing a local ceiling reports `resource_limit` rather than calling valid
 wire data corrupt. The core [resource guide](../../../docs/core/resources.md)
-owns operation-wide accounting, while [file extraction](files/extraction.md#extraction-limits)
+owns operation-wide accounting, while [file extraction](files/extraction.md#resource-policy)
 owns the adapter-specific ceilings.
 
 ## Unsupported operations

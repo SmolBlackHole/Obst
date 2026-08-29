@@ -3,9 +3,7 @@
 from obst_defaults.files.adapter import DEFAULT_FILE_CHUNK_SIZE, FileArchiver
 from obst_defaults.files.errors import FileArchiveError, FileProfileError
 from obst_defaults.files.models import (
-    DEFAULT_FILE_EXTRACTION_LIMITS,
     FileExtractionCleanupIssue,
-    FileExtractionLimits,
     FileExtractionResult,
     FileMaterialization,
     PortableFileMetadata,
@@ -15,19 +13,19 @@ from obst_defaults.files.profile import (
     FileMaterializer,
     FileSourceProfile,
 )
+from obst_defaults.files.resources import FileResource
 
 __all__ = [
     "DEFAULT_FILE_CHUNK_SIZE",
-    "DEFAULT_FILE_EXTRACTION_LIMITS",
     "FileArchiveError",
     "FileArchiver",
     "FileExtension",
     "FileExtractionCleanupIssue",
-    "FileExtractionLimits",
     "FileExtractionResult",
     "FileMaterialization",
     "FileMaterializer",
     "FileProfileError",
+    "FileResource",
     "FileSourceProfile",
     "PortableFileMetadata",
 ]

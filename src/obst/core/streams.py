@@ -5,27 +5,33 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 
 from obst.core.container import ContainerReader
-from obst.core.errors import CorruptContainerError, ResourceLimitError
+from obst.core.errors import CorruptContainerError
 from obst.core.manifest import ManifestIndex
 from obst.core.model import Chunk, Recipe, logical_hash
 from obst.core.pipeline import RecipeDecoder, RecipeEncoder
 from obst.core.registry import ExtensionRegistry
-from obst.core.resources import DEFAULT_RESOURCE_LIMITS, ResourceBudget, ResourceLimits
+from obst.core.resources import (
+    DEFAULT_RESOURCE_POLICY,
+    CoreResource,
+    ResourceKind,
+    ResourcePolicy,
+    require_resource_limit,
+)
 
 
 class ChunkEncoder:
     """Encode chunks within one operation-scoped recipe execution session."""
 
-    __slots__ = ("_limits", "_recipes")
+    __slots__ = ("_policy", "_recipes")
 
     def __init__(
         self,
         registry: ExtensionRegistry,
         *,
-        limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
     ) -> None:
-        self._limits = limits
-        self._recipes = RecipeEncoder(registry, limits=limits)
+        self._policy = policy
+        self._recipes = RecipeEncoder(registry, policy=policy)
 
     def preflight(self, recipes: Iterable[Recipe], /) -> None:
         """Resolve and bind every supplied recipe before encoding chunks."""
@@ -44,21 +50,21 @@ class ChunkEncoder:
             raise TypeError("logical chunk data must be exact bytes")
         scope = f"stream {stream_id} chunk {sequence}"
         _require_chunk_size(
-            resource="logical_chunk_bytes",
+            resource=CoreResource.LOGICAL_CHUNK_BYTES,
             scope=scope,
-            maximum=self._limits.max_logical_chunk_bytes,
+            maximum=self._policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
             observed=len(data),
             phase="chunk_encode",
         )
         encoded_payload = self._recipes.encode(
             data,
             recipe,
-            max_output_size=self._limits.max_encoded_chunk_bytes,
+            max_output_size=self._policy.maximum(CoreResource.ENCODED_CHUNK_BYTES),
         )
         _require_chunk_size(
-            resource="encoded_chunk_bytes",
+            resource=CoreResource.ENCODED_CHUNK_BYTES,
             scope=scope,
-            maximum=self._limits.max_encoded_chunk_bytes,
+            maximum=self._policy.maximum(CoreResource.ENCODED_CHUNK_BYTES),
             observed=len(encoded_payload),
             phase="chunk_encode",
         )
@@ -75,20 +81,20 @@ class ChunkEncoder:
 class ChunkDecoder:
     """Decode validated chunks against one immutable manifest lookup."""
 
-    __slots__ = ("_index", "_limits", "_recipes")
+    __slots__ = ("_index", "_policy", "_recipes")
 
     def __init__(
         self,
         index: ManifestIndex,
         registry: ExtensionRegistry,
         *,
-        limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
     ) -> None:
         if type(index) is not ManifestIndex:
             raise TypeError("chunk decoder requires an exact ManifestIndex")
         self._index = index
-        self._limits = limits
-        self._recipes = RecipeDecoder(registry, limits=limits)
+        self._policy = policy
+        self._recipes = RecipeDecoder(registry, policy=policy)
 
     def decode(self, chunk: Chunk, /) -> bytes:
         """Decode one chunk and verify its exact logical size and content hash."""
@@ -98,7 +104,7 @@ class ChunkDecoder:
             chunk,
             recipe,
             self._recipes,
-            limits=self._limits,
+            policy=self._policy,
         )
 
 
@@ -109,10 +115,10 @@ def encode_chunk_once(
     sequence: int,
     recipe: Recipe,
     registry: ExtensionRegistry,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> Chunk:
     """Encode one chunk as a complete bounded operation."""
-    return ChunkEncoder(registry, limits=limits).encode(
+    return ChunkEncoder(registry, policy=policy).encode(
         data,
         stream_id=stream_id,
         sequence=sequence,
@@ -125,7 +131,7 @@ def decode_chunk_once(
     recipe: Recipe,
     registry: ExtensionRegistry,
     *,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> bytes:
     """Decode one chunk as a complete bounded operation."""
     if recipe.recipe_id != chunk.recipe_id:
@@ -135,8 +141,8 @@ def decode_chunk_once(
     return _decode_with_recipe(
         chunk,
         recipe,
-        RecipeDecoder(registry, limits=limits),
-        limits=limits,
+        RecipeDecoder(registry, policy=policy),
+        policy=policy,
     )
 
 
@@ -148,7 +154,7 @@ def iter_decoded_chunks(
     decoder = ChunkDecoder(
         reader.index,
         registry,
-        limits=reader.limits,
+        policy=reader.policy,
     )
     for chunk in reader.iter_chunks():
         yield chunk, decoder.decode(chunk)
@@ -164,17 +170,16 @@ def materialize_stream(
     decoder = ChunkDecoder(
         reader.index,
         registry,
-        limits=reader.limits,
+        policy=reader.policy,
     )
-    materialization = ResourceBudget(reader.limits)
     output = bytearray()
     for chunk in reader.iter_chunks():
         if chunk.stream_id != stream_id:
             continue
-        materialization.require(
-            resource="materialized_stream_bytes",
+        require_resource_limit(
+            CoreResource.MATERIALIZED_STREAM_BYTES,
             scope=f"stream {stream_id}",
-            maximum=reader.limits.max_materialized_stream_bytes,
+            maximum=reader.policy.maximum(CoreResource.MATERIALIZED_STREAM_BYTES),
             observed=len(output) + chunk.logical_size,
             phase="stream_materialize",
         )
@@ -187,20 +192,20 @@ def _decode_with_recipe(
     recipe: Recipe,
     decoder: RecipeDecoder,
     *,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
 ) -> bytes:
     scope = f"stream {chunk.stream_id} chunk {chunk.sequence}"
     _require_chunk_size(
-        resource="encoded_chunk_bytes",
+        resource=CoreResource.ENCODED_CHUNK_BYTES,
         scope=scope,
-        maximum=limits.max_encoded_chunk_bytes,
+        maximum=policy.maximum(CoreResource.ENCODED_CHUNK_BYTES),
         observed=chunk.encoded_size,
         phase="chunk_decode",
     )
     _require_chunk_size(
-        resource="logical_chunk_bytes",
+        resource=CoreResource.LOGICAL_CHUNK_BYTES,
         scope=scope,
-        maximum=limits.max_logical_chunk_bytes,
+        maximum=policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
         observed=chunk.logical_size,
         phase="chunk_decode",
     )
@@ -216,17 +221,16 @@ def _decode_with_recipe(
 
 def _require_chunk_size(
     *,
-    resource: str,
+    resource: ResourceKind,
     scope: str,
     maximum: int | None,
     observed: int,
     phase: str,
 ) -> None:
-    if maximum is not None and observed > maximum:
-        raise ResourceLimitError(
-            resource=resource,
-            scope=scope,
-            maximum=maximum,
-            observed=observed,
-            phase=phase,
-        )
+    require_resource_limit(
+        resource,
+        scope=scope,
+        maximum=maximum,
+        observed=observed,
+        phase=phase,
+    )

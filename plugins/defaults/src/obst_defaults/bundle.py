@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from obst.core import Extension
+from obst.core import Extension, ResourceContribution
 
 from obst_defaults.carriers.filesystem import FilesystemCarrierExtension
 from obst_defaults.carriers.memory import MemoryCarrierExtension
 from obst_defaults.carriers.stdin import StdinCarrierExtension
 from obst_defaults.codecs.raw import RawExtension
 from obst_defaults.codecs.zlib import ZlibDictionaryExtension, ZlibExtension
-from obst_defaults.files import FileExtension
+from obst_defaults.files import FileExtension, FileResource
 from obst_defaults.packagers.fixed import FixedPackagerExtension
 from obst_defaults.transforms.delta8 import Delta8Extension
 
@@ -29,4 +29,9 @@ def obst_extensions() -> tuple[Extension, ...]:
     )
 
 
-__all__ = ["obst_extensions"]
+def obst_resources() -> ResourceContribution:
+    """Return portable-file resources through the ordinary plugin path."""
+    return ResourceContribution(tuple(FileResource))
+
+
+__all__ = ["obst_extensions", "obst_resources"]

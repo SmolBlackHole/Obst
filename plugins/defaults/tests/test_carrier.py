@@ -45,6 +45,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
     FixedPackagerExtension,
 )
+from support_resources import policy as _policy
 
 _RAW = RecipeSpec((StageSpec(RawExtension.extension_id),))
 
@@ -195,7 +196,7 @@ def _fixed_operation(
     sources: tuple[LogicalStreamSource, ...],
 ) -> PackageWriteOperation:
     return FixedPackagerExtension().prepare_package(
-        FixedPackageRequest(registry, sources)
+        FixedPackageRequest(registry, sources, _policy())
     )
 
 

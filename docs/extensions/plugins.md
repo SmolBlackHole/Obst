@@ -3,28 +3,46 @@
 Parent: [Extension system](README.md)
 
 An OBST Python plugin is one named set of contributions from an installed
-distribution. It may provide ordinary Extensions, CLI commands and portable
-conformance cases. The public `PluginManager` discovers those contributions,
+distribution. It may provide ordinary Extensions, CLI commands, resource
+policy and portable conformance cases. The public `PluginManager` discovers
+those contributions,
 stores the host's enabled set and builds immutable operation-local runtimes.
 Discovery and activation never import plugin code; loading remains an explicit
 host decision, and container bytes never participate in it.
 
+## Trust boundary
+
+> [!WARNING]
+> Loading or testing a plugin executes installed third-party Python code with
+> the current process privileges. OBST cannot sandbox or guarantee that code.
+> Enable only distributions you trust, and use process isolation when that
+> trust is insufficient.
+
+An unknown Stage ID in a manifest remains a missing capability. The reader does
+not search entry points, import a matching module, fetch a specification URL or
+change activation state. This invariant remains exact:
+
+```text
+Untrusted OBST bytes alone never acquire or execute new code.
+```
+
 ## Table of contents
 
 - [Extension plugins and the plugin manager](#extension-plugins-and-the-plugin-manager)
+	- [Trust boundary](#trust-boundary)
 	- [Table of contents](#table-of-contents)
 	- [Identity and ownership](#identity-and-ownership)
 	- [Package layout and installation choices](#package-layout-and-installation-choices)
 	- [Publish a plugin](#publish-a-plugin)
 		- [Extension contribution](#extension-contribution)
 		- [Command contribution](#command-contribution)
+		- [Resource contributions](#resource-contributions)
 		- [Conformance contribution](#conformance-contribution)
 	- [Discover and inspect without loading](#discover-and-inspect-without-loading)
 	- [Enable, disable and load](#enable-disable-and-load)
 	- [Run published conformance cases](#run-published-conformance-cases)
 	- [CLI workflow](#cli-workflow)
 	- [Conflicts and dependencies](#conflicts-and-dependencies)
-	- [Trust boundary](#trust-boundary)
 	- [Direct composition remains public](#direct-composition-remains-public)
 
 ## Identity and ownership
@@ -45,14 +63,14 @@ OBST manifests. Command names belong to the generic CLI host and never enter
 container bytes. Containers never name distributions, plugins or commands.
 
 A plugin name is discovered when one distribution publishes at least one
-contribution under `obst.extensions`, `obst.commands` or `obst.conformance`.
-Every `obst.extensions` contribution must have matching conformance under the
-same name. Command-only and conformance-only plugins need no Extension
-contribution. A distribution may publish at most one contribution under the
-same plugin name in each group, and matching contributions must come from the
-same physical distribution. One extension factory may return several Stage,
-stream-profile, carrier and packager Extensions; one command factory may
-return several commands.
+contribution under `obst.extensions`, `obst.commands`, `obst.resources` or
+`obst.conformance`. Command-only and conformance-only plugins need no Extension
+contribution. Resource contributions do: every resource and profile ID must be
+qualified by an Extension ID returned by the same plugin. A distribution may
+publish at most one contribution under the same plugin name in each group, and
+matching contributions must come from the same physical distribution. One
+extension factory may return several Stage, stream-profile, carrier and
+packager Extensions; one command factory may return several commands.
 
 ## Package layout and installation choices
 
@@ -68,8 +86,9 @@ That activation makes the first-party Extensions plus `pack` and `unpack`
 available. Native `inspect` is already part of `obst`. Installing a wheel alone
 never expands the set of code trusted by an operation.
 
-`obst-defaults` declares the same `obst.extensions`, `obst.commands` and
-`obst.conformance` entry-point groups described below. The manager has no
+`obst-defaults` declares the same `obst.extensions`, `obst.commands`,
+`obst.resources` and `obst.conformance` entry-point groups described below.
+The manager has no
 first-party import, fallback activation or bundled-provider path.
 
 ## Publish a plugin
@@ -137,7 +156,7 @@ class ExplainCommand:
 
     def run(self, args: argparse.Namespace, context: CliContext) -> int:
         style = HumanOutputStyle.for_stream(context.stdout)
-        value = style.identifier(escape_human_text(args.value))
+        value = style.contributed(escape_human_text(args.value))
         context.stdout.write(f"{value}\n")
         return 0
 
@@ -149,16 +168,72 @@ def obst_commands() -> tuple[CliCommand, ...]:
 `CliContext` supplies the already composed immutable registry, selected plugin
 names, standard endpoints and resource policy. It contains no first-party IDs
 or implementation objects. The generic host owns `inspect`, `help`, `plugins`,
-`extensions` and version output. Contributed command factories execute only
+`extensions`, `limits` and version output. Contributed command factories execute only
 for persistently enabled plugins when their parser is needed. The host captures
 the validated name, summary and bound callbacks once; the same immutable
 snapshot configures and executes the command. A command must return an exact
 integer in `0..255`.
 
-`HumanOutputStyle.for_stream()` gives contributed commands the same TTY-aware
-color policy as host and first-party output. It remains plain for redirected
-streams and honors `NO_COLOR`; `escape_human_text()` must still be applied to
+`HumanOutputStyle.for_stream()` gives every contributed command the same
+TTY-aware policy as the host. `contributed()` marks both first-party and
+third-party contributions consistently; `render_human_table()` aligns compact
+tabular output without counting ANSI sequences. Redirected output remains
+plain and honors `NO_COLOR`; `escape_human_text()` must still be applied to
 untrusted labels before styling them.
+
+### Resource contributions
+
+A plugin that measures work outside the Core resource set publishes those
+definitions under the same plugin name:
+
+```toml
+[project.entry-points."obst.resources"]
+example = "org_example_obst:obst_resources"
+```
+
+The factory returns one exact `ResourceContribution`. Resource definitions
+carry their typed identity, `ResourceUnit`, default maximum and summary.
+Profiles contain only overrides:
+
+```python
+from obst.core import (
+    LimitProfile,
+    ResourceContribution,
+    ResourceDefinition,
+    ResourceKind,
+    ResourceUnit,
+)
+
+
+class ExampleResource(ResourceKind):
+    RECORDS = ResourceDefinition(
+        "org.example/table@1/records",
+        100_000,
+        "Records processed by one table operation.",
+        ResourceUnit.COUNT,
+    )
+
+
+def obst_resources() -> ResourceContribution:
+    strict = LimitProfile(
+        "org.example/table@1/strict",
+        "Smaller limits for untrusted table inputs.",
+        ((ExampleResource.RECORDS, 10_000),),
+    )
+    return ResourceContribution(tuple(ExampleResource), (strict,))
+```
+
+`org.example/table@1` must also be an Extension returned by this plugin's
+`obst.extensions` factory. The manager composes all selected contributions,
+rejects duplicate IDs and validates profile references after the complete
+resource catalog exists.
+
+Discovery remains inert. A resource factory runs only when its plugin is
+enabled or selected for one operation. Enabling the plugin makes its resources
+and profiles available; it never selects a profile. The host chooses a profile
+explicitly through `ResourceCatalog.policy()` or
+[`obst limits use`](../cli.md#resource-limit-profiles). Unknown overrides kept
+in local state do not activate the missing plugin.
 
 ### Conformance contribution
 
@@ -187,8 +262,9 @@ The package includes one `conformance_vectors/index.json`. The shared
 [conformance guide](../conformance.md#plugin-extension-suites) owns the catalog
 schema, portable case kinds and public load, write and run APIs.
 
-The `obst.extensions`, `obst.commands` and `obst.conformance` contributions
-are independent. A format corpus may therefore be conformance-only, while a
+The `obst.extensions`, `obst.commands`, `obst.resources` and
+`obst.conformance` contributions are separate entry points. A format corpus
+may therefore be conformance-only, while a
 runtime-only carrier or packager needs no meaningless wire suite. When one
 plugin name contributes both a suite and wire-visible Stage or stream-profile
 providers, the runner requires positive coverage for every such provider. The
@@ -205,7 +281,7 @@ conformance test is not a sandbox.
 
 ## Discover and inspect without loading
 
-`PluginManager.discover()` reads all 3 entry-point groups and standard package
+`PluginManager.discover()` reads all 4 entry-point groups and standard package
 metadata without importing their target modules:
 
 ```python
@@ -357,22 +433,6 @@ point groups for those capability kinds. CLI commands use `obst.commands`
 because they compose capabilities for a host interface rather than enter the
 registry. Archivers remain explicit application composition rather than
 registry capabilities.
-
-## Trust boundary
-
-> [!WARNING]
-> Loading or testing a plugin executes installed third-party Python code with
-> the current process privileges. OBST cannot sandbox or guarantee that code.
-> Enable only distributions you trust, and use process isolation when that
-> trust is insufficient.
-
-An unknown Stage ID in a manifest remains a missing capability. The reader does
-not search entry points, import a matching module, fetch a specification URL or
-change activation state. This invariant remains exact:
-
-```text
-Untrusted OBST bytes alone never acquire or execute new code.
-```
 
 ## Direct composition remains public
 

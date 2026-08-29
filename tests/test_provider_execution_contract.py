@@ -8,6 +8,7 @@ from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
     ContainerWriter,
+    CoreResource,
     ExtensionContractError,
     ExtensionDescriptor,
     ExtensionRegistry,
@@ -16,7 +17,6 @@ from obst.core import (
     ProviderRejectedError,
     Recipe,
     ResourceLimitError,
-    ResourceLimits,
     StageSpec,
     Stream,
     decode_recipe,
@@ -26,6 +26,7 @@ from obst.core import (
 )
 from obst.core.extensions import ExtensionKind
 from obst.core.pipeline import RecipeDecoder, RecipeEncoder
+from tests.support_resources import policy as _policy
 
 _FIRST_STAGE_ID = "org.example/first@1"
 _SECOND_STAGE_ID = "org.example/second@1"
@@ -235,21 +236,21 @@ def test_recipe_sessions_account_logical_bytes_across_calls(direction: str) -> N
     events: list[str] = []
     registry = ExtensionRegistry((_TracingStage(_FIRST_STAGE_ID, events),))
     recipe = Recipe(0, (StageSpec(_FIRST_STAGE_ID),))
-    limits = ResourceLimits(max_total_logical_bytes=7)
+    policy = _policy((CoreResource.LOGICAL_BYTES, 7))
 
     if direction == "encode":
-        session = RecipeEncoder(registry, limits=limits)
+        session = RecipeEncoder(registry, policy=policy)
         session.preflight((recipe,))
         assert session.encode(b"four", recipe) == b"four"
         with pytest.raises(ResourceLimitError) as error:
             session.encode(b"more", recipe)
     else:
-        decoder = RecipeDecoder(registry, limits=limits)
+        decoder = RecipeDecoder(registry, policy=policy)
         assert decoder.decode(b"four", recipe, expected_size=4) == b"four"
         with pytest.raises(ResourceLimitError) as error:
             decoder.decode(b"more", recipe, expected_size=4)
 
-    assert error.value.resource == "logical_bytes"
+    assert error.value.resource is CoreResource.LOGICAL_BYTES
     assert error.value.observed == 8
 
 
@@ -258,13 +259,13 @@ def test_recipe_sessions_refuse_impossible_work_before_binding(direction: str) -
     events: list[str] = []
     registry = ExtensionRegistry((_TracingStage(_FIRST_STAGE_ID, events),))
     recipe = Recipe(0, (StageSpec(_FIRST_STAGE_ID),))
-    limits = ResourceLimits(max_total_logical_bytes=0)
+    policy = _policy((CoreResource.LOGICAL_BYTES, 0))
 
     with pytest.raises(ResourceLimitError):
         if direction == "encode":
-            RecipeEncoder(registry, limits=limits).encode(b"x", recipe)
+            RecipeEncoder(registry, policy=policy).encode(b"x", recipe)
         else:
-            RecipeDecoder(registry, limits=limits).decode(
+            RecipeDecoder(registry, policy=policy).decode(
                 b"x",
                 recipe,
                 expected_size=1,

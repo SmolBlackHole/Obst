@@ -14,11 +14,19 @@ from obst.conformance import (
     ConformanceSuite,
     StageKnownAnswerCase,
 )
-from obst.core import Extension
+from obst.core import (
+    Extension,
+    LimitProfile,
+    ResourceContribution,
+    ResourceDefinition,
+    ResourceKind,
+    ResourceUnit,
+)
 from obst.plugins import (
     COMMAND_ENTRY_POINT_GROUP,
     CONFORMANCE_ENTRY_POINT_GROUP,
     EXTENSION_ENTRY_POINT_GROUP,
+    RESOURCE_ENTRY_POINT_GROUP,
     PluginConformanceError,
     PluginDiscoveryError,
     PluginLoadError,
@@ -89,6 +97,51 @@ def invalid_conformance_factory() -> tuple[object, ...]:
     return (object(),)
 
 
+class ExampleResource(ResourceKind):
+    ITEMS = ResourceDefinition(
+        f"{RawExtension.extension_id}/items",
+        8,
+        "Items processed by the example plugin.",
+        ResourceUnit.COUNT,
+    )
+
+
+class UnqualifiedResource(ResourceKind):
+    ITEMS = ResourceDefinition(
+        "unqualified_items",
+        8,
+        "Invalid unqualified plugin resource.",
+        ResourceUnit.COUNT,
+    )
+
+
+def valid_resource_factory() -> ResourceContribution:
+    return ResourceContribution(
+        tuple(ExampleResource),
+        (
+            LimitProfile(
+                f"{RawExtension.extension_id}/strict",
+                "Strict example limits.",
+                ((ExampleResource.ITEMS, 2),),
+            ),
+        ),
+    )
+
+
+def duplicate_resource_factory() -> ResourceContribution:
+    return ResourceContribution(
+        (ExampleResource.ITEMS, ExampleResource.ITEMS),
+    )
+
+
+def unqualified_resource_factory() -> ResourceContribution:
+    return ResourceContribution(tuple(UnqualifiedResource))
+
+
+def invalid_resource_factory() -> tuple[object, ...]:
+    return (object(),)
+
+
 class _ExampleCommand:
     name = "example-command"
     summary = "exercise one plugin-contributed command"
@@ -156,6 +209,7 @@ def _discover(
     extensions: tuple[metadata.EntryPoint, ...] = (),
     commands: tuple[metadata.EntryPoint, ...] = (),
     conformance: tuple[metadata.EntryPoint, ...] = (),
+    resources: tuple[metadata.EntryPoint, ...] = (),
     auto_conformance: bool = True,
 ) -> PluginManager:
     if auto_conformance and extensions and not conformance:
@@ -171,9 +225,10 @@ def _discover(
         EXTENSION_ENTRY_POINT_GROUP: extensions,
         COMMAND_ENTRY_POINT_GROUP: commands,
         CONFORMANCE_ENTRY_POINT_GROUP: conformance,
+        RESOURCE_ENTRY_POINT_GROUP: resources,
     }
 
-    all_entries = extensions + commands + conformance
+    all_entries = extensions + commands + conformance + resources
     entries_by_name: dict[str, list[metadata.EntryPoint]] = {}
     for entry in all_entries:
         entries_by_name.setdefault(entry.name, []).append(entry)
@@ -222,6 +277,84 @@ def test_discovery_is_inert_and_sorted(
         "also.not.imported:factory",
         "not.imported:factory",
     )
+
+
+def test_selected_plugin_contributes_typed_resources_and_inert_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_name = "example"
+    manager = _discover(
+        monkeypatch,
+        tmp_path,
+        extensions=(
+            _entry_point(
+                plugin_name,
+                f"{__name__}:valid_plugin_factory",
+                EXTENSION_ENTRY_POINT_GROUP,
+            ),
+        ),
+        resources=(
+            _entry_point(
+                plugin_name,
+                f"{__name__}:valid_resource_factory",
+                RESOURCE_ENTRY_POINT_GROUP,
+            ),
+        ),
+    )
+
+    disabled_runtime = manager.runtime()
+    assert str(ExampleResource.ITEMS) not in {
+        str(resource) for resource in disabled_runtime.resources.resources
+    }
+
+    runtime = manager.runtime((plugin_name,))
+    assert (
+        runtime.resources.resource(str(ExampleResource.ITEMS)) is ExampleResource.ITEMS
+    )
+    policy = runtime.resources.policy(f"{RawExtension.extension_id}/strict")
+    assert policy.maximum(ExampleResource.ITEMS) == 2
+    assert manager.status(plugin_name).resource_reference == (
+        f"{__name__}:valid_resource_factory"
+    )
+
+
+@pytest.mark.parametrize(
+    ("factory", "message"),
+    [
+        ("invalid_resource_factory", "exact ResourceContribution"),
+        ("duplicate_resource_factory", "duplicate resource identifier"),
+        ("unqualified_resource_factory", "must be qualified"),
+    ],
+)
+def test_resource_contribution_failures_are_explicit(
+    factory: str,
+    message: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin_name = "example"
+    manager = _discover(
+        monkeypatch,
+        tmp_path,
+        extensions=(
+            _entry_point(
+                plugin_name,
+                f"{__name__}:valid_plugin_factory",
+                EXTENSION_ENTRY_POINT_GROUP,
+            ),
+        ),
+        resources=(
+            _entry_point(
+                plugin_name,
+                f"{__name__}:{factory}",
+                RESOURCE_ENTRY_POINT_GROUP,
+            ),
+        ),
+    )
+
+    with pytest.raises(PluginLoadError, match=message):
+        manager.runtime((plugin_name,))
 
 
 def test_discovery_reads_inert_standard_distribution_metadata(
@@ -451,7 +584,12 @@ def test_duplicate_plugin_command_names_are_rejected_before_execution(
         manager.commands()
 
 
+@pytest.mark.parametrize(
+    "second_group",
+    [CONFORMANCE_ENTRY_POINT_GROUP, RESOURCE_ENTRY_POINT_GROUP],
+)
 def test_discovery_rejects_contributions_from_different_distributions(
+    second_group: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -459,8 +597,8 @@ def test_discovery_rejects_contributions_from_different_distributions(
         ("extension-owner", EXTENSION_ENTRY_POINT_GROUP, "owner:extensions"),
         (
             "conformance-owner",
-            CONFORMANCE_ENTRY_POINT_GROUP,
-            "other:conformance",
+            second_group,
+            "other:contribution",
         ),
     ):
         dist_info = tmp_path / f"{package_name}-1.0.dist-info"

@@ -11,6 +11,7 @@ from obst.core import (
     BoundStageDecoder,
     BoundStageEncoder,
     CarrierCapability,
+    CoreResource,
     Extension,
     ExtensionContractError,
     ExtensionDescriptor,
@@ -722,7 +723,7 @@ def test_stage_output_helper_carries_the_structured_host_limit() -> None:
 
     resource_limit = error.value.resource_limit
     assert isinstance(resource_limit, ResourceLimitError)
-    assert resource_limit.resource == "intermediate_bytes"
+    assert resource_limit.resource is CoreResource.INTERMEDIATE_BYTES
     assert resource_limit.scope == _CUSTOM_STAGE_ID
     assert resource_limit.maximum == 8
     assert resource_limit.observed == 9

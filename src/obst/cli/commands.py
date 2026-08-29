@@ -9,7 +9,7 @@ from typing import Protocol, TextIO, cast
 from obst.core.errors import ObstError
 from obst.core.io import BinaryReader
 from obst.core.registry import ExtensionRegistry
-from obst.core.resources import ResourceLimits
+from obst.core.resources import ResourcePolicy
 
 EXIT_SUCCESS = 0
 EXIT_INTERNAL = 1
@@ -20,6 +20,7 @@ EXIT_IO = 5
 EXIT_PIPELINE = 6
 EXIT_RESOURCE_LIMIT = 10
 EXIT_PLUGIN = 11
+EXIT_LIMIT_STATE = 12
 
 
 class CliCommandError(ObstError):
@@ -47,7 +48,7 @@ class CliContext:
     stdin: BinaryReader
     stdout: TextIO
     stderr: TextIO
-    limits: ResourceLimits
+    policy: ResourcePolicy
 
 
 class CliCommand(Protocol):
@@ -76,6 +77,7 @@ __all__ = [
     "EXIT_INTERNAL",
     "EXIT_INVALID_CONTAINER",
     "EXIT_IO",
+    "EXIT_LIMIT_STATE",
     "EXIT_PIPELINE",
     "EXIT_PLUGIN",
     "EXIT_RESOURCE_LIMIT",

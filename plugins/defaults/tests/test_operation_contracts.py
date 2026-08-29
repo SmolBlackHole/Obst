@@ -10,6 +10,7 @@ import pytest
 from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
+    CoreResource,
     ExtensionDescriptor,
     ExtensionRegistry,
     LogicalStreamDescriptor,
@@ -19,7 +20,7 @@ from obst.core import (
     ProviderRejectedError,
     RecipeSpec,
     ResourceLimitError,
-    ResourceLimits,
+    ResourcePolicy,
     StageSpec,
     iter_decoded_chunks,
 )
@@ -36,6 +37,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackagerExtension,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
+from support_resources import policy as _policy
 
 RAW_STAGE_ID = RawExtension.extension_id
 DELTA8_STAGE_ID = Delta8Extension.extension_id
@@ -65,12 +67,12 @@ def _fixed_operation(
     registry: ExtensionRegistry,
     sources: tuple[LogicalStreamSource, ...],
     *,
-    limits: ResourceLimits | None = None,
+    policy: ResourcePolicy | None = None,
 ) -> PackageWriteOperation:
-    request = (
-        FixedPackageRequest(registry, sources)
-        if limits is None
-        else FixedPackageRequest(registry, sources, limits)
+    request = FixedPackageRequest(
+        registry,
+        sources,
+        _policy() if policy is None else policy,
     )
     return FixedPackagerExtension().prepare_package(request)
 
@@ -85,10 +87,10 @@ def test_packaging_stage_limit_spans_chunks_and_distinct_recipes() -> None:
         _fixed_operation(
             _registry(),
             sources,
-            limits=ResourceLimits(max_stage_executions=3),
+            policy=_policy((CoreResource.STAGE_EXECUTIONS, 3)),
         ).write_to(io.BytesIO())
 
-    assert caught.value.resource == "stage_executions"
+    assert caught.value.resource is CoreResource.STAGE_EXECUTIONS
     assert caught.value.observed == 4
 
 
@@ -108,13 +110,13 @@ def test_decoding_stage_limit_spans_chunks_and_distinct_recipes() -> None:
             iter_decoded_chunks(
                 ContainerReader(
                     io.BytesIO(target.getvalue()),
-                    limits=ResourceLimits(max_stage_executions=3),
+                    policy=_policy((CoreResource.STAGE_EXECUTIONS, 3)),
                 ),
                 registry,
             )
         )
 
-    assert caught.value.resource == "stage_executions"
+    assert caught.value.resource is CoreResource.STAGE_EXECUTIONS
     assert caught.value.observed == 4
 
 

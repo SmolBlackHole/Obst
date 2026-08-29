@@ -25,6 +25,8 @@ boundary and generic Extension behavior.
 - [Carriers](carriers/README.md): filesystem, memory and standard-input
   endpoints.
 - [Packagers](packagers/README.md): the fixed packaging policy.
+- [File resource policy](files/extraction.md#resource-policy): typed member and
+  recovered-byte ceilings contributed through `obst.resources`.
 
 ## Part IV: use and verify the tooling
 

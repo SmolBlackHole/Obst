@@ -9,6 +9,7 @@ import pytest
 from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerReader,
+    CoreResource,
     ExtensionDescriptor,
     ExtensionRegistry,
     LogicalStreamDescriptor,
@@ -22,7 +23,7 @@ from obst.core import (
     ProviderRejectedError,
     RecipeSpec,
     ResourceLimitError,
-    ResourceLimits,
+    ResourcePolicy,
     SourceConsumedError,
     StageSpec,
     iter_decoded_chunks,
@@ -37,6 +38,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackagerExtension,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
+from support_resources import policy as _policy
 
 _RAW = RecipeSpec((StageSpec(RawExtension.extension_id),))
 _DELTA_ZLIB = RecipeSpec(
@@ -85,12 +87,12 @@ def _fixed_operation(
     registry: ExtensionRegistry,
     sources: tuple[LogicalStreamSource, ...],
     *,
-    limits: ResourceLimits | None = None,
+    policy: ResourcePolicy | None = None,
 ) -> PackageWriteOperation:
-    request = (
-        FixedPackageRequest(registry, sources)
-        if limits is None
-        else FixedPackageRequest(registry, sources, limits)
+    request = FixedPackageRequest(
+        registry,
+        sources,
+        _policy() if policy is None else policy,
     )
     return FixedPackagerExtension().prepare_package(request)
 
@@ -100,9 +102,9 @@ def _package(
     registry: ExtensionRegistry,
     sources: tuple[LogicalStreamSource, ...],
     *,
-    limits: ResourceLimits | None = None,
+    policy: ResourcePolicy | None = None,
 ) -> PackageResult:
-    return _fixed_operation(registry, sources, limits=limits).write_to(target)
+    return _fixed_operation(registry, sources, policy=policy).write_to(target)
 
 
 def test_fixed_packager_preserves_stream_identity_and_logical_bytes() -> None:
@@ -219,10 +221,10 @@ def test_packager_refuses_declared_chunk_limit_before_consuming_source() -> None
             io.BytesIO(),
             _stage_registry(),
             (source,),
-            limits=ResourceLimits(max_logical_chunk_bytes=8),
+            policy=_policy((CoreResource.LOGICAL_CHUNK_BYTES, 8)),
         )
 
-    assert error.value.resource == "logical_chunk_bytes"
+    assert error.value.resource is CoreResource.LOGICAL_CHUNK_BYTES
     assert not consumed
 
 
@@ -263,10 +265,10 @@ def test_packager_refuses_manifest_limits_before_provider_validation() -> None:
             target,
             registry,
             (source,),
-            limits=ResourceLimits(max_stages_per_recipe=1),
+            policy=_policy((CoreResource.STAGES_PER_RECIPE, 1)),
         )
 
-    assert error.value.resource == "stages_per_recipe"
+    assert error.value.resource is CoreResource.STAGES_PER_RECIPE
     assert validation_calls == 0
     assert target.getvalue() == b""
 
@@ -335,23 +337,23 @@ def test_packager_stage_budget_spans_all_source_chunks() -> None:
             io.BytesIO(),
             _stage_registry(),
             (source,),
-            limits=ResourceLimits(max_stage_executions=1),
+            policy=_policy((CoreResource.STAGE_EXECUTIONS, 1)),
         )
 
-    assert error.value.resource == "stage_executions"
+    assert error.value.resource is CoreResource.STAGE_EXECUTIONS
     assert error.value.observed == 2
 
 
 @pytest.mark.parametrize(
-    ("limits", "resource"),
+    ("policy", "resource"),
     [
-        (ResourceLimits(max_chunks=0), "chunks"),
-        (ResourceLimits(max_total_logical_bytes=0), "logical_bytes"),
+        (_policy((CoreResource.CHUNKS, 0)), CoreResource.CHUNKS),
+        (_policy((CoreResource.LOGICAL_BYTES, 0)), CoreResource.LOGICAL_BYTES),
     ],
 )
 def test_packager_refuses_known_operation_limits_before_stage_execution(
-    limits: ResourceLimits,
-    resource: str,
+    policy: ResourcePolicy,
+    resource: CoreResource,
 ) -> None:
     encoding_calls = 0
 
@@ -381,10 +383,12 @@ def test_packager_refuses_known_operation_limits_before_stage_execution(
     )
 
     with pytest.raises(ResourceLimitError) as error:
-        _package(io.BytesIO(), registry, (source,), limits=limits)
+        _package(io.BytesIO(), registry, (source,), policy=policy)
 
-    assert error.value.resource == resource
-    assert error.value.observed == (1 if resource == "chunks" else len(b"payl"))
+    assert error.value.resource is resource
+    assert error.value.observed == (
+        1 if resource is CoreResource.CHUNKS else len(b"payl")
+    )
     assert encoding_calls == 0
 
 

@@ -13,7 +13,7 @@ still-encoded chunks.
 	- [Structural reading](#structural-reading)
 	- [Logical decoding](#logical-decoding)
 		- [Selective chunk decoding](#selective-chunk-decoding)
-	- [Limits](#limits)
+	- [Resource policy](#resource-policy)
 
 ## Structural reading
 
@@ -86,7 +86,7 @@ def recover_stream(
 `iter_decoded_chunks()` yields each encoded `Chunk` together with its recovered
 logical bytes in physical order. `materialize_stream()` instead consumes the
 complete container and materializes one selected stream, bounded by
-`ResourceLimits.max_materialized_stream_bytes`.
+`CoreResource.MATERIALIZED_STREAM_BYTES` in the selected policy.
 
 Direct recipe and chunk helpers are documented under
 [Recipe and chunk execution](recipes.md).
@@ -105,7 +105,7 @@ domain policy and only then spend logical recovery and stage-execution budget:
 ```python
 from obst.core import ChunkDecoder
 
-decoder = ChunkDecoder(reader.index, registry, limits=reader.limits)
+decoder = ChunkDecoder(reader.index, registry, policy=reader.policy)
 
 for chunk in reader.iter_chunks():
     require_application_capacity(chunk.logical_size)
@@ -114,7 +114,7 @@ for chunk in reader.iter_chunks():
 ```
 
 The reader owns structural input accounting. The decoder owns a separate
-logical and stage-execution budget under the same immutable `ResourceLimits`
+logical and stage-execution budget under the same immutable `ResourcePolicy`
 policy. Skipping a chunk still consumes structural input but invokes no decoder
 and spends no logical or stage-execution budget.
 
@@ -126,9 +126,9 @@ The [runtime error reference](../errors.md) explains why unavailable
 capabilities, invalid stage payloads and corrupted logical bytes are separate
 failure classes.
 
-## Limits
+## Resource policy
 
-`ResourceLimits` bounds manifest size and counts, complete container bytes,
+`ResourcePolicy` bounds manifest size and counts, complete container bytes,
 chunks, encoded and logical chunk sizes, pipeline work, recovered logical bytes
 and materialized stream size. Structural inspection charges only resources it
 actually consumes; it does not spend logical recovery or stage-execution
@@ -136,7 +136,7 @@ budgets.
 
 Crossing a local ceiling raises `ResourceLimitError`, not
 `InvalidContainerError`. A container refused by local policy may still be valid
-under the wire format. [Resource limits](resources.md) owns the defaults,
+under the wire format. [Resource policy](resources.md) owns the defaults,
 override rules and exact accounting scopes.
 
 The Python representation of fixed fields and records is described in

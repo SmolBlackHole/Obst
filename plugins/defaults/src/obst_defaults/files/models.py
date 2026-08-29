@@ -2,20 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
-
-_GIB = 1024 * 1024 * 1024
-
-
-def _require_optional_limit(name: str, value: object) -> None:
-    if value is None:
-        return
-    if type(value) is not int:
-        raise TypeError(f"{name} must be an integer or None")
-    if value < 0:
-        raise ValueError(f"{name} must be non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,25 +21,6 @@ class FileExtractionResult:
     output_directory: Path
     paths: tuple[Path, ...]
     cleanup_issues: tuple[FileExtractionCleanupIssue, ...]
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class FileExtractionLimits:
-    """Filesystem-specific ceilings for one file extraction operation."""
-
-    max_members: int | None = 4_096
-    max_member_bytes: int | None = 4 * _GIB
-    max_total_bytes: int | None = 16 * _GIB
-
-    def __post_init__(self) -> None:
-        for limit_field in fields(self):
-            _require_optional_limit(
-                limit_field.name,
-                getattr(self, limit_field.name),
-            )
-
-
-DEFAULT_FILE_EXTRACTION_LIMITS: Final = FileExtractionLimits()
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,9 +48,7 @@ class PortableFileMetadata:
 
 
 __all__ = [
-    "DEFAULT_FILE_EXTRACTION_LIMITS",
     "FileExtractionCleanupIssue",
-    "FileExtractionLimits",
     "FileExtractionResult",
     "FileMaterialization",
     "PortableFileMetadata",

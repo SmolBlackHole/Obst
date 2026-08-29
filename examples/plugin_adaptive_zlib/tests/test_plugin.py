@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import os
 import subprocess
 import sys
@@ -15,10 +16,12 @@ import pytest
 from obst.cli.commands import EXIT_PLUGIN, EXIT_SUCCESS
 from obst.core import (
     ContainerReader,
+    CoreResource,
+    LimitProfile,
     PipelineError,
     Recipe,
     ResourceLimitError,
-    ResourceLimits,
+    ResourcePolicy,
     StageCapability,
     StageSpec,
     decode_recipe,
@@ -181,7 +184,13 @@ def test_example_plugin_entry_point_loads_and_round_trips(
             b"small",
             recipe,
             registry,
-            limits=ResourceLimits(max_intermediate_bytes=5),
+            policy=ResourcePolicy(
+                profile=LimitProfile(
+                    "test",
+                    "Test intermediate ceiling.",
+                    ((CoreResource.INTERMEDIATE_BYTES, 5),),
+                )
+            ),
         )
 
 
@@ -296,7 +305,34 @@ def test_example_plugin_command_composes_another_plugins_stage(
         )
         == EXIT_SUCCESS
     )
-    assert "Adaptive packed" in capsys.readouterr().out
+    rendered = capsys.readouterr().out
+    assert "Adaptive pack complete" in rendered
+    assert "Logical size    128.0 KiB" in rendered
+    assert "Chunks          2" in rendered
+
+    json_output = tmp_path / "records-json.obst"
+    assert (
+        main(
+            [
+                "adaptive-pack",
+                str(source),
+                "-o",
+                str(json_output),
+                "--plugin",
+                "obst-defaults",
+                "--json",
+            ]
+        )
+        == EXIT_SUCCESS
+    )
+    document = json.loads(capsys.readouterr().out)
+    assert document == {
+        "schema_version": 1,
+        "destination": str(json_output),
+        "logical_size": len(logical),
+        "container_size": json_output.stat().st_size,
+        "chunks": 2,
+    }
     registry = manager.runtime(("obst-defaults",)).registry
     reader = ContainerReader(BytesIO(output.read_bytes()))
     inspection = inspect_container(reader, registry=registry)

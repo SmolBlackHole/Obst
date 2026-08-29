@@ -32,9 +32,11 @@ from obst.core.manifest import (
 )
 from obst.core.model import Chunk, Manifest
 from obst.core.resources import (
-    DEFAULT_RESOURCE_LIMITS,
+    DEFAULT_RESOURCE_POLICY,
+    CoreResource,
     ResourceBudget,
-    ResourceLimits,
+    ResourcePolicy,
+    require_resource_limit,
 )
 from obst.core.wire import (
     BLAKE2S_128_SIZE,
@@ -73,19 +75,19 @@ class ContainerWriter:
         target: BinaryWriter,
         manifest: Manifest,
         *,
-        limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
     ) -> None:
         self.manifest = manifest
         self.index = ManifestIndex(manifest)
-        self.limits = limits
-        self._budget = ResourceBudget(limits)
+        self.policy = policy
+        self._budget = ResourceBudget(policy)
         self._next_sequences = {stream.stream_id: 0 for stream in self.manifest.streams}
         self._target = _CountingWriter(target, self._budget)
         self._chunk_count = 0
         self._logical_size = 0
         self._encoded_payload_size = 0
         self._state = _LifecycleState.WRITING
-        manifest_bytes = encode_manifest(self.manifest, limits=self.limits)
+        manifest_bytes = encode_manifest(self.manifest, policy=self.policy)
         self._write_container_header(manifest_bytes)
 
     def preflight_chunk(self, logical_size: int, /) -> None:
@@ -110,10 +112,10 @@ class ContainerWriter:
                     f"{expected_sequence}, got {chunk.sequence}"
                 )
             self._require_logical_chunk_capacity(chunk.logical_size)
-            self._budget.require(
-                resource="encoded_chunk_bytes",
+            require_resource_limit(
+                CoreResource.ENCODED_CHUNK_BYTES,
                 scope=f"stream {chunk.stream_id} chunk {chunk.sequence}",
-                maximum=self.limits.max_encoded_chunk_bytes,
+                maximum=self.policy.maximum(CoreResource.ENCODED_CHUNK_BYTES),
                 observed=chunk.encoded_size,
                 phase="container_write",
             )
@@ -193,34 +195,34 @@ class ContainerWriter:
         write_all(self._target, record)
 
     def _require_container_capacity(self, amount: int) -> None:
-        self._budget.require(
-            resource="container_bytes",
+        require_resource_limit(
+            CoreResource.CONTAINER_BYTES,
             scope="container",
-            maximum=self.limits.max_container_bytes,
+            maximum=self.policy.maximum(CoreResource.CONTAINER_BYTES),
             observed=self._target.bytes_written + amount,
             phase="container_write",
         )
 
     def _require_logical_chunk_capacity(self, logical_size: int) -> None:
         scope = f"container chunk {self._chunk_count}"
-        self._budget.require(
-            resource="logical_chunk_bytes",
+        require_resource_limit(
+            CoreResource.LOGICAL_CHUNK_BYTES,
             scope=scope,
-            maximum=self.limits.max_logical_chunk_bytes,
+            maximum=self.policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
             observed=logical_size,
             phase="container_write",
         )
-        self._budget.require(
-            resource="chunks",
+        require_resource_limit(
+            CoreResource.CHUNKS,
             scope="container",
-            maximum=self.limits.max_chunks,
+            maximum=self.policy.maximum(CoreResource.CHUNKS),
             observed=self._chunk_count + 1,
             phase="container_write",
         )
-        self._budget.require(
-            resource="logical_bytes",
+        require_resource_limit(
+            CoreResource.LOGICAL_BYTES,
             scope="container",
-            maximum=self.limits.max_total_logical_bytes,
+            maximum=self.policy.maximum(CoreResource.LOGICAL_BYTES),
             observed=self._logical_size + logical_size,
             phase="container_write",
         )
@@ -250,10 +252,10 @@ class ContainerReader:
         self,
         source: BinaryReader,
         *,
-        limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
     ) -> None:
-        self.limits = limits
-        self._budget = ResourceBudget(limits)
+        self.policy = policy
+        self._budget = ResourceBudget(policy)
         self._source = _CountingReader(source, self._budget)
         self.version, self.manifest, self.manifest_size = self._read_container_header()
         self.index = ManifestIndex(self.manifest)
@@ -347,17 +349,17 @@ class ContainerReader:
         )
         assert header is not None
         parsed = ContainerHeader.decode(header)
-        self._budget.require(
-            resource="manifest_bytes",
+        require_resource_limit(
+            CoreResource.MANIFEST_BYTES,
             scope="manifest",
-            maximum=self.limits.max_manifest_bytes,
+            maximum=self.policy.maximum(CoreResource.MANIFEST_BYTES),
             observed=parsed.manifest_size,
             phase="container_read",
         )
         validate_manifest_counts(
             recipe_count=parsed.recipe_count,
             stream_count=parsed.stream_count,
-            limits=self.limits,
+            policy=self.policy,
         )
         self._require_container_capacity(parsed.manifest_size)
         if parsed.manifest_size < ManifestHeader.size:
@@ -372,7 +374,7 @@ class ContainerReader:
         validate_manifest_header(
             manifest_header,
             manifest_size=parsed.manifest_size,
-            limits=self.limits,
+            policy=self.policy,
             phase="container_read",
         )
         manifest_body = read_exact(
@@ -386,24 +388,24 @@ class ContainerReader:
             manifest_body,
             recipe_count=parsed.recipe_count,
             stream_count=parsed.stream_count,
-            limits=self.limits,
+            policy=self.policy,
         )
         return parsed.version, manifest, parsed.manifest_size
 
     def _parse_chunk_header(self, header: bytes) -> ChunkHeader:
         parsed = ChunkHeader.decode(header)
         scope = f"stream {parsed.stream_id} chunk {parsed.sequence}"
-        self._budget.require(
-            resource="encoded_chunk_bytes",
+        require_resource_limit(
+            CoreResource.ENCODED_CHUNK_BYTES,
             scope=scope,
-            maximum=self.limits.max_encoded_chunk_bytes,
+            maximum=self.policy.maximum(CoreResource.ENCODED_CHUNK_BYTES),
             observed=parsed.encoded_size,
             phase="container_read",
         )
-        self._budget.require(
-            resource="logical_chunk_bytes",
+        require_resource_limit(
+            CoreResource.LOGICAL_CHUNK_BYTES,
             scope=scope,
-            maximum=self.limits.max_logical_chunk_bytes,
+            maximum=self.policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
             observed=parsed.logical_size,
             phase="container_read",
         )
@@ -428,10 +430,10 @@ class ContainerReader:
         return parsed
 
     def _require_container_capacity(self, amount: int) -> None:
-        self._budget.require(
-            resource="container_bytes",
+        require_resource_limit(
+            CoreResource.CONTAINER_BYTES,
             scope="container",
-            maximum=self.limits.max_container_bytes,
+            maximum=self.policy.maximum(CoreResource.CONTAINER_BYTES),
             observed=self._source.bytes_read + amount,
             phase="container_read",
         )

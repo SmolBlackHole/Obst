@@ -22,14 +22,17 @@ command host does not give first-party distributions a private loading path.
 		- [Machine-readable inspection](#machine-readable-inspection)
 		- [Status-only inspection](#status-only-inspection)
 	- [Terminal presentation](#terminal-presentation)
+	- [Human-readable output reference](#human-readable-output-reference)
+	- [JSON output reference](#json-output-reference)
 	- [Contributed commands](#contributed-commands)
-	- [Resource policy](#resource-policy)
+	- [Resource limit profiles](#resource-limit-profiles)
 	- [Black magic that already works](#black-magic-that-already-works)
 	- [Exit codes and errors](#exit-codes-and-errors)
 	- [Unsupported operations](#unsupported-operations)
 	- [Built-in help](#built-in-help)
 
-The runtime always provides `inspect`, `plugins`, `extensions` and `help`.
+The runtime always provides `inspect`, `plugins`, `extensions`, `limits` and
+`help`.
 The table uses `obst-defaults` only as a real contributed-command example:
 
 | Command      | Purpose                                               | Reads stdin |
@@ -39,6 +42,7 @@ The table uses `obst-defaults` only as a real contributed-command example:
 | `unpack`     | Restore every file stream from a container            | No          |
 | `plugins`    | List, enable, disable or test installed plugins       | No          |
 | `extensions` | Report capabilities from enabled and one-shot plugins | No          |
+| `limits`     | Inspect and manage local resource limit profiles      | No          |
 | `help`       | Show general or command-specific help                 | No          |
 
 The [`obst-defaults` CLI guide](../plugins/defaults/docs/cli.md) owns the
@@ -147,8 +151,8 @@ factory and registry path as every third-party package. Each explicit
 registry for that command only. It does not expose that plugin's own command
 contributions. Container bytes never select, enable or load plugins.
 
-These commands have schema-versioned JSON output. Plugin catalog schema `5`
-reports all 3 contribution entry-point groups plus inert records with install,
+These commands have schema-versioned JSON output. Plugin catalog schema `6`
+reports all 4 contribution entry-point groups plus inert records with install,
 enabled state, distribution metadata and factory provenance. Plugin
 conformance report schema `2` reports each case ID, kind, optional Extension
 ID, pass state and failure text. The static suite catalog itself uses schema
@@ -359,10 +363,30 @@ UTF-8 text, and JSON output never contains ANSI control sequences. The runtime
 emits standard terminal color sequences directly and gains no presentation-only
 package dependency.
 
+Native host contributions are green, plugin contributions are magenta, local
+custom profiles are cyan, warnings are yellow and errors or unavailable state
+are red. First-party plugins use the same contributed color as third-party
+plugins; presentation does not grant them a privileged path.
+
 Set `NO_COLOR` to disable color. Set a non-empty `FORCE_COLOR` value other than
 `0` to retain color when a terminal cannot be detected. `NO_COLOR` wins when
 both are present. Untrusted names, labels and error details are escaped before
 presentation codes are added.
+
+## Human-readable output reference
+
+The [human-readable CLI output reference](cli-output-reference.md) collects one
+plain-text snapshot of every native command and every contributed example
+command installed in this repository. It is useful for reviewing the CLI as a
+single interface; this guide and each contributing plugin's documentation
+remain authoritative for behavior.
+
+## JSON output reference
+
+The [JSON CLI output reference](cli-json-output-reference.md) captures every
+command that accepts `--json`, including the example plugin commands installed
+in this repository. Each command's owning guide remains authoritative for the
+schema semantics.
 
 ## Contributed commands
 
@@ -376,18 +400,63 @@ available command operation. It cannot make an inactive plugin's command
 appear, because that parser has not been loaded. Container bytes can neither
 activate a plugin nor contribute a command.
 
-## Resource policy
+## Resource limit profiles
 
-The CLI uses the finite `DEFAULT_RESOURCE_LIMITS` core policy. The command line
-does not expose a matrix of limit flags. Library callers that need
-deployment-specific ceilings pass `ResourceLimits` explicitly. Contributed
-commands may add their own adapter-specific policies and must document them
-with the owning plugin.
+The CLI resolves one named `ResourcePolicy` for Inspect and every contributed
+command. `default` contains the finite ceilings declared by the active Core and
+plugin resources. It cannot be edited or deleted.
 
-Crossing a core ceiling reports `obst: resource_limit: ...` and returns exit
-code `10`; it does not label the container corrupt or invalid.
+List profiles and inspect their resolved ceilings:
 
-The complete defaults and accounting scopes live in the
+```console
+obst limits profiles
+obst limits show
+obst limits show default --json
+```
+
+`show` without a name displays the active profile. Human output groups
+resources by their stable owner (`Core` or an Extension ID), uses compact
+tables and renders typed byte limits as KiB, MiB or GiB. Source and availability
+columns appear when they carry additional information. JSON keeps complete
+resource IDs, summaries and exact integer maxima. `profiles` and every other
+`limits` subcommand also accept `--json`.
+
+Create a local profile, override selected resources and activate it:
+
+```console
+obst limits create large-import
+obst limits set large-import manifest_bytes 33554432
+obst limits set large-import chunks none
+obst limits use large-import
+```
+
+`none` disables only the named local ceiling. Other resources keep the
+defaults contributed by the current runtime. A custom profile stores only its
+overrides, not a copy of every default.
+
+Return to the immutable defaults before deleting the custom profile:
+
+```console
+obst limits use default
+obst limits delete large-import
+```
+
+An active profile cannot be deleted. Plugin-contributed profiles appear only
+while their plugin is enabled or selected with `--plugin NAME`, and they remain
+inactive until `obst limits use PROFILE` selects one. Enabling a plugin or
+opening a container never changes the active profile.
+
+Local state is stored as non-executable JSON in `limits.json` beside
+`plugins.json`. `OBST_CONFIG_HOME` overrides that directory. Overrides for a
+temporarily unavailable plugin resource remain visible in `show` and are
+inert until that resource returns; they do not load or activate the plugin.
+An active contributed profile that disappears fails explicitly rather than
+silently falling back to `default`.
+
+Crossing a ceiling reports `obst: resource_limit: ...` with exit code `10`.
+Malformed or unavailable profile state reports `obst: limit_state: ...` with
+exit code `12`. Neither failure labels the container corrupt. The complete
+typed API, defaults and accounting scopes live in the
 [resource guide](core/resources.md).
 
 ## Black magic that already works
@@ -431,6 +500,7 @@ obst help pack
 obst help unpack
 obst help plugins
 obst help extensions
+obst help limits
 ```
 
 `pack`, `unpack` and any other contributed topic appear only while the plugin

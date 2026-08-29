@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from io import TextIOWrapper
 from typing import cast
@@ -11,23 +12,32 @@ from obst.cli.commands import (
     EXIT_INTERNAL,
     EXIT_INVALID_CONTAINER,
     EXIT_IO,
+    EXIT_LIMIT_STATE,
     EXIT_PIPELINE,
     EXIT_PLUGIN,
     EXIT_RESOURCE_LIMIT,
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED,
-    CliCommand,
     CliCommandError,
     CliContext,
 )
-from obst.cli.inspection import configure_inspect_parser, run_inspect
+from obst.cli.inspection import run_inspect
 from obst.cli.output import (
     render_extension_inventory_human,
     render_extension_inventory_json,
+    render_limit_profile_human,
+    render_limit_profile_json,
+    render_limit_profiles_human,
+    render_limit_profiles_json,
     render_plugin_catalog_human,
     render_plugin_catalog_json,
     render_plugin_conformance_human,
     render_plugin_conformance_json,
+)
+from obst.cli.parser import (
+    PLUGIN_TEST_WARNING,
+    build_parser_tree,
+    requires_plugin_commands,
 )
 from obst.cli.presentation import HumanOutputStyle, escape_human_text
 from obst.core.errors import (
@@ -36,158 +46,18 @@ from obst.core.errors import (
     InvalidContainerError,
     MissingExtensionCapabilityError,
     ObstError,
-    ResourceLimitError,
     TruncatedContainerError,
     UnsupportedVersionError,
 )
 from obst.core.io import BinaryReader
-from obst.core.resources import DEFAULT_RESOURCE_LIMITS
-from obst.core.wire import format_version
+from obst.core.resources import ResourceLimitError
+from obst.limits import LimitManager, LimitStateError
 from obst.plugins import PluginError, PluginManager, PluginRuntime
-
-_PLUGIN_TEST_WARNING = (
-    "plugin conformance executes installed plugin code with your current process "
-    "privileges. No sandbox is used. Test only plugins you trust."
-)
-_HOST_COMMANDS = frozenset({"extensions", "help", "inspect", "plugins"})
 
 
 def _plugin_manager() -> PluginManager:
     """Create one host manager without implicitly trusted plugins."""
     return PluginManager.discover()
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Build the generic parser without loading plugin code."""
-    parser, _, _ = _build_parser_tree()
-    return parser
-
-
-def _build_parser_tree(
-    plugin_commands: tuple[CliCommand, ...] = (),
-) -> tuple[
-    argparse.ArgumentParser,
-    dict[str, argparse.ArgumentParser],
-    dict[str, CliCommand],
-]:
-    parser = argparse.ArgumentParser(
-        prog="obst",
-        epilog="Run 'obst help COMMAND' for command-specific help.",
-    )
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s format {format_version.label}",
-    )
-    commands = parser.add_subparsers(dest="command", required=True)
-    command_parsers: dict[str, argparse.ArgumentParser] = {}
-
-    plugins_parser = commands.add_parser(
-        "plugins",
-        help="inspect and manage installed plugins",
-    )
-    command_parsers["plugins"] = plugins_parser
-    plugin_subcommands = plugins_parser.add_subparsers(
-        dest="plugin_command",
-        required=True,
-    )
-    plugins_list_parser = plugin_subcommands.add_parser(
-        "list",
-        help="list installed and enabled plugins without loading code",
-    )
-    plugins_list_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="emit a stable machine-readable plugin catalog",
-    )
-    plugins_enable_parser = plugin_subcommands.add_parser(
-        "enable",
-        help="persistently enable one installed plugin",
-    )
-    plugins_enable_parser.add_argument("name", metavar="NAME")
-    plugins_disable_parser = plugin_subcommands.add_parser(
-        "disable",
-        help="persistently disable one plugin",
-    )
-    plugins_disable_parser.add_argument("name", metavar="NAME")
-    plugins_test_parser = plugin_subcommands.add_parser(
-        "test",
-        help="run one plugin's conformance cases (executes plugin code)",
-        description=(
-            "Run one plugin's published portable conformance cases. "
-            f"Warning: {_PLUGIN_TEST_WARNING}"
-        ),
-    )
-    plugins_test_parser.add_argument("name", metavar="NAME")
-    plugins_test_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="emit a stable machine-readable conformance report",
-    )
-    _add_plugin_selection(plugins_test_parser)
-
-    extensions_parser = commands.add_parser(
-        "extensions",
-        help="show capabilities provided by enabled and one-shot plugins",
-    )
-    command_parsers["extensions"] = extensions_parser
-    extensions_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="emit a stable machine-readable capability inventory",
-    )
-    _add_plugin_selection(extensions_parser)
-
-    inspect_parser = commands.add_parser(
-        "inspect",
-        help="validate and describe a container without decoding payloads",
-    )
-    command_parsers["inspect"] = inspect_parser
-    _add_plugin_selection(inspect_parser)
-    configure_inspect_parser(inspect_parser)
-
-    contributed: dict[str, CliCommand] = {}
-    for contributed_command in plugin_commands:
-        if (
-            contributed_command.name in command_parsers
-            or contributed_command.name == "help"
-        ):
-            raise PluginError(
-                "plugin command name conflicts with host command "
-                f"{contributed_command.name}"
-            )
-        command_parser = commands.add_parser(
-            contributed_command.name,
-            help=contributed_command.summary,
-        )
-        _add_plugin_selection(command_parser)
-        contributed_command.configure_parser(command_parser)
-        command_parsers[contributed_command.name] = command_parser
-        contributed[contributed_command.name] = contributed_command
-
-    help_parser = commands.add_parser(
-        "help",
-        help="show general help or help for a command",
-    )
-    command_parsers["help"] = help_parser
-    help_parser.add_argument(
-        "topic",
-        nargs="?",
-        choices=tuple(command_parsers),
-        metavar="COMMAND",
-        help="command whose help should be shown",
-    )
-    return parser, command_parsers, contributed
-
-
-def _add_plugin_selection(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--plugin",
-        action="append",
-        default=[],
-        metavar="NAME",
-        help="load one explicitly trusted installed plugin for this command",
-    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -197,9 +67,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         manager = _plugin_manager()
         plugin_commands = (
-            manager.commands() if _requires_plugin_commands(arguments) else ()
+            manager.commands() if requires_plugin_commands(arguments) else ()
         )
-        parser, command_parsers, contributed = _build_parser_tree(plugin_commands)
+        parser, command_parsers, contributed = build_parser_tree(plugin_commands)
         args = parser.parse_args(arguments)
 
         if args.command == "help":
@@ -218,13 +88,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "extensions":
             return _list_extensions(runtime, as_json=args.json)
 
+        if args.command == "limits":
+            return _run_limit_management(
+                LimitManager.discover(),
+                runtime,
+                args,
+            )
+
+        policy = LimitManager.discover().policy(runtime.resources)
+
         if args.command == "inspect":
             return run_inspect(
                 args,
                 registry=runtime.registry,
                 stdin=_binary_stdin(),
                 stdout=sys.stdout,
-                limits=DEFAULT_RESOURCE_LIMITS,
+                policy=policy,
             )
 
         contributed_command = contributed.get(args.command)
@@ -237,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
                     stdin=_binary_stdin(),
                     stdout=sys.stdout,
                     stderr=sys.stderr,
-                    limits=DEFAULT_RESOURCE_LIMITS,
+                    policy=policy,
                 ),
             )
     except CliCommandError as exc:
@@ -252,6 +131,8 @@ def main(argv: list[str] | None = None) -> int:
         return _fail("invalid_container", exc, EXIT_INVALID_CONTAINER)
     except ResourceLimitError as exc:
         return _fail("resource_limit", exc, EXIT_RESOURCE_LIMIT)
+    except LimitStateError as exc:
+        return _fail("limit_state", exc, EXIT_LIMIT_STATE)
     except MissingExtensionCapabilityError as exc:
         return _fail("plugin_error", exc, EXIT_PLUGIN)
     except BinaryIOContractError as exc:
@@ -263,15 +144,6 @@ def main(argv: list[str] | None = None) -> int:
     except ObstError as exc:
         return _fail("pipeline_error", exc, EXIT_PIPELINE)
     return _fail("internal_error", RuntimeError("unknown command"), EXIT_INTERNAL)
-
-
-def _requires_plugin_commands(arguments: list[str]) -> bool:
-    if not arguments or arguments[0].startswith("-"):
-        return False
-    command = arguments[0]
-    if command != "help":
-        return command not in _HOST_COMMANDS
-    return len(arguments) > 1 and arguments[1] not in _HOST_COMMANDS
 
 
 def _run_plugin_management(
@@ -295,7 +167,7 @@ def _run_plugin_management(
         style = HumanOutputStyle.for_stream(sys.stdout)
         sys.stdout.write(
             f"{style.success('Enabled')} plugin "
-            f"{style.identifier(escape_human_text(status.name))}\n"
+            f"{style.contributed(escape_human_text(status.name))}\n"
         )
         return EXIT_SUCCESS
     if args.plugin_command == "disable":
@@ -303,13 +175,13 @@ def _run_plugin_management(
         style = HumanOutputStyle.for_stream(sys.stdout)
         sys.stdout.write(
             f"{style.warning('Disabled')} plugin "
-            f"{style.identifier(escape_human_text(status.name))}\n"
+            f"{style.contributed(escape_human_text(status.name))}\n"
         )
         return EXIT_SUCCESS
     if args.plugin_command == "test":
         warning_style = HumanOutputStyle.for_stream(sys.stderr)
         print(
-            f"{warning_style.warning('obst: warning:')} {_PLUGIN_TEST_WARNING}",
+            f"{warning_style.warning('obst: warning:')} {PLUGIN_TEST_WARNING}",
             file=sys.stderr,
         )
         report = manager.test(args.name, tuple(args.plugin))
@@ -325,6 +197,74 @@ def _run_plugin_management(
         sys.stdout.write(rendered)
         return EXIT_SUCCESS if report.passed else EXIT_PLUGIN
     raise PluginError(f"unknown plugin command {args.plugin_command}")
+
+
+def _run_limit_management(
+    manager: LimitManager,
+    runtime: PluginRuntime,
+    args: argparse.Namespace,
+) -> int:
+    catalog = runtime.resources
+    style = HumanOutputStyle.for_stream(sys.stdout)
+    if args.limit_command == "profiles":
+        profiles = manager.profiles(catalog)
+        sys.stdout.write(
+            render_limit_profiles_json(profiles)
+            if args.json
+            else render_limit_profiles_human(profiles, style=style)
+        )
+        return EXIT_SUCCESS
+    if args.limit_command == "show":
+        view = manager.show(catalog, args.profile)
+        sys.stdout.write(
+            render_limit_profile_json(view)
+            if args.json
+            else render_limit_profile_human(view, style=style)
+        )
+        return EXIT_SUCCESS
+    if args.limit_command == "create":
+        manager.create(args.profile, catalog)
+        view = manager.show(catalog, args.profile)
+        sys.stdout.write(
+            render_limit_profile_json(view)
+            if args.json
+            else render_limit_profile_human(view, style=style)
+        )
+        return EXIT_SUCCESS
+    if args.limit_command == "set":
+        manager.set(args.profile, args.resource, args.maximum, catalog)
+        view = manager.show(catalog, args.profile)
+        sys.stdout.write(
+            render_limit_profile_json(view)
+            if args.json
+            else render_limit_profile_human(view, style=style)
+        )
+        return EXIT_SUCCESS
+    if args.limit_command == "use":
+        manager.use(args.profile, catalog)
+        view = manager.show(catalog, args.profile)
+        sys.stdout.write(
+            render_limit_profile_json(view)
+            if args.json
+            else render_limit_profile_human(view, style=style)
+        )
+        return EXIT_SUCCESS
+    if args.limit_command == "delete":
+        manager.delete(args.profile, catalog)
+        if args.json:
+            sys.stdout.write(
+                '{\n    "deleted_profile": '
+                f'{json.dumps(args.profile)},\n    "schema_version": 1\n}}\n'
+            )
+        else:
+            sys.stdout.write(
+                f"{style.success('Deleted')} limit profile "
+                f"{style.identifier(escape_human_text(args.profile))}\n"
+            )
+        return EXIT_SUCCESS
+    raise LimitStateError(
+        manager.state_path, f"unknown limit command {args.limit_command}"
+    )
 
 
 def _list_extensions(runtime: PluginRuntime, *, as_json: bool) -> int:

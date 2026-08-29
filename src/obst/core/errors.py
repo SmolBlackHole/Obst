@@ -1,5 +1,12 @@
 """Public core OBST error hierarchy."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from obst.core.resources import ResourceLimitError
+
 
 class ObstError(Exception):
     """Base class for OBST failures."""
@@ -46,29 +53,6 @@ class OperationStateError(ObstError):
         self.operation = operation
         self.state = state
         super().__init__(f"cannot {operation} in {state} state")
-
-
-class ResourceLimitError(ObstError):
-    """A valid operation was refused by its local resource policy."""
-
-    def __init__(
-        self,
-        *,
-        resource: str,
-        scope: str,
-        maximum: int,
-        observed: int,
-        phase: str,
-    ) -> None:
-        self.resource = resource
-        self.scope = scope
-        self.maximum = maximum
-        self.observed = observed
-        self.phase = phase
-        super().__init__(
-            f"{phase} refused {scope} {resource}: "
-            f"observed {observed}, maximum {maximum}"
-        )
 
 
 class ProviderRejectedError(Exception):

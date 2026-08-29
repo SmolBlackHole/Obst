@@ -45,7 +45,7 @@ def _run(
     )
 
 
-def test_installed_distribution_publishes_all_three_plugin_contributions() -> None:
+def test_installed_distribution_publishes_all_plugin_contributions() -> None:
     assert version("obst-defaults") == "0.1.0"
     assert metadata("obst-defaults")["License-Expression"] == "MPL-2.0"
     contributions = {
@@ -68,6 +68,11 @@ def test_installed_distribution_publishes_all_three_plugin_contributions() -> No
             "obst.conformance",
             "obst-defaults",
             "obst_defaults.conformance:obst_conformance",
+        ),
+        (
+            "obst.resources",
+            "obst-defaults",
+            "obst_defaults.bundle:obst_resources",
         ),
     }
 

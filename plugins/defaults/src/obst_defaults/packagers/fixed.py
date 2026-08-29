@@ -4,8 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from obst.core import (
+    CoreResource,
+    ResourceKind,
+    ResourcePolicy,
+    require_resource_limit,
+)
 from obst.core.container import ContainerWriter
-from obst.core.errors import OperationStateError, PackagingError, ResourceLimitError
+from obst.core.errors import OperationStateError, PackagingError
 from obst.core.extensions import ExtensionDescriptor, ExtensionKind
 from obst.core.io import BinaryWriter
 from obst.core.manifest import validate_manifest_resources
@@ -18,10 +24,6 @@ from obst.core.packaging import (
     RecipeSpec,
 )
 from obst.core.registry import ExtensionRegistry
-from obst.core.resources import (
-    DEFAULT_RESOURCE_LIMITS,
-    ResourceLimits,
-)
 from obst.core.streams import ChunkEncoder
 
 
@@ -31,7 +33,7 @@ class FixedPackageRequest:
 
     registry: ExtensionRegistry
     sources: tuple[LogicalStreamSource, ...]
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS
+    policy: ResourcePolicy
 
     def __post_init__(self) -> None:
         if type(self.registry) is not ExtensionRegistry:
@@ -42,8 +44,8 @@ class FixedPackageRequest:
             raise TypeError(
                 "fixed package sources must contain LogicalStreamSource values"
             )
-        if type(self.limits) is not ResourceLimits:
-            raise TypeError("fixed package limits must be ResourceLimits")
+        if type(self.policy) is not ResourcePolicy:
+            raise TypeError("fixed package policy must be a ResourcePolicy")
 
 
 class FixedPackagerExtension:
@@ -85,19 +87,19 @@ class _FixedPackageOperation:
         if len({id(source) for source in sources}) != len(sources):
             raise PackagingError("a logical stream source cannot be declared twice")
         for source in sources:
-            _preflight_source(source, self._request.limits)
+            _preflight_source(source, self._request.policy)
         manifest = _fixed_manifest(sources, self._request.registry)
-        validate_manifest_resources(manifest, limits=self._request.limits)
+        validate_manifest_resources(manifest, policy=self._request.policy)
         recipes_by_id = {recipe.recipe_id: recipe for recipe in manifest.recipes}
         encoder = ChunkEncoder(
             self._request.registry,
-            limits=self._request.limits,
+            policy=self._request.policy,
         )
         encoder.preflight(manifest.recipes)
         writer = ContainerWriter(
             target,
             manifest,
-            limits=self._request.limits,
+            policy=self._request.policy,
         )
         packaged_streams: list[PackagedStream] = []
         for stream, source in zip(manifest.streams, sources, strict=True):
@@ -173,34 +175,33 @@ def _fixed_manifest(
 
 def _preflight_source(
     source: LogicalStreamSource,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
 ) -> None:
     scope = f"logical source {source.descriptor.stream_type}"
     _require_source_limit(
-        "logical_chunk_bytes",
+        CoreResource.LOGICAL_CHUNK_BYTES,
         scope,
-        limits.max_logical_chunk_bytes,
+        policy.maximum(CoreResource.LOGICAL_CHUNK_BYTES),
         source.max_chunk_bytes,
     )
     _require_source_limit(
-        "intermediate_bytes",
+        CoreResource.INTERMEDIATE_BYTES,
         scope,
-        limits.max_intermediate_bytes,
+        policy.maximum(CoreResource.INTERMEDIATE_BYTES),
         source.max_chunk_bytes,
     )
 
 
 def _require_source_limit(
-    resource: str,
+    resource: ResourceKind,
     scope: str,
     maximum: int | None,
     observed: int,
 ) -> None:
-    if maximum is not None and observed > maximum:
-        raise ResourceLimitError(
-            resource=resource,
-            scope=scope,
-            maximum=maximum,
-            observed=observed,
-            phase="package",
-        )
+    require_resource_limit(
+        resource,
+        scope=scope,
+        maximum=maximum,
+        observed=observed,
+        phase="package",
+    )

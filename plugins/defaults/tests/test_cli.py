@@ -28,6 +28,7 @@ from obst.conformance import ConformanceSuite, StageKnownAnswerCase
 from obst.core import (
     BYTES_STREAM_TYPE,
     ContainerWriter,
+    CoreResource,
     Extension,
     ExtensionDeclaration,
     ExtensionDescriptor,
@@ -35,7 +36,6 @@ from obst.core import (
     Manifest,
     Recipe,
     ResourceLimitError,
-    ResourceLimits,
     StageExtension,
     StageSpec,
     Stream,
@@ -50,6 +50,7 @@ from obst.plugins import (
     COMMAND_ENTRY_POINT_GROUP,
     CONFORMANCE_ENTRY_POINT_GROUP,
     EXTENSION_ENTRY_POINT_GROUP,
+    RESOURCE_ENTRY_POINT_GROUP,
 )
 
 from obst_defaults.carriers import CarrierError
@@ -68,12 +69,14 @@ from obst_defaults.commands import (
     EXIT_ARCHIVE,
     EXIT_CARRIER,
 )
-from obst_defaults.files import FileExtension
+from obst_defaults.files import FileExtension, FileResource
+from support_resources import policy as _policy
 
 _FIRST_PARTY_PLUGIN_NAME = "obst-defaults"
 _FIRST_PARTY_PLUGIN_TARGET = "obst_defaults.bundle:obst_extensions"
 _FIRST_PARTY_COMMAND_TARGET = "obst_defaults.commands:obst_commands"
 _FIRST_PARTY_CONFORMANCE_TARGET = "obst_defaults.conformance:obst_conformance"
+_FIRST_PARTY_RESOURCE_TARGET = "obst_defaults.bundle:obst_resources"
 
 
 class _StubDistribution:
@@ -122,6 +125,14 @@ def _first_party_commands() -> metadata.EntryPoint:
     )
 
 
+def _first_party_resources() -> metadata.EntryPoint:
+    return metadata.EntryPoint(
+        name=_FIRST_PARTY_PLUGIN_NAME,
+        value=_FIRST_PARTY_RESOURCE_TARGET,
+        group=RESOURCE_ENTRY_POINT_GROUP,
+    )
+
+
 def _conformance_entry(name: str) -> metadata.EntryPoint:
     target = (
         _FIRST_PARTY_CONFORMANCE_TARGET
@@ -156,12 +167,18 @@ def _install_plugin_entries(
         if commands is None
         else commands
     )
+    resource_entries = (
+        (_first_party_resources(),)
+        if any(entry.name == _FIRST_PARTY_PLUGIN_NAME for entry in extensions)
+        else ()
+    )
     entries = {
         EXTENSION_ENTRY_POINT_GROUP: extensions,
         COMMAND_ENTRY_POINT_GROUP: command_entries,
         CONFORMANCE_ENTRY_POINT_GROUP: conformance,
+        RESOURCE_ENTRY_POINT_GROUP: resource_entries,
     }
-    all_entries = extensions + command_entries + conformance
+    all_entries = extensions + command_entries + conformance + resource_entries
     entries_by_name: dict[str, list[metadata.EntryPoint]] = {}
     for entry in all_entries:
         entries_by_name.setdefault(entry.name, []).append(entry)
@@ -414,6 +431,115 @@ def test_pack_and_unpack_commands_preserve_selected_filenames(
     assert unpacked.err == ""
 
 
+def test_pack_and_unpack_commands_emit_stable_json(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "apple.txt"
+    source.write_text("red", encoding="utf-8")
+    archive = tmp_path / "fruit.obst"
+
+    assert main(["pack", str(source), "-o", str(archive), "--json"]) == EXIT_SUCCESS
+    packed = capsys.readouterr()
+    packed_document = json.loads(packed.out)
+    assert packed_document == {
+        "schema_version": 1,
+        "destination": str(archive),
+        "container_size": archive.stat().st_size,
+        "files": [
+            {
+                "name": "apple.txt",
+                "logical_size": 3,
+                "chunks": 1,
+            }
+        ],
+        "cleanup_issues": [],
+    }
+    assert packed.err == ""
+
+    output = tmp_path / "output"
+    assert main(["unpack", str(archive), "-o", str(output), "--json"]) == EXIT_SUCCESS
+    unpacked = capsys.readouterr()
+    assert json.loads(unpacked.out) == {
+        "schema_version": 1,
+        "destination": str(output),
+        "files": [
+            {
+                "name": "apple.txt",
+                "path": str(output / "apple.txt"),
+            }
+        ],
+        "cleanup_issues": [],
+        "windows_origin_not_propagated": False,
+    }
+    assert unpacked.err == ""
+    assert (output / "apple.txt").read_text(encoding="utf-8") == "red"
+
+
+def test_active_custom_profile_limits_pack_and_unpack_end_to_end(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = tmp_path / "apple.txt"
+    source.write_text("red", encoding="utf-8")
+    archive = tmp_path / "fruit.obst"
+    assert main(["pack", str(source), "-o", str(archive)]) == EXIT_SUCCESS
+    capsys.readouterr()
+
+    assert main(["limits", "create", "tiny"]) == EXIT_SUCCESS
+    capsys.readouterr()
+    assert (
+        main(
+            [
+                "limits",
+                "set",
+                "tiny",
+                str(FileResource.ARCHIVE_MEMBERS),
+                "0",
+            ]
+        )
+        == EXIT_SUCCESS
+    )
+    capsys.readouterr()
+    assert main(["limits", "use", "tiny"]) == EXIT_SUCCESS
+    capsys.readouterr()
+
+    assert (
+        main(["unpack", str(archive), "-o", str(tmp_path / "output")])
+        == EXIT_RESOURCE_LIMIT
+    )
+    assert str(FileResource.ARCHIVE_MEMBERS) in capsys.readouterr().err
+
+    assert (
+        main(
+            [
+                "limits",
+                "set",
+                "tiny",
+                str(CoreResource.STREAMS),
+                "0",
+            ]
+        )
+        == EXIT_SUCCESS
+    )
+    capsys.readouterr()
+    assert (
+        main(["pack", str(source), "-o", str(tmp_path / "blocked.obst")])
+        == EXIT_RESOURCE_LIMIT
+    )
+    assert str(CoreResource.STREAMS) in capsys.readouterr().err
+
+
+def test_enabling_resource_plugin_does_not_select_its_profiles(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["limits", "profiles", "--json"]) == EXIT_SUCCESS
+    document = json.loads(capsys.readouterr().out)
+
+    active = [profile for profile in document["profiles"] if profile["active"]]
+    assert [profile["id"] for profile in active] == ["default"]
+
+
 def test_unpack_accepts_nonempty_directory_without_member_collisions(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -476,7 +602,7 @@ def test_unpack_preserves_container_failure_when_reader_close_also_fails(
         stdin=io.BytesIO(),
         stdout=io.StringIO(),
         stderr=io.StringIO(),
-        limits=ResourceLimits(),
+        policy=_policy(),
     )
 
     with pytest.raises(TruncatedContainerError) as error:
@@ -543,9 +669,8 @@ def test_pack_and_unpack_commands_pluralize_single_file_and_chunk(
     assert "Packed 1 file" in packed.out
     assert "\n  Destination     " in packed.out
     assert "\n  Container size  " in packed.out
-    assert "\n\nFiles\n  apple.txt" in packed.out
-    assert "3 B  1 chunk" in packed.out
-    assert "1 chunks" not in packed.out
+    assert "\n\nFiles\n  File" in packed.out
+    assert "\n  apple.txt   3 B       1" in packed.out
 
     output = tmp_path / "output"
     assert main(["unpack", str(archive), "-o", str(output)]) == EXIT_SUCCESS
@@ -654,6 +779,8 @@ def test_help_command_shows_general_and_command_specific_help(
     general = capsys.readouterr()
     assert "usage: obst" in general.out
     assert "help" in general.out
+    assert "pack" in general.out
+    assert "unpack" in general.out
     assert general.err == ""
 
     assert main(["help", "inspect"]) == EXIT_SUCCESS
@@ -661,6 +788,36 @@ def test_help_command_shows_general_and_command_specific_help(
     assert "usage: obst inspect" in inspect_help.out
     assert "--require-decodable" in inspect_help.out
     assert inspect_help.err == ""
+
+
+def test_empty_command_usage_lists_enabled_plugin_commands(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as missing_command:
+        main([])
+
+    assert missing_command.value.code == EXIT_USAGE
+    error = capsys.readouterr().err
+    assert "pack" in error
+    assert "unpack" in error
+
+
+def test_empty_command_colors_plugin_commands_differently(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.delenv("PYTHON_COLORS", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+
+    with pytest.raises(SystemExit) as missing_command:
+        main([])
+
+    assert missing_command.value.code == EXIT_USAGE
+    error = capsys.readouterr().err
+    assert "\x1b[32minspect\x1b[0m" in error
+    assert "\x1b[35mpack\x1b[0m" in error
+    assert "\x1b[35munpack\x1b[0m" in error
 
 
 @pytest.mark.parametrize(
@@ -797,8 +954,9 @@ def test_plugins_command_lists_entry_points_without_loading_them(
         "commands": COMMAND_ENTRY_POINT_GROUP,
         "extensions": EXTENSION_ENTRY_POINT_GROUP,
         "conformance": CONFORMANCE_ENTRY_POINT_GROUP,
+        "resources": RESOURCE_ENTRY_POINT_GROUP,
     }
-    assert document["schema_version"] == 5
+    assert document["schema_version"] == 6
     plugins = {item["name"]: item for item in document["plugins"]}
     assert plugins["example"] == {
         "conformance_reference": f"{__name__}:cli_conformance_factory",
@@ -810,6 +968,7 @@ def test_plugins_command_lists_entry_points_without_loading_them(
         "extension_reference": "module.that.must.not.load:factory",
         "installed": True,
         "name": "example",
+        "resource_reference": None,
         "summary": None,
     }
     assert plugins["obst-defaults"]["installed"] is False
@@ -1204,7 +1363,7 @@ def test_cli_maps_resource_refusal_to_dedicated_error(
 ) -> None:
     def refuse(*args: object, **kwargs: object) -> None:
         raise ResourceLimitError(
-            resource="chunks",
+            resource=CoreResource.CHUNKS,
             scope="container",
             maximum=1,
             observed=2,

@@ -134,6 +134,36 @@ def test_unpack_output_warns_when_windows_origin_is_not_propagated(
     assert "extracted files do not inherit it" in captured.err
 
 
+def test_unpack_json_keeps_structured_cleanup_and_stderr_warnings(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_directory = tmp_path / "restored"
+    restored = output_directory / "apple.txt"
+    issue = FileExtractionCleanupIssue(
+        str(output_directory / ".obst-unpack-residual"),
+        "cleanup failed",
+    )
+    result = FileExtractionResult(output_directory, (restored,), (issue,))
+
+    write_unpack_result(
+        result,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        windows_origin_not_propagated=True,
+        json_output=True,
+    )
+
+    captured = capsys.readouterr()
+    document = json.loads(captured.out)
+    assert document["cleanup_issues"] == [
+        {"resource": issue.resource, "reason": issue.reason}
+    ]
+    assert document["windows_origin_not_propagated"] is True
+    assert "cleanup_required" in captured.err
+    assert "input has Windows Mark of the Web" in captured.err
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     (

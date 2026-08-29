@@ -25,6 +25,7 @@ from obst_defaults.packagers.fixed import (
     FixedPackageRequest,
     FixedPackagerExtension,
 )
+from support_resources import policy as _policy
 
 SAMPLE_ROOT = Path(__file__).parents[3] / "samples"
 SAMPLE_PAIRS = (
@@ -62,7 +63,7 @@ def _publish_sample(target: Path, sources: tuple[Path, ...]) -> None:
         recipe=_FILE_RECIPE,
     ) as logical_sources:
         operation = FixedPackagerExtension().prepare_package(
-            FixedPackageRequest(_sample_registry(), logical_sources)
+            FixedPackageRequest(_sample_registry(), logical_sources, _policy())
         )
         publish_package(
             operation,

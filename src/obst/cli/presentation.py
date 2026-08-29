@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import unicodedata
 from dataclasses import dataclass
 from typing import TextIO
@@ -25,6 +26,7 @@ _BIDI_CONTROL_CHARACTERS = frozenset(
 )
 _UNSAFE_HUMAN_CATEGORIES = frozenset({"Cc", "Cs"})
 _UNSAFE_HUMAN_SEPARATORS = frozenset({"\u2028", "\u2029"})
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +56,10 @@ class HumanOutputStyle:
 
     def identifier(self, value: str) -> str:
         return self._apply(value, "36")
+
+    def contributed(self, value: str) -> str:
+        """Render a capability contributed by an activated plugin."""
+        return self._apply(value, "35")
 
     def success(self, value: str) -> str:
         return self._apply(value, "32")
@@ -122,6 +128,57 @@ def format_count(count: int, singular: str, plural: str | None = None) -> str:
     return f"{count} {noun}"
 
 
+def format_integer(value: int) -> str:
+    """Format one exact integer with readable thousands separators."""
+    return f"{value:,}"
+
+
+def strip_ansi(value: str) -> str:
+    """Remove ANSI SGR sequences from trusted presentation text."""
+    return _ANSI_ESCAPE.sub("", value)
+
+
+def render_human_table(
+    headers: tuple[str, ...],
+    rows: tuple[tuple[str, ...], ...],
+    *,
+    indent: int = 2,
+    right_align: frozenset[int] = frozenset(),
+) -> str:
+    """Render a compact ANSI-aware table for terminal output."""
+    if not headers:
+        raise ValueError("human table requires at least one column")
+    column_count = len(headers)
+    if any(len(row) != column_count for row in rows):
+        raise ValueError("human table rows must match the header width")
+    widths = [len(strip_ansi(header)) for header in headers]
+    for row in rows:
+        for index, cell in enumerate(row):
+            widths[index] = max(widths[index], len(strip_ansi(cell)))
+
+    def render_row(row: tuple[str, ...]) -> str:
+        cells: list[str] = []
+        for index, cell in enumerate(row):
+            padding = widths[index] - len(strip_ansi(cell))
+            cells.append(
+                (" " * padding + cell)
+                if index in right_align
+                else (cell + " " * padding)
+            )
+        return " " * indent + "  ".join(cells).rstrip()
+
+    separator = tuple("-" * width for width in widths)
+    return "\n".join(
+        (render_row(headers), render_row(separator), *(render_row(row) for row in rows))
+    )
+
+
+def styled_yes_no(style: HumanOutputStyle, value: bool) -> str:
+    """Render one boolean as a consistent human yes/no value."""
+    text = "yes" if value else "no"
+    return style.success(text) if value else style.muted(text)
+
+
 def _escape_human_character(character: str) -> str:
     if (
         character not in _BIDI_CONTROL_CHARACTERS
@@ -139,5 +196,9 @@ __all__ = [
     "HumanOutputStyle",
     "escape_human_text",
     "format_count",
+    "format_integer",
     "format_size",
+    "render_human_table",
+    "strip_ansi",
+    "styled_yes_no",
 ]

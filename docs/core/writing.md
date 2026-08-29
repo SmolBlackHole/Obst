@@ -65,7 +65,7 @@ abort lifecycle around the binary target.
 
 ## Resource policy
 
-`ContainerWriter(..., limits=ResourceLimits(...))` applies the same default
+`ContainerWriter(..., policy=policy)` applies the same selected
 manifest, container, chunk-count and per-chunk ceilings as the reader. It also
 bounds the complete declared logical output. The writer proves a manifest fits
 before building its body and checks a complete chunk record before publishing
@@ -73,7 +73,7 @@ that record.
 
 Local policy refusal raises `ResourceLimitError`. Wire representability remains
 an independent model and format rule. The complete contract lives in
-[Resource limits](resources.md).
+[Resource policy](resources.md).
 
 The exact Python layouts used for these records are described in
 [Python wire mapping](wire.md). The [binary format specification](../format.md)

@@ -21,7 +21,7 @@ from obst.core.registry import (
     StageCapability,
     StreamProfileCapability,
 )
-from obst.core.resources import ResourceLimits
+from obst.core.resources import ResourcePolicy
 
 
 def configure_inspect_parser(parser: argparse.ArgumentParser) -> None:
@@ -61,14 +61,14 @@ def run_inspect(
     registry: ExtensionRegistry,
     stdin: BinaryReader,
     stdout: TextIO,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
 ) -> int:
     """Inspect one container without decoding its payload chunks."""
     if args.input == "-":
         inspection = _inspect_source(
             stdin,
             registry=registry,
-            limits=limits,
+            policy=policy,
             interpret=not args.structural and not args.quiet,
         )
     else:
@@ -76,7 +76,7 @@ def run_inspect(
             inspection = _inspect_source(
                 cast(BinaryReader, opened),
                 registry=registry,
-                limits=limits,
+                policy=policy,
                 interpret=not args.structural and not args.quiet,
             )
     if not args.quiet:
@@ -98,10 +98,10 @@ def _inspect_source(
     source: BinaryReader,
     *,
     registry: ExtensionRegistry,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
     interpret: bool,
 ) -> ContainerInspection:
-    reader = ContainerReader(source, limits=limits)
+    reader = ContainerReader(source, policy=policy)
     return inspect_container(
         reader,
         registry=registry,

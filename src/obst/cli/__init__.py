@@ -5,7 +5,10 @@ from obst.cli.presentation import (
     HumanOutputStyle,
     escape_human_text,
     format_count,
+    format_integer,
     format_size,
+    render_human_table,
+    styled_yes_no,
 )
 
 __all__ = [
@@ -15,5 +18,8 @@ __all__ = [
     "HumanOutputStyle",
     "escape_human_text",
     "format_count",
+    "format_integer",
     "format_size",
+    "render_human_table",
+    "styled_yes_no",
 ]

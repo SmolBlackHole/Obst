@@ -7,6 +7,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from obst.core import (
     ChunkEncoder,
+    CoreResource,
     ExtensionContractError,
     ExtensionDescriptor,
     ExtensionRegistry,
@@ -15,7 +16,6 @@ from obst.core import (
     ProviderRejectedError,
     Recipe,
     ResourceLimitError,
-    ResourceLimits,
     StageSpec,
     decode_recipe,
     encode_recipe,
@@ -33,6 +33,7 @@ from obst_defaults.codecs.zlib import (
     ZlibParameters,
 )
 from obst_defaults.transforms.delta8 import Delta8Extension
+from support_resources import policy as _policy
 
 RAW_STAGE_ID = RawExtension.extension_id
 DELTA8_STAGE_ID = Delta8Extension.extension_id
@@ -95,7 +96,7 @@ def test_public_stage_output_helpers_enforce_before_accumulation() -> None:
     assert output == b"abcd"
     assert rejection.value.resource_limit is not None
     error = rejection.value.resource_limit
-    assert error.resource == "intermediate_bytes"
+    assert error.resource is CoreResource.INTERMEDIATE_BYTES
     assert error.scope == _XOR_ID
     assert error.observed == 5
     assert error.maximum == 4
@@ -286,15 +287,15 @@ def test_first_party_extensions_enforce_output_limits(
         data,
         recipe,
         registry,
-        limits=ResourceLimits(max_intermediate_bytes=len(data) + 64),
+        policy=_policy((CoreResource.INTERMEDIATE_BYTES, len(data) + 64)),
     )
     assert (
         encode_recipe(
             data,
             recipe,
             registry,
-            limits=ResourceLimits(
-                max_intermediate_bytes=max(len(data), len(baseline)),
+            policy=_policy(
+                (CoreResource.INTERMEDIATE_BYTES, max(len(data), len(baseline)))
             ),
         )
         == baseline
@@ -305,7 +306,7 @@ def test_first_party_extensions_enforce_output_limits(
             recipe,
             registry,
             expected_size=len(data),
-            limits=ResourceLimits(max_intermediate_bytes=len(data)),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, len(data))),
         )
         == data
     )
@@ -314,8 +315,8 @@ def test_first_party_extensions_enforce_output_limits(
             data,
             recipe,
             registry,
-            limits=ResourceLimits(
-                max_intermediate_bytes=max(len(data), len(baseline)) - 1,
+            policy=_policy(
+                (CoreResource.INTERMEDIATE_BYTES, max(len(data), len(baseline)) - 1)
             ),
         )
     with pytest.raises(ResourceLimitError):
@@ -324,7 +325,7 @@ def test_first_party_extensions_enforce_output_limits(
             recipe,
             registry,
             expected_size=len(data),
-            limits=ResourceLimits(max_intermediate_bytes=len(data) - 1),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, len(data) - 1)),
         )
 
 
@@ -337,7 +338,7 @@ def test_zlib_rejects_invalid_payload() -> None:
             Recipe(0, (StageSpec(ZLIB_STAGE_ID, b"\x06"),)),
             registry,
             expected_size=7,
-            limits=ResourceLimits(max_intermediate_bytes=64),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -382,7 +383,7 @@ def test_zlib_rejects_payloads_that_are_not_exactly_one_complete_stream(
             recipe,
             _stage_registry(),
             expected_size=len(logical),
-            limits=ResourceLimits(max_intermediate_bytes=4096),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 4096)),
         )
 
 
@@ -427,7 +428,7 @@ def test_zlib_v1_rejects_a_preset_dictionary_stream() -> None:
             Recipe(0, (StageSpec(ZLIB_STAGE_ID, b"\x06"),)),
             _stage_registry(),
             expected_size=len(dictionary) + 5,
-            limits=ResourceLimits(max_intermediate_bytes=4096),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 4096)),
         )
 
 
@@ -443,7 +444,7 @@ def test_zlib_v2_requires_a_preset_dictionary_stream() -> None:
             Recipe(0, (StageSpec(ZLIB_DICTIONARY_STAGE_ID, parameters),)),
             _stage_registry(),
             expected_size=13,
-            limits=ResourceLimits(max_intermediate_bytes=64),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -460,7 +461,7 @@ def test_zlib_v2_rejects_a_different_dictionary() -> None:
             Recipe(0, (StageSpec(ZLIB_DICTIONARY_STAGE_ID, parameters),)),
             _stage_registry(),
             expected_size=26,
-            limits=ResourceLimits(max_intermediate_bytes=64),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -473,7 +474,7 @@ def test_encode_and_decode_enforce_the_same_intermediate_limit() -> None:
             b"too large",
             raw_recipe,
             registry,
-            limits=ResourceLimits(max_intermediate_bytes=2),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 2)),
         )
     with pytest.raises(ResourceLimitError, match="intermediate_bytes"):
         decode_recipe(
@@ -481,7 +482,7 @@ def test_encode_and_decode_enforce_the_same_intermediate_limit() -> None:
             raw_recipe,
             registry,
             expected_size=9,
-            limits=ResourceLimits(max_intermediate_bytes=2),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 2)),
         )
 
 
@@ -503,7 +504,7 @@ def test_executor_rejects_provider_outputs_that_violate_the_protocol() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             registry,
-            limits=ResourceLimits(max_intermediate_bytes=64),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
 
@@ -543,10 +544,10 @@ def test_stage_execution_budget_spans_complete_recipe() -> None:
             b"payload",
             recipe,
             _stage_registry(),
-            limits=ResourceLimits(max_stage_executions=1),
+            policy=_policy((CoreResource.STAGE_EXECUTIONS, 1)),
         )
 
-    assert error.value.resource == "stage_executions"
+    assert error.value.resource is CoreResource.STAGE_EXECUTIONS
     assert error.value.observed == 2
 
 
@@ -568,7 +569,7 @@ def test_unexpected_provider_exceptions_have_stable_extension_context() -> None:
             b"payload",
             Recipe(0, (StageSpec(_XOR_ID),)),
             registry,
-            limits=ResourceLimits(max_intermediate_bytes=64),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 64)),
         )
 
     assert error.value.extension_id == _XOR_ID
@@ -659,21 +660,21 @@ def test_core_rechecks_provider_output_ceiling(
 
     registry = ExtensionRegistry((OversizedStage(),))
     recipe = Recipe(0, (StageSpec(_XOR_ID),))
-    limits = ResourceLimits(max_intermediate_bytes=2)
+    policy = _policy((CoreResource.INTERMEDIATE_BYTES, 2))
 
     with pytest.raises(
         ExtensionContractError,
         match=rf"above its {expected_ceiling}-byte output ceiling",
     ):
         if direction == "encode":
-            encode_recipe(b"x", recipe, registry, limits=limits)
+            encode_recipe(b"x", recipe, registry, policy=policy)
         else:
             decode_recipe(
                 b"x",
                 recipe,
                 registry,
                 expected_size=1,
-                limits=limits,
+                policy=policy,
             )
 
 
@@ -704,13 +705,13 @@ def test_final_stage_receives_tighter_endpoint_ceiling(direction: str) -> None:
 
     registry = ExtensionRegistry((RecordingStage(),))
     recipe = Recipe(0, (StageSpec(_XOR_ID),))
-    limits = ResourceLimits(
-        max_encoded_chunk_bytes=1,
-        max_intermediate_bytes=7,
+    policy = _policy(
+        (CoreResource.ENCODED_CHUNK_BYTES, 1),
+        (CoreResource.INTERMEDIATE_BYTES, 7),
     )
 
     if direction == "encode":
-        ChunkEncoder(registry, limits=limits).encode(
+        ChunkEncoder(registry, policy=policy).encode(
             b"x",
             stream_id=0,
             sequence=0,
@@ -722,7 +723,7 @@ def test_final_stage_receives_tighter_endpoint_ceiling(direction: str) -> None:
             recipe,
             registry,
             expected_size=1,
-            limits=limits,
+            policy=policy,
         )
 
     assert received == [1]
@@ -750,10 +751,10 @@ def test_provider_output_helper_preserves_structured_resource_limit() -> None:
             b"x",
             Recipe(0, (StageSpec(_XOR_ID),)),
             ExtensionRegistry((BoundedStage(),)),
-            limits=ResourceLimits(max_intermediate_bytes=2),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 2)),
         )
 
-    assert error.value.resource == "intermediate_bytes"
+    assert error.value.resource is CoreResource.INTERMEDIATE_BYTES
     assert error.value.scope == _XOR_ID
     assert error.value.phase == "stage_encode"
 

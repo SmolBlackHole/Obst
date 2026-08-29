@@ -17,7 +17,6 @@ from obst.core.container import ContainerReader
 from obst.core.errors import (
     ExtensionContractError,
     ExtensionRegistrationError,
-    ResourceLimitError,
 )
 from obst.core.extensions import ExtensionKind
 from obst.core.model import Manifest, validate_extension_id
@@ -27,14 +26,13 @@ from obst.core.packaging import (
     RecipeSpec,
 )
 from obst.core.registry import ExtensionContribution, ExtensionRegistry
+from obst.core.resources import ResourcePolicy, require_resource_limit
 from obst.core.streams import ChunkDecoder
 
 from obst_defaults.cleanup import close_all
 from obst_defaults.files.errors import FileArchiveError, FileProfileError
 from obst_defaults.files.models import (
-    DEFAULT_FILE_EXTRACTION_LIMITS,
     FileExtractionCleanupIssue,
-    FileExtractionLimits,
     FileExtractionResult,
     FileMaterialization,
 )
@@ -44,6 +42,7 @@ from obst_defaults.files.profile import (
     normalize_file_name,
     profile_error,
 )
+from obst_defaults.files.resources import FileResource
 
 DEFAULT_FILE_CHUNK_SIZE = 64 * 1024
 
@@ -184,13 +183,13 @@ class FileArchiver:
         reader: ContainerReader,
         output_directory: Path,
         *,
-        limits: FileExtractionLimits = DEFAULT_FILE_EXTRACTION_LIMITS,
+        policy: ResourcePolicy,
     ) -> FileExtractionResult:
         """Decode and publish every file stream without overwriting a target."""
-        _require_extraction_limit(
-            resource="archive_members",
+        require_resource_limit(
+            FileResource.ARCHIVE_MEMBERS,
             scope="file extraction",
-            maximum=limits.max_members,
+            maximum=policy.maximum(FileResource.ARCHIVE_MEMBERS),
             observed=len(reader.manifest.streams),
             phase="file_extract",
         )
@@ -205,7 +204,7 @@ class FileArchiver:
         decoder = ChunkDecoder(
             reader.index,
             self.registry,
-            limits=reader.limits,
+            policy=reader.policy,
         )
         member_sizes = {entry.stream_id: 0 for entry in entries}
         total_size = 0
@@ -232,17 +231,17 @@ class FileArchiver:
                 entry = by_stream_id[chunk.stream_id]
                 member_size = member_sizes[chunk.stream_id] + chunk.logical_size
                 observed_total = total_size + chunk.logical_size
-                _require_extraction_limit(
-                    resource="archive_member_bytes",
+                require_resource_limit(
+                    FileResource.ARCHIVE_MEMBER_BYTES,
                     scope=entry.name,
-                    maximum=limits.max_member_bytes,
+                    maximum=policy.maximum(FileResource.ARCHIVE_MEMBER_BYTES),
                     observed=member_size,
                     phase="file_extract",
                 )
-                _require_extraction_limit(
-                    resource="archive_total_bytes",
+                require_resource_limit(
+                    FileResource.ARCHIVE_TOTAL_BYTES,
                     scope="file extraction",
-                    maximum=limits.max_total_bytes,
+                    maximum=policy.maximum(FileResource.ARCHIVE_TOTAL_BYTES),
                     observed=observed_total,
                     phase="file_extract",
                 )
@@ -555,24 +554,6 @@ def _require_positive_int(name: str, value: object) -> int:
     if value <= 0:
         raise ValueError(f"{name} must be positive")
     return value
-
-
-def _require_extraction_limit(
-    *,
-    resource: str,
-    scope: str,
-    maximum: int | None,
-    observed: int,
-    phase: str,
-) -> None:
-    if maximum is not None and observed > maximum:
-        raise ResourceLimitError(
-            resource=resource,
-            scope=scope,
-            maximum=maximum,
-            observed=observed,
-            phase=phase,
-        )
 
 
 __all__ = ["DEFAULT_FILE_CHUNK_SIZE", "FileArchiver"]

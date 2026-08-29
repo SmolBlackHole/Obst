@@ -22,9 +22,11 @@ from obst.core.model import (
     Stream,
 )
 from obst.core.resources import (
-    DEFAULT_RESOURCE_LIMITS,
+    DEFAULT_RESOURCE_POLICY,
+    CoreResource,
     ResourceBudget,
-    ResourceLimits,
+    ResourcePolicy,
+    require_resource_limit,
 )
 from obst.core.wire import (
     ManifestHeader,
@@ -96,12 +98,12 @@ class ManifestIndex:
 def encode_manifest(
     manifest: Manifest,
     *,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> bytes:
     """Encode one manifest after proving it fits the supplied byte budget."""
     extension_indexes, expected_size = _manifest_encoding_context(
         manifest,
-        limits=limits,
+        policy=policy,
     )
     body = bytearray()
     for part in _iter_body_parts(manifest, extension_indexes):
@@ -120,10 +122,10 @@ def encode_manifest(
 def validate_manifest_resources(
     manifest: Manifest,
     *,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> None:
     """Refuse a manifest outside local policy without constructing its body."""
-    _manifest_encoding_context(manifest, limits=limits)
+    _manifest_encoding_context(manifest, policy=policy)
 
 
 def _iter_body_parts(
@@ -174,20 +176,20 @@ def _require_encoded_size(
 ) -> int:
     total_size = ManifestHeader.size
     _require_manifest_wire_size(total_size)
-    budget.require(
-        resource="manifest_bytes",
+    require_resource_limit(
+        CoreResource.MANIFEST_BYTES,
         scope="manifest",
-        maximum=budget.limits.max_manifest_bytes,
+        maximum=budget.policy.maximum(CoreResource.MANIFEST_BYTES),
         observed=total_size,
         phase="manifest_encode",
     )
     for part in _iter_body_parts(manifest, extension_indexes):
         total_size += len(part)
         _require_manifest_wire_size(total_size)
-        budget.require(
-            resource="manifest_bytes",
+        require_resource_limit(
+            CoreResource.MANIFEST_BYTES,
             scope="manifest",
-            maximum=budget.limits.max_manifest_bytes,
+            maximum=budget.policy.maximum(CoreResource.MANIFEST_BYTES),
             observed=total_size,
             phase="manifest_encode",
         )
@@ -202,22 +204,21 @@ def validate_manifest_counts(
     *,
     recipe_count: int,
     stream_count: int,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
     phase: str = "manifest_decode",
 ) -> None:
     """Reject declared manifest counts outside one reader policy."""
-    budget = ResourceBudget(limits)
-    budget.require(
-        resource="recipes",
+    require_resource_limit(
+        CoreResource.RECIPES,
         scope="manifest",
-        maximum=limits.max_recipes,
+        maximum=policy.maximum(CoreResource.RECIPES),
         observed=recipe_count,
         phase=phase,
     )
-    budget.require(
-        resource="streams",
+    require_resource_limit(
+        CoreResource.STREAMS,
         scope="manifest",
-        maximum=limits.max_streams,
+        maximum=policy.maximum(CoreResource.STREAMS),
         observed=stream_count,
         phase=phase,
     )
@@ -227,7 +228,7 @@ def validate_manifest_header(
     header: ManifestHeader,
     *,
     manifest_size: int,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
     phase: str = "manifest_decode",
 ) -> None:
     """Validate declared manifest framing and Extension count policy."""
@@ -239,10 +240,10 @@ def validate_manifest_header(
         raise InvalidContainerError(
             "manifest body size does not match container header"
         )
-    ResourceBudget(limits).require(
-        resource="extensions",
+    require_resource_limit(
+        CoreResource.EXTENSIONS,
         scope="manifest",
-        maximum=limits.max_extensions,
+        maximum=policy.maximum(CoreResource.EXTENSIONS),
         observed=header.extension_count,
         phase=phase,
     )
@@ -253,21 +254,21 @@ def decode_manifest(
     *,
     recipe_count: int,
     stream_count: int,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> Manifest:
     """Decode and validate an exact manifest byte string."""
-    budget = ResourceBudget(limits)
-    budget.require(
-        resource="manifest_bytes",
+    budget = ResourceBudget(policy)
+    require_resource_limit(
+        CoreResource.MANIFEST_BYTES,
         scope="manifest",
-        maximum=limits.max_manifest_bytes,
+        maximum=policy.maximum(CoreResource.MANIFEST_BYTES),
         observed=len(data),
         phase="manifest_decode",
     )
     validate_manifest_counts(
         recipe_count=recipe_count,
         stream_count=stream_count,
-        limits=limits,
+        policy=policy,
     )
     if len(data) < ManifestHeader.size:
         raise InvalidContainerError("manifest is shorter than its fixed header")
@@ -277,7 +278,7 @@ def decode_manifest(
     validate_manifest_header(
         header,
         manifest_size=len(data),
-        limits=limits,
+        policy=policy,
     )
     return _decode_manifest_body(
         header,
@@ -294,27 +295,27 @@ def decode_manifest_parts(
     *,
     recipe_count: int,
     stream_count: int,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> Manifest:
     """Decode one validated fixed header and its exact manifest body."""
     manifest_size = ManifestHeader.size + len(body)
-    budget = ResourceBudget(limits)
-    budget.require(
-        resource="manifest_bytes",
+    budget = ResourceBudget(policy)
+    require_resource_limit(
+        CoreResource.MANIFEST_BYTES,
         scope="manifest",
-        maximum=limits.max_manifest_bytes,
+        maximum=policy.maximum(CoreResource.MANIFEST_BYTES),
         observed=manifest_size,
         phase="manifest_decode",
     )
     validate_manifest_counts(
         recipe_count=recipe_count,
         stream_count=stream_count,
-        limits=limits,
+        policy=policy,
     )
     validate_manifest_header(
         header,
         manifest_size=manifest_size,
-        limits=limits,
+        policy=policy,
     )
     return _decode_manifest_body(
         header,
@@ -415,17 +416,17 @@ def _decode_recipe(
     )
     if reserved != 0:
         raise InvalidContainerError("recipe reserved field must be zero")
-    budget.require(
-        resource="stages_per_recipe",
+    require_resource_limit(
+        CoreResource.STAGES_PER_RECIPE,
         scope=f"recipe {recipe_id}",
-        maximum=budget.limits.max_stages_per_recipe,
+        maximum=budget.policy.maximum(CoreResource.STAGES_PER_RECIPE),
         observed=stage_count,
         phase="manifest_decode",
     )
-    budget.require(
-        resource="total_stages",
+    require_resource_limit(
+        CoreResource.TOTAL_STAGES,
         scope="manifest",
-        maximum=budget.limits.max_total_stages,
+        maximum=budget.policy.maximum(CoreResource.TOTAL_STAGES),
         observed=total_stage_count + stage_count,
         phase="manifest_decode",
     )
@@ -454,31 +455,31 @@ def _validate_manifest_model_counts(
     validate_manifest_counts(
         recipe_count=len(manifest.recipes),
         stream_count=len(manifest.streams),
-        limits=budget.limits,
+        policy=budget.policy,
         phase=phase,
     )
-    budget.require(
-        resource="extensions",
+    require_resource_limit(
+        CoreResource.EXTENSIONS,
         scope="manifest",
-        maximum=budget.limits.max_extensions,
+        maximum=budget.policy.maximum(CoreResource.EXTENSIONS),
         observed=len(manifest.extensions),
         phase=phase,
     )
     total_stages = 0
     for recipe in manifest.recipes:
         stage_count = len(recipe.stages)
-        budget.require(
-            resource="stages_per_recipe",
+        require_resource_limit(
+            CoreResource.STAGES_PER_RECIPE,
             scope=f"recipe {recipe.recipe_id}",
-            maximum=budget.limits.max_stages_per_recipe,
+            maximum=budget.policy.maximum(CoreResource.STAGES_PER_RECIPE),
             observed=stage_count,
             phase=phase,
         )
         total_stages += stage_count
-        budget.require(
-            resource="total_stages",
+        require_resource_limit(
+            CoreResource.TOTAL_STAGES,
             scope="manifest",
-            maximum=budget.limits.max_total_stages,
+            maximum=budget.policy.maximum(CoreResource.TOTAL_STAGES),
             observed=total_stages,
             phase=phase,
         )
@@ -487,9 +488,9 @@ def _validate_manifest_model_counts(
 def _manifest_encoding_context(
     manifest: Manifest,
     *,
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
 ) -> tuple[dict[str, int], int]:
-    budget = ResourceBudget(limits)
+    budget = ResourceBudget(policy)
     _validate_manifest_model_counts(manifest, budget=budget, phase="manifest_encode")
     extension_indexes = {
         extension_id: index

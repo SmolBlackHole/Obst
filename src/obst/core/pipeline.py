@@ -19,9 +19,11 @@ from obst.core.extensions import (
 from obst.core.model import Recipe, StageSpec
 from obst.core.registry import ExtensionRegistry
 from obst.core.resources import (
-    DEFAULT_RESOURCE_LIMITS,
+    DEFAULT_RESOURCE_POLICY,
+    CoreResource,
     ResourceBudget,
-    ResourceLimits,
+    ResourcePolicy,
+    require_resource_limit,
 )
 
 type _Direction = Literal["encode", "decode"]
@@ -61,10 +63,10 @@ class RecipeEncoder:
         self,
         registry: ExtensionRegistry,
         *,
-        limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
     ) -> None:
         self._bindings: dict[Recipe, tuple[_EncoderBinding, ...]] = {}
-        self._budget = ResourceBudget(limits)
+        self._budget = ResourceBudget(policy)
         self._registry = registry
 
     def preflight(self, recipes: Iterable[Recipe], /) -> None:
@@ -121,10 +123,10 @@ class RecipeDecoder:
         self,
         registry: ExtensionRegistry,
         *,
-        limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+        policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
     ) -> None:
         self._bindings: dict[Recipe, tuple[_DecoderBinding, ...]] = {}
-        self._budget = ResourceBudget(limits)
+        self._budget = ResourceBudget(policy)
         self._registry = registry
 
     def decode(
@@ -178,7 +180,7 @@ def _execute_encoder_recipe(
     )
     result = data
     for index, binding in enumerate(bindings):
-        stage_output_size = budget.limits.max_intermediate_bytes
+        stage_output_size = budget.policy.maximum(CoreResource.INTERMEDIATE_BYTES)
         if index == len(bindings) - 1:
             stage_output_size = _minimum_output_size(
                 stage_output_size,
@@ -225,7 +227,7 @@ def _execute_decoder_recipe(
     )
     result = data
     for index, binding in enumerate(bindings):
-        stage_output_size = budget.limits.max_intermediate_bytes
+        stage_output_size = budget.policy.maximum(CoreResource.INTERMEDIATE_BYTES)
         if index == len(bindings) - 1:
             stage_output_size = _minimum_output_size(
                 stage_output_size,
@@ -260,11 +262,11 @@ def encode_recipe(
     recipe: Recipe,
     registry: ExtensionRegistry,
     *,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> bytes:
     """Bind and execute one recipe as one bounded forward operation."""
     _require_exact_bytes("recipe input", data)
-    return RecipeEncoder(registry, limits=limits).encode(data, recipe)
+    return RecipeEncoder(registry, policy=policy).encode(data, recipe)
 
 
 def decode_recipe(
@@ -273,11 +275,11 @@ def decode_recipe(
     registry: ExtensionRegistry,
     *,
     expected_size: int,
-    limits: ResourceLimits = DEFAULT_RESOURCE_LIMITS,
+    policy: ResourcePolicy = DEFAULT_RESOURCE_POLICY,
 ) -> bytes:
     """Bind and execute one recipe as one bounded reverse operation."""
     _require_exact_bytes("recipe input", data)
-    return RecipeDecoder(registry, limits=limits).decode(
+    return RecipeDecoder(registry, policy=policy).decode(
         data,
         recipe,
         expected_size=expected_size,
@@ -515,10 +517,10 @@ def _require_intermediate_bytes(
     scope: str,
     phase: str,
 ) -> None:
-    budget.require(
-        resource="intermediate_bytes",
+    require_resource_limit(
+        CoreResource.INTERMEDIATE_BYTES,
         scope=scope,
-        maximum=budget.limits.max_intermediate_bytes,
+        maximum=budget.policy.maximum(CoreResource.INTERMEDIATE_BYTES),
         observed=observed,
         phase=phase,
     )
@@ -533,17 +535,17 @@ def _precheck_recipe_operation(
     direction: _Direction,
 ) -> None:
     phase = f"recipe_{direction}"
-    budget.require(
-        resource="logical_bytes",
+    require_resource_limit(
+        CoreResource.LOGICAL_BYTES,
         scope="recipe input" if direction == "encode" else "recipe output",
-        maximum=budget.limits.max_total_logical_bytes,
+        maximum=budget.policy.maximum(CoreResource.LOGICAL_BYTES),
         observed=budget.logical_bytes + logical_size,
         phase=phase,
     )
-    budget.require(
-        resource="stage_executions",
+    require_resource_limit(
+        CoreResource.STAGE_EXECUTIONS,
         scope="recipe",
-        maximum=budget.limits.max_stage_executions,
+        maximum=budget.policy.maximum(CoreResource.STAGE_EXECUTIONS),
         observed=budget.stage_executions + stage_count,
         phase=phase,
     )

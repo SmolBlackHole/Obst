@@ -16,7 +16,7 @@ resulting container bytes go.
 	- [Resolve a packaging policy](#resolve-a-packaging-policy)
 	- [Write or publish the operation](#write-or-publish-the-operation)
 	- [Concrete policy example](#concrete-policy-example)
-	- [Resource limits](#resource-limits)
+	- [Resource policy](#resource-policy)
 
 ## The boundary
 
@@ -72,7 +72,8 @@ source = LogicalStreamSource.from_bytes(
 
 `LogicalStreamSource.from_bytes()` requires an explicit `chunk_size`. Chunking
 is packaging policy, not a decoder requirement or a core-owned default. The
-chosen size remains subject to `ResourceLimits.max_logical_chunk_bytes`.
+chosen size remains subject to `CoreResource.LOGICAL_CHUNK_BYTES` in the
+selected policy.
 
 For streaming input, declare the largest possible chunk before supplying the
 iterable:
@@ -124,10 +125,10 @@ making different recipe, chunking or reuse decisions. The
 [packager extension guide](../extensions/packagers.md) defines that replaceable
 boundary.
 
-## Resource limits
+## Resource policy
 
 Core sources, recipe execution and container writing accept the public
-`ResourceLimits` policy. A Packager decides how its request exposes that
+`ResourcePolicy`. A Packager decides how its request exposes that
 policy. No private mutable budget object crosses extension boundaries.
 
 The [resource guide](resources.md) documents defaults and structured refusal.

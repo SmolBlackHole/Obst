@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from obst.core import (
+    CoreResource,
     ExtensionContractError,
     ExtensionDescriptor,
     ExtensionRegistry,
@@ -10,7 +11,6 @@ from obst.core import (
     ProviderRejectedError,
     Recipe,
     ResourceLimitError,
-    ResourceLimits,
     StageSpec,
     decode_recipe,
     encode_recipe,
@@ -24,6 +24,7 @@ from tests.support_extensions import (
     DeltaExtension,
     IdentityExtension,
 )
+from tests.support_resources import policy as _policy
 
 _EXPLODING_ID = "org.example/exploding@1"
 _REJECTING_ID = "org.example/rejecting@1"
@@ -98,10 +99,10 @@ def test_recipe_execution_enforces_intermediate_output_limits() -> None:
             b"payload",
             recipe,
             registry,
-            limits=ResourceLimits(max_intermediate_bytes=6),
+            policy=_policy((CoreResource.INTERMEDIATE_BYTES, 6)),
         )
 
-    assert caught.value.resource == "intermediate_bytes"
+    assert caught.value.resource is CoreResource.INTERMEDIATE_BYTES
     assert caught.value.maximum == 6
     assert caught.value.observed == 7
 

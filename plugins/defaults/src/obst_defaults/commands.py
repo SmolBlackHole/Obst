@@ -79,6 +79,11 @@ class PackCommand:
             metavar="OUTPUT",
             help="new .obst container to create",
         )
+        parser.add_argument(
+            "--json",
+            action="store_true",
+            help="emit a stable machine-readable package result",
+        )
 
     def run(self, args: argparse.Namespace, context: CliContext) -> int:
         try:
@@ -86,6 +91,7 @@ class PackCommand:
                 context,
                 output_path=args.output,
                 input_paths=args.inputs,
+                json_output=args.json,
             )
         except FileProfileError as exc:
             raise CliCommandError("profile_error", EXIT_PROFILE, exc) from exc
@@ -124,6 +130,11 @@ class UnpackCommand:
                 "overwritten"
             ),
         )
+        parser.add_argument(
+            "--json",
+            action="store_true",
+            help="emit a stable machine-readable extraction result",
+        )
 
     def run(self, args: argparse.Namespace, context: CliContext) -> int:
         try:
@@ -131,6 +142,7 @@ class UnpackCommand:
                 context,
                 input_path=args.input,
                 output_directory=args.output,
+                json_output=args.json,
             )
         except FileProfileError as exc:
             raise CliCommandError("profile_error", EXIT_PROFILE, exc) from exc
@@ -183,6 +195,7 @@ def _pack_paths(
     *,
     output_path: str,
     input_paths: list[str],
+    json_output: bool = False,
 ) -> int:
     registry = context.registry
     packager = cast(
@@ -215,7 +228,9 @@ def _pack_paths(
             ).name
             for source in sources
         )
-        operation = packager.prepare_package(FixedPackageRequest(registry, sources))
+        operation = packager.prepare_package(
+            FixedPackageRequest(registry, sources, context.policy)
+        )
         published = publish_package(
             operation,
             publisher.bind_publisher(FilesystemPublishRequest(target)),
@@ -241,6 +256,7 @@ def _pack_paths(
         ),
         stdout=context.stdout,
         stderr=context.stderr,
+        json_output=json_output,
     )
     return EXIT_SUCCESS
 
@@ -250,6 +266,7 @@ def _unpack_path(
     *,
     input_path: str,
     output_directory: str,
+    json_output: bool = False,
 ) -> int:
     registry = context.registry
     reader_provider = cast(
@@ -263,8 +280,12 @@ def _unpack_path(
     source = carrier.open()
     primary_error: BaseException | None = None
     try:
-        reader = ContainerReader(source, limits=context.limits)
-        result = file_archiver.extract(reader, Path(output_directory))
+        reader = ContainerReader(source, policy=context.policy)
+        result = file_archiver.extract(
+            reader,
+            Path(output_directory),
+            policy=context.policy,
+        )
     except BaseException as error:
         primary_error = error
         raise
@@ -278,6 +299,7 @@ def _unpack_path(
         stdout=context.stdout,
         stderr=context.stderr,
         windows_origin_not_propagated=windows_origin_not_propagated,
+        json_output=json_output,
     )
     return EXIT_SUCCESS
 

@@ -12,11 +12,13 @@ from hypothesis import strategies as st
 
 from obst.core import (
     BYTES_STREAM_TYPE,
+    CoreResource,
     ExtensionDeclaration,
     FormatVersion,
     Manifest,
     Recipe,
-    ResourceLimits,
+    ResourceLimitError,
+    ResourcePolicy,
     StageSpec,
     Stream,
     format_version,
@@ -25,13 +27,13 @@ from obst.core import (
 from obst.core.errors import (
     CorruptContainerError,
     InvalidContainerError,
-    ResourceLimitError,
     TruncatedContainerError,
     UnsupportedVersionError,
 )
 from obst.core.manifest import decode_manifest, encode_manifest
 from obst.core.wire import ManifestHeader, uint32
 from tests.support_extensions import IdentityExtension as RawExtension
+from tests.support_resources import policy as _policy
 
 _METADATA_STREAM_TYPE = "org.example/data@1"
 _PROPERTY_STAGE_IDS = ("org.example/alpha@1", "org.example/beta@2")
@@ -228,16 +230,16 @@ def test_manifest_encoding_accepts_exact_budget_and_rejects_one_byte_less() -> N
     assert (
         encode_manifest(
             _MUTATION_MANIFEST,
-            limits=ResourceLimits(max_manifest_bytes=len(encoded)),
+            policy=_policy((CoreResource.MANIFEST_BYTES, len(encoded))),
         )
         == encoded
     )
     with pytest.raises(ResourceLimitError) as error:
         encode_manifest(
             _MUTATION_MANIFEST,
-            limits=ResourceLimits(max_manifest_bytes=len(encoded) - 1),
+            policy=_policy((CoreResource.MANIFEST_BYTES, len(encoded) - 1)),
         )
-    assert error.value.resource == "manifest_bytes"
+    assert error.value.resource is CoreResource.MANIFEST_BYTES
 
 
 def test_complete_manifest_size_must_fit_container_header_uint32(
@@ -255,13 +257,13 @@ def test_complete_manifest_size_must_fit_container_header_uint32(
         "obst.core.manifest._iter_body_parts",
         sized_parts,
     )
-    limits = ResourceLimits(max_manifest_bytes=None)
+    policy = _policy((CoreResource.MANIFEST_BYTES, None))
 
-    validate_manifest_resources(_MUTATION_MANIFEST, limits=limits)
+    validate_manifest_resources(_MUTATION_MANIFEST, policy=policy)
     part = _SizedManifestPart(part.size + 1)
 
     with pytest.raises(ValueError, match="complete manifest size must fit into uint32"):
-        validate_manifest_resources(_MUTATION_MANIFEST, limits=limits)
+        validate_manifest_resources(_MUTATION_MANIFEST, policy=policy)
 
 
 def test_manifest_rejects_duplicate_recipe_and_stream_ids() -> None:
@@ -588,16 +590,16 @@ def test_extension_declaration_enforces_wire_url_size() -> None:
 
 
 @pytest.mark.parametrize(
-    ("limits", "message"),
+    ("policy", "message"),
     [
-        (ResourceLimits(max_extensions=1), "extensions"),
-        (ResourceLimits(max_recipes=1), "recipes"),
-        (ResourceLimits(max_streams=1), "streams"),
-        (ResourceLimits(max_total_stages=1), "total_stages"),
+        (_policy((CoreResource.EXTENSIONS, 1)), "extensions"),
+        (_policy((CoreResource.RECIPES, 1)), "recipes"),
+        (_policy((CoreResource.STREAMS, 1)), "streams"),
+        (_policy((CoreResource.TOTAL_STAGES, 1)), "total_stages"),
     ],
 )
 def test_manifest_decoding_enforces_configured_count_limits(
-    limits: ResourceLimits,
+    policy: ResourcePolicy,
     message: str,
 ) -> None:
     manifest = Manifest(
@@ -613,7 +615,7 @@ def test_manifest_decoding_enforces_configured_count_limits(
             _encode_manifest(manifest),
             recipe_count=2,
             stream_count=2,
-            limits=limits,
+            policy=policy,
         )
 
 
@@ -630,11 +632,11 @@ def test_manifest_decoding_accepts_configured_count_boundaries() -> None:
         _encode_manifest(manifest),
         recipe_count=2,
         stream_count=2,
-        limits=ResourceLimits(
-            max_extensions=2,
-            max_recipes=2,
-            max_streams=2,
-            max_total_stages=2,
+        policy=_policy(
+            (CoreResource.EXTENSIONS, 2),
+            (CoreResource.RECIPES, 2),
+            (CoreResource.STREAMS, 2),
+            (CoreResource.TOTAL_STAGES, 2),
         ),
     )
 
@@ -655,17 +657,17 @@ def test_manifest_enforces_per_recipe_stage_limit_in_both_directions() -> None:
         streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
     )
     encoded = _encode_manifest(manifest)
-    limits = ResourceLimits(max_stages_per_recipe=1)
+    policy = _policy((CoreResource.STAGES_PER_RECIPE, 1))
 
     with pytest.raises(ResourceLimitError) as encode_error:
-        encode_manifest(manifest, limits=limits)
-    assert encode_error.value.resource == "stages_per_recipe"
+        encode_manifest(manifest, policy=policy)
+    assert encode_error.value.resource is CoreResource.STAGES_PER_RECIPE
 
     with pytest.raises(ResourceLimitError) as decode_error:
         decode_manifest(
             encoded,
             recipe_count=1,
             stream_count=1,
-            limits=limits,
+            policy=policy,
         )
-    assert decode_error.value.resource == "stages_per_recipe"
+    assert decode_error.value.resource is CoreResource.STAGES_PER_RECIPE

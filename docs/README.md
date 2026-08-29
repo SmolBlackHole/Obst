@@ -62,7 +62,7 @@ Start with the [project README](../README.md) if you have not met the fruit yet.
 | [Recipes and chunks](core/recipes.md)  | Direct pipeline execution, chunk integrity and manifest preflight |
 | [Inspection](core/inspection.md)       | Renderer-neutral reports and capability provenance                |
 | [Packaging](core/packaging.md)         | Logical sources, package-operation contracts and result values    |
-| [Resource limits](core/resources.md)   | Shared local policy, defaults, accounting and refusal semantics   |
+| [Resource policy](core/resources.md)   | Typed local ceilings, profiles, accounting and refusal semantics  |
 
 ### Extensions and adapters
 

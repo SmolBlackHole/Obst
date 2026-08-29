@@ -77,7 +77,7 @@ the remaining exact facts derived during the same structural pass:
 - the largest logical stream size relevant to full materialization.
 
 These values describe the representation, not the inspecting machine.
-`ResourceLimits` remains local policy and is not loaded from container
+`ResourcePolicy` remains local policy and is not loaded from container
 metadata. Peak memory, execution time and intermediate stage sizes cannot be
 known without executing a particular local implementation, so they remain
 absent from structural inspection.

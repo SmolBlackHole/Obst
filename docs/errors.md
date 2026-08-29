@@ -43,6 +43,7 @@ classDiagram
     ObstError <|-- CliCommandError
     ObstError <|-- OperationStateError
     ObstError <|-- ResourceLimitError
+    ObstError <|-- LimitStateError
     ObstError <|-- SelectionError
     SelectionError <|-- UnknownStreamError
     SelectionError <|-- UnknownRecipeError
@@ -66,6 +67,8 @@ is imported from `obst.plugins`. The transport-neutral core defines Carrier
 provider protocols, but does not know about paths, archives, installed
 packages or local activation state. `ConformanceError` is imported from
 `obst.conformance`; `CliCommandError` is imported from `obst.cli`.
+`LimitStateError` is imported from `obst.limits` because it belongs to local
+host configuration, not container processing.
 
 | Exception                         | Meaning                                                                                                                                                                                |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -79,8 +82,8 @@ packages or local activation state. `ConformanceError` is imported from
 | `PluginError`                     | Base class for host-side plugin discovery, state, loading and conformance failures. It never arises from container bytes alone.                                                        |
 | `PluginDiscoveryError`            | Installed entry-point names are invalid, ambiguous, unavailable or split across different distributions.                                                                               |
 | `PluginStateError`                | The local enabled-plugin state is malformed, unsupported, unreadable or cannot be persisted atomically.                                                                                |
-| `PluginActivationError`           | The host tried to enable a discovered plugin that publishes neither an Extension nor a command contribution.                                                                           |
-| `PluginLoadError`                 | A selected trusted contribution cannot import, violates its factory or command contract, returns an invalid command exit value or cannot compose with the selected registry.           |
+| `PluginActivationError`           | The host tried to enable a discovered plugin that publishes no Extension, command or resource contribution.                                                                            |
+| `PluginLoadError`                 | A selected trusted contribution cannot import, violates a factory or command contract, or cannot compose with the selected registries and resource catalog.                            |
 | `PluginConformanceError`          | An explicit plugin test cannot load or validate the plugin's published `obst.conformance` contribution. Failed cases remain structured report results.                                 |
 | `ConformanceError`                | A portable conformance suite, its claimed coverage or one local provider result violates the conformance contract.                                                                     |
 | `CliCommandError`                 | A contributed CLI command maps one owned domain failure to the generic CLI error kind and exit-code contract.                                                                          |
@@ -91,6 +94,7 @@ packages or local activation state. `ConformanceError` is imported from
 | `PackagingError`                  | Logical sources cannot be packaged under the requested policy.                                                                                                                         |
 | `SourceConsumedError`             | A single-use logical source was requested more than once.                                                                                                                              |
 | `ResourceLimitError`              | A valid operation exceeds local resource policy. Structured fields name the resource, scope, maximum, observed value and phase.                                                        |
+| `LimitStateError`                 | Local named-profile state is malformed, unavailable, immutable for the requested edit or cannot be persisted atomically.                                                               |
 | `InvalidContainerError`           | Input bytes violate container structure, references, ordering or flags. Local policy refusal is a separate error family.                                                               |
 | `CorruptContainerError`           | Recognizable OBST bytes fail an encoded checksum or decoded logical hash.                                                                                                              |
 | `TruncatedContainerError`         | Input ends before a declared header, manifest, payload or terminal commit is complete.                                                                                                 |
@@ -192,18 +196,26 @@ A reader may reject a structurally valid container because the caller selected
 a lower local ceiling:
 
 ```python
-from obst.core import ContainerReader, ResourceLimitError, ResourceLimits
+from obst.core import ContainerReader, CoreResource, LimitProfile, ResourceLimitError, ResourcePolicy
+
+policy = ResourcePolicy(
+    profile=LimitProfile(
+        "small-manifest",
+        "Accept manifests up to 1 KiB.",
+        ((CoreResource.MANIFEST_BYTES, 1024),),
+    )
+)
 
 try:
-    ContainerReader(source, limits=ResourceLimits(max_manifest_bytes=1024))
+    ContainerReader(source, policy=policy)
 except ResourceLimitError as error:
-    assert error.resource == "manifest_bytes"
+    assert error.resource is CoreResource.MANIFEST_BYTES
     assert error.maximum == 1024
 ```
 
 The CLI reports the same family as `resource_limit` and returns exit code `10`.
 Changing local policy may make the operation acceptable without changing the
-container bytes. See [Resource limits](core/resources.md).
+container bytes. See [Resource policy](core/resources.md).
 
 ## CLI failure contract
 
@@ -228,6 +240,7 @@ system. Do not parse it as a stable schema.
 | `6`  | `pipeline_error`                                                | An `ObstError` not mapped to a more specific CLI family, normally a pipeline or decoder failure. |
 | `10` | `resource_limit`                                                | A valid operation was refused by its local resource policy.                                      |
 | `11` | `plugin_error`                                                  | Plugin discovery, state, import, factory composition or explicit conformance failed.             |
+| `12` | `limit_state`                                                   | Local named-profile state is invalid, unavailable or cannot be changed or persisted.             |
 
 Native `inspect` reports failures opening or reading its local path or stdin as
 `io_error` with exit code `5`. Contributed commands may define additional
