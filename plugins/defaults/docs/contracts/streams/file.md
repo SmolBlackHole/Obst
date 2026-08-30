@@ -4,7 +4,7 @@ Parent: [obst-defaults stream contracts](README.md)
 
 <!--
 SPDX-FileCopyrightText: 2026 SmolBlackHole
-SPDX-License-Identifier: CC-BY-ND-4.0
+SPDX-License-Identifier: CC-BY-4.0
 -->
 
 Status: experimental first-party stream-profile contract.
@@ -70,7 +70,7 @@ cases whose properties changed between versions.
 > [!NOTE]
 > **Future semantics:** A pinned Unicode data version does not exist for
 > `obst.file@1`. Defining that dependency is tracked in the
-> [roadmap](../../../../../ROADMAP.md#now-pre-public-stabilization).
+> [roadmap](../../../../../ROADMAP.md#now-compatibility-groundwork).
 
 Filename collision comparison uses Unicode case folding after NFC
 normalization. Two colliding names do not form a conforming file collection,
@@ -82,7 +82,7 @@ one pure file container as the collection.
 > [!NOTE]
 > **Future semantics:** A container-wide portable collision scope does not
 > exist for `obst.file@1`. Defining that scope is tracked in the
-> [roadmap](../../../../../ROADMAP.md#now-pre-public-stabilization).
+> [roadmap](../../../../../ROADMAP.md#now-compatibility-groundwork).
 
 ## Recipes and chunks
 

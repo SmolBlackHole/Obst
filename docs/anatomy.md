@@ -4,7 +4,7 @@ Parent: [Documentation index](README.md)
 
 <!--
 SPDX-FileCopyrightText: 2026 SmolBlackHole
-SPDX-License-Identifier: CC-BY-ND-4.0
+SPDX-License-Identifier: CC-BY-4.0
 -->
 
 OBST sits between logical byte streams and the place that carries the finished

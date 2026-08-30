@@ -164,7 +164,7 @@ def test_source_distribution_keeps_private_working_documents_out(
 
     root = "obst-0.2.0"
     assert f"{root}/LICENSES/MPL-2.0.txt" in names
-    assert f"{root}/LICENSES/CC-BY-ND-4.0.txt" in names
+    assert f"{root}/LICENSES/CC-BY-4.0.txt" in names
     assert f"{root}/REUSE.toml" in names
     assert f"{root}/TRADEMARKS.md" in names
     assert f"{root}/docs/format.md" in names

@@ -15,15 +15,13 @@ material. An approved plan may stay visible while its breaking change is in
 flight. Completed work disappears from this page once its implementation,
 tests and authoritative documentation agree.
 
-## Now: pre-public stabilization
+## Now: compatibility groundwork
 
-The current `0.2-apple` implementation already reads, writes, inspects, packages and
+The current `0.2-apple` implementation reads, writes, inspects, packages and
 extracts bounded OBST containers through explicitly activated extensions. The
-remaining work before a public preview is to make those boundaries boring and
-reproducible:
+remaining work before the first compatibility promise is to reproduce those
+boundaries outside the reference implementation:
 
-- close the current parser, resource, plugin, carrier and filesystem hardening
-  pass with focused regressions and a completely green quality gate;
 - preserve one independent reader implementation and run log against the
   public conformance corpus;
 - finish the language-neutral Unicode version and collection-scope rules for
@@ -32,9 +30,8 @@ reproducible:
   selection without adding a query language;
 - validate transactional commit and abort with an adversarial non-filesystem
   carrier; and
-- finish public contribution, security, installation and release guidance,
-  anonymously reachable first-party contract URLs and a final private-fixture
-  scan.
+- finish installation and release guidance, and verify first-party contract
+  URLs from an anonymous client.
 
 The first compatibility promise remains unfrozen until cross-language recovery
 and constrained-memory streaming have been reproduced from the public
@@ -57,17 +54,20 @@ human and JSON inspection output will change together.
 
 Production tuning will use the ordinary registry and Recipe execution path. A
 typed bounded tuner will try an explicit candidate set, always include the
-identity Recipe,
-require exact round trips and deterministic tie-breaking, and return the
-already encoded winner. A high-level packager can then deduplicate selected
-Recipes and use bounded spooling to finalize a manifest without teaching the
-wire writer about search policy.
+identity Recipe, require exact round trips and deterministic tie-breaking, and
+return the already encoded winner. A high-level packager can then deduplicate
+selected Recipes and use bounded spooling to finalize a manifest without
+teaching the wire writer about search policy.
 
 Measured benchmark definitions will compare conventional archives, fixed OBST
 and tuned OBST on reproducible telemetry, heterogeneous and large real-world
 inputs. New reversible Stages will land only after their wire parameters,
 inverse, malformed-input behavior, allocation bounds and measured value are
 known.
+
+Research prototypes become candidates only after they are rebuilt against the
+public APIs and real OBST wire format. Temporary mock containers are not
+migration targets.
 
 ## Later: seekable and indexed access
 
@@ -100,3 +100,5 @@ binding semantics rather than weakening `0.2-apple` retroactively.
 - Signatures, deduplication, directory-tree profiles and global archive
   transforms remain unassigned ideas until a concrete threat model or measured
   use case requires them.
+- Dead-code and security scanning may add Vulture, Bandit and Semgrep once each
+  tool has a reviewed baseline and an explicit place in the quality gate.

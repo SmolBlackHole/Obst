@@ -4,7 +4,7 @@ Parent: [obst-defaults contracts](../README.md)
 
 <!--
 SPDX-FileCopyrightText: 2026 SmolBlackHole
-SPDX-License-Identifier: CC-BY-ND-4.0
+SPDX-License-Identifier: CC-BY-4.0
 -->
 
 Each Stage contract is independently versioned. Recipes may combine these

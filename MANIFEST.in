@@ -4,7 +4,7 @@
 
 include CITATION.cff
 include LICENSE
-include LICENSES/CC-BY-ND-4.0.txt
+include LICENSES/CC-BY-4.0.txt
 include ROADMAP.md
 include REUSE.toml
 include TRADEMARKS.md

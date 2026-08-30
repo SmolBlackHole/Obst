@@ -178,5 +178,5 @@ not improve that independence claim.
 The generated corpus is reproducible, but it is still generated and exercised
 by the reference project. Preserved cross-language execution against the full
 corpus remains open in the
-[current stabilization milestone](../../ROADMAP.md#now-pre-public-stabilization).
+[current compatibility milestone](../../ROADMAP.md#now-compatibility-groundwork).
 The corpus now pins the canonical Zero-Stage identity Recipe directly.

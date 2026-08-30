@@ -4,7 +4,7 @@ Parent: [obst-defaults documentation](../README.md)
 
 <!--
 SPDX-FileCopyrightText: 2026 SmolBlackHole
-SPDX-License-Identifier: CC-BY-ND-4.0
+SPDX-License-Identifier: CC-BY-4.0
 -->
 
 These are the normative, language-neutral contracts for wire-visible

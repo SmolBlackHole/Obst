@@ -4,7 +4,7 @@ Parent: [Documentation index](README.md)
 
 <!--
 SPDX-FileCopyrightText: 2026 SmolBlackHole
-SPDX-License-Identifier: CC-BY-ND-4.0
+SPDX-License-Identifier: CC-BY-4.0
 -->
 
 This page explains why the implemented architecture has its boundaries. Exact

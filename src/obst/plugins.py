@@ -563,7 +563,7 @@ def _validate_resource_contribution_ownership(
     for identifier in (
         *(str(resource) for resource in contribution.resources),
         *(profile.profile_id for profile in contribution.profiles),
-    ):  # some black magic shit
+    ):
         owner, separator, _local_name = identifier.rpartition("/")
         if not separator or owner not in owned_extension_ids:
             raise PluginLoadError(

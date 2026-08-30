@@ -17,21 +17,16 @@ SPDX-License-Identifier: MPL-2.0
 > 1. fruit, collectively<br>
 > 2. also a (recursive) binary container
 
-## TL;DR: What is OBST?
+## What is OBST?
 
 OBST is a self-describing, streamable representation layer for logical byte
-streams. It separates what those bytes mean from how they are stored, and makes
-the stored form extensible through open, versioned, reversible pipelines.
-
-Technically, OBST is an extensible binary container between a domain format and
-storage or transport. It describes logical streams in independently framed
-chunks, records their reversible representation as recipes, and protects both
-stored and recovered bytes with integrity data.
+streams. It separates what those bytes mean from how they are stored, then
+describes the stored form through open, versioned and reversible pipelines.
 
 **OBST is the format. The OBST toolchain is the reference ecosystem around
 it.** This repository contains both, but they are not the same thing.
 
-Read the layers from top to bottom:
+OBST sits below domain models and above storage or transport:
 
 | Layer                             | Game example          | Telemetry example |
 | --------------------------------- | --------------------- | ----------------- |
@@ -42,49 +37,68 @@ Read the layers from top to bottom:
 | Storage or transport              | S3 object             | Flash             |
 | Actual transport                  | HTTP over TCP         | Block device      |
 
-Applications and domain formats own meaning and produce logical bytes. OBST
-owns their reversible stored representation. Storage and transport own where
-the resulting container lives and how it moves. The Python runtime, CLI, plugin
-manager and plugins form the reference toolchain, not the wire contract.
-
-An OBST byte stream contains:
-
-- a manifest declaring streams, recipes and versioned extension contracts;
-- logical byte streams split into independently framed chunks;
-- integrity data for both stored and recovered bytes; and
-- stable identifiers for stream types and reversible pipeline stages.
-
-A recipe runs forward while encoding and backward while decoding:
-
-```mermaid
-flowchart LR
-    Input["Logical bytes"] --> Delta["obst.delta8@1"]
-    Delta --> Zlib["obst.zlib@1"]
-    Zlib --> Stored["Encoded chunk"]
-```
-
-The rule is short:
-
-```text
-decode(encode(input_bytes)) == input_bytes
-```
-
-Byte for byte.
-
-The container records which logical streams exist, how each chunk was
-represented and what a decoder needs to recover the original bytes. The
-encoder may be simple or absurdly sophisticated. The decoder should not have
-to care.
+The application owns meaning. OBST owns the reversible representation of its
+logical bytes. A carrier owns where the resulting OBST byte stream goes. A
+`.obst` file is one option, as are memory, a database BLOB, an object store or
+anything else that can carry binary data without getting creative about it.
 
 The versioned [format specification](docs/format.md) is the canonical
 definition of valid OBST bytes. Anyone may implement that contract. Modified
 specifications and incompatible formats do not become official OBST revisions;
-the [name-use policy](TRADEMARKS.md) keeps technical interoperability separate
-from project identity.
+the [name-use policy](TRADEMARKS.md) keeps interoperability separate from
+project identity.
+
+## What can you build with it?
+
+OBST is deliberately below any one application. It can wrap an existing
+format, bundle unrelated logical streams or provide the representation layer
+underneath a new domain-specific format.
+
+| Use                                    | What the application owns                      | What OBST contributes                             |
+| -------------------------------------- | ---------------------------------------------- | ------------------------------------------------- |
+| Store an existing format               | SQLite, MCAP, JPEG, Parquet or other bytes     | Chunking, reversible representation and integrity |
+| Bundle heterogeneous data              | Relationships between metadata, samples, media | Independent streams with independent Recipes      |
+| Build a new domain format              | Mail, telemetry, game or model semantics       | Framing plus versioned stream and Stage contracts |
+| Experiment with stored representations | Candidate selection and tuning policy          | A decoder-visible record of the selected pipeline |
+
+A telemetry export, for example, could contain:
+
+```text
+metadata and schema    -> identity Recipe
+numeric sample blocks -> delta8 -> zlib
+compressed images     -> identity Recipe
+complete container    -> streamed to S3
+```
+
+A mail service could define one stream profile for messages and another for
+attachments. A game could define profiles for world state or assets. Those
+profiles own the domain meaning; OBST still sees versioned metadata and logical
+bytes.
+
+That also makes OBST a possible foundation for another file format. The new
+format defines its stream profiles and application rules, while OBST supplies
+the byte-stream container underneath them.
+
+## When should you use it?
+
+Honestly, you probably should not use OBST merely because some bytes exist.
+Established formats have ecosystems, mature tooling and fewer ways to surprise
+your future self.
+
+| OBST starts to make sense when ...                              | Prefer something else when ...                         |
+| --------------------------------------------------------------- | ------------------------------------------------------ |
+| streams benefit from different reversible representations       | ZIP or another established container already fits      |
+| representation must change without changing application meaning | only the smallest compressed file matters              |
+| framing must remain inspectable without every decoder installed | the application needs queries, indexes or transactions |
+| a new domain format needs bounded streaming and integrity       | an existing domain format already owns those concerns  |
+
+OBST does not provide a data model, query language, database or universal
+compression strategy. It provides a stable representation layer under those
+things.
 
 ## Try it in 20 seconds (I timed it! :D)
 
-Sure, from a checkout:
+From a checkout:
 
 ```bash
 git clone https://github.com/SmolBlackHole/Obst.git
@@ -95,310 +109,148 @@ obst plugins enable obst-defaults
 obst inspect samples/apple.obst
 ```
 
-Inspection is native runtime tooling and needs no extension plugin. That
-command validates the stored container without decoding the JPEG inside. The
-enabled defaults plugin supplies the friendly file and zlib interpretation
-shown below. Without it, the container remains structurally inspectable and
-reports the missing local capabilities. The matching source image, two more
-containers and complete Unsplash attribution live in [`samples/`](samples/).
-
-The human-readable output includes the apple:
+Inspection validates the stored container without decoding the JPEG inside.
+The enabled `obst-defaults` plugin adds the friendly file and zlib
+interpretation:
 
 ```text
-                     ███████
-                   ██    ██
-             ██   █  █████
-               █ █ ████
-
-         █████████████████        OBST container 0.2-apple
-       █████████████████████      -------------------------
-                                  Streams                       1
-     ████████████████████████     Recipes                       1
-     ████████████████████████     Chunks                        6
-                                  Container size                260.6 KiB
-     ████████████████████████     Original size                 361.5 KiB (committed)
-      ███████████████████████     Compression                   27.9% smaller (72.1% of original)
-                                  Integrity                     valid (terminal commit and encoded CRCs)
-        ███████████████████       Required decoders available   yes
-          ██████████████          Logical recovery              not attempted
-
-Streams
-  [0] an_vision-gDPaDDy6_WE-unsplash.jpg
-      obst.file@1 | 6 chunks | original 361.5 KiB | encoded payload 259.9 KiB
-      Recipe usage: yes (6 total; recipe 0: 6)
-
-Recipes
-  [0] obst.zlib@1(compression_level=9) | 6 chunks
-
-Resource footprint
-  Manifest 310 B | largest chunk 64.0 KiB logical / 63.1 KiB encoded
-  Stage executions 6 | largest stream 361.5 KiB if materialized
-
-Stage capabilities
-  obst.zlib@1 (zlib): decoder available
-      Declared by recipe: 0
-      Used by chunks: yes (6 total; recipe 0: 6)
-      zlib-wrapped DEFLATE with a declared compression level.
-      Declared specification: https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/zlib.md
-      Local specification: https://github.com/SmolBlackHole/Obst/blob/main/plugins/defaults/docs/contracts/stages/zlib.md
+OBST container 0.2-apple
+Streams                       1
+Recipes                       1
+Chunks                        6
+Container size                260.6 KiB
+Original size                 361.5 KiB (committed)
+Integrity                     valid (terminal commit and encoded CRCs)
+Required decoders available   yes
+Logical recovery              not attempted
 ```
 
-The runtime can also emit the same inspection as JSON:
+The matching source image, more sample containers and complete Unsplash
+attribution live in [`samples/`](samples/). The toolchain can emit the same
+inspection as JSON:
 
 ```bash
-obst inspect data.obst --json
+obst inspect samples/apple.obst --json
 ```
 
-The same plugin contributes portable-file packing and extraction:
+The defaults plugin also contributes portable-file packing and extraction:
 
 ```bash
 obst pack apple.jpg banana.jpg -o fruit.obst
 obst unpack fruit.obst -o restored
 ```
 
-The Python project deliberately ships as 2 distributions:
+See the complete [human-readable](docs/toolchain/cli-output-reference.md) and
+[JSON](docs/toolchain/cli-json-output-reference.md) output references for every
+current command.
 
-- `obst` provides the `obst` package, the plugin manager and native structural
-  inspection; and
-- `obst-defaults` provides the replaceable first-party Extensions plus the
-  `pack` and `unpack` commands.
+The Python project ships as 2 distributions. `obst` provides the runtime,
+plugin manager, CLI host and native structural inspection. `obst-defaults`
+provides replaceable first-party Extensions plus the `pack` and `unpack`
+commands. Installing a plugin only makes it discoverable. Enabling, selecting
+or explicitly testing it is the separate host decision that permits its code
+to execute.
 
-Installing a distribution only makes its plugin discoverable. Persistent
-enablement, one-shot selection or an explicit conformance test is the separate
-host decision that permits its Python code to execute.
+## How does the container work?
 
-The [command-line guide](docs/toolchain/cli.md) documents stdin, flags, JSON output and
-archive safety rules. The [runtime error reference](docs/toolchain/errors.md) owns exit
-codes and failure examples. For a complete snapshot of the current toolchain,
-see the [human-readable CLI output](docs/toolchain/cli-output-reference.md) and
-the [JSON output reference](docs/toolchain/cli-json-output-reference.md).
+An OBST byte stream contains a manifest, independently framed chunks and a
+terminal commit.
 
-## But why would I want another container format?
+| Concept            | Role                                                      |
+| ------------------ | --------------------------------------------------------- |
+| Logical stream     | One ordered byte sequence with a versioned stream profile |
+| Chunk              | One bounded and independently framed part of a stream     |
+| Recipe             | The ordered Stage pipeline used to represent one chunk    |
+| Extension contract | A stable identifier for stream or Stage behavior          |
+| Terminal commit    | The final record binding the completed representation     |
 
-Honestly, you probably don't. OBST is not a universal replacement for ZIP, TAR,
-Parquet, SQLite, JPEG or any other established format. It is a general-purpose
-container for heterogeneous byte streams and reversible processing pipelines.
-
-The idea is: Different bytes expose different structure. That's it, seriously.
-
-Some examples:
-
-- Slowly changing sensor values may benefit from delta encoding.
-- Fixed-width records may become more compressible after byte shuffling or as I'd
-  like to call it _shaking them really hard_.
-- Monotonic counters may want a different recipe than temperatures.
-- An already compressed image may benefit from absolutely nothing. That is
-  completely fine.
-
-For the last case, the correct Recipe is simply:
-
-```text
-identity (no Stages)
-```
-
-Knowing when _not_ to transform data is part of the job.
-
-OBST separates the container contract from the encoder's decisions. A tiny
-device may use one cheap recipe. An archival tool may benchmark hundreds of
-candidates, inspect the input or consult the alignment of the planets and
-stars. Both can emit ordinary OBST.
-
-## Soo... what can I put in it?
-
-Anything that eventually becomes bytes is _technically_ eligible. This is not
-the same as saying everything should become OBST, it probably shouldn't.
-
-One container may hold streams that have very little in common:
-
-```text
-metadata.json       -> zlib
-measurements.bin    -> delta8 -> zlib
-photo.jpg           -> identity Recipe
-```
-
-Existing formats do not have to stop being themselves and neither of us should
-force them to. A stream may contain JPEG, SQLite, Parquet, ZIP, PDF or
-your yearly Minecraft world with the bois and gals. OBST sits around those bytes
-as a representation layer. It does not demand that the world convert everything
-into fruit.
-
-This makes it useful for heterogeneous technical datasets, telemetry,
-application exports, storage objects, backup inputs and reversible codec
-experiments. These domains are not secretly the same. They just share a need
-to separate logical data from its stored representation.
-
-## Should everything become OBST?
-
-No.
-
-If you want to send three holiday photos to somebody, use ZIP, seriously. If
-an established domain format already solves the problem, use it. If the only
-goal is to make one file as small as possible, a specialized compressor will
-probably beat a container that also owns streams, integrity and
-recoverability.
-
-OBST becomes interesting when the question is not only:
-
-> How do I compress these bytes?
-
-but:
-
-> How should these bytes be represented, described, transported and recovered
-> without permanently coupling that decision to one codec or application?
-
-## Does OBST understand what those bytes mean?
-
-Nah. The application still owns their meaning and may define stream types such
-as:
-
-```text
-org.example/table@1
-org.example/timeseries@2
-org.example/model-weights@1
-```
-
-Stream profiles may describe filenames, timestamps, units, array shapes or
-other application-owned metadata. The core only needs enough information to
-recover logical bytes. This is often for the best.
-
-Numeric scaling, quantization and record layouts therefore belong to versioned
-stream profiles, not allegedly lossless stages. The
-[design notes](docs/design.md#numeric-representation-and-scale) explain why
-ordinary numeric equality is not enough.
-
-## Can I extend it?
-
-Yes. `obst.bytes@1` is the one core stream contract; the shipped zlib, Delta8
-and portable-file capabilities are ordinary Extensions from the
-separately installed `obst-defaults` plugin. Third-party code uses the same
-registry and provider contracts. There is no first-party VIP entrance.
-
-Only Stage and stream-profile IDs enter container bytes. Carriers and
-packagers are runtime capabilities chosen by the host. The
-[Extension guide](docs/toolchain/extensions.md) maps those boundaries, while the
-[plugin guide](docs/toolchain/plugins.md) explains installation, activation
-and the trusted-code boundary.
-
-## How do the pieces fit together?
-
-Inside the representation layer, declarations connect to the chunks that use
-them:
+A Recipe runs forward while encoding and backward while decoding:
 
 ```mermaid
 flowchart LR
-    Manifest["Manifest<br/>streams + recipes + contract IDs"] --> Chunk
-    Logical["Logical stream chunk"] --> Recipe["Reversible recipe"]
-    Recipe --> Chunk["Encoded chunk + integrity"]
-    Chunk --> Commit["Terminal commit"]
-    Commit --> Container["Complete OBST byte stream"]
+    Logical["Logical chunk"] --> Delta["obst.delta8@1"]
+    Delta --> Zlib["obst.zlib@1"]
+    Zlib --> Stored["Encoded payload"]
+    Stored --> Inflate["inverse obst.zlib@1"]
+    Inflate --> Undelta["inverse obst.delta8@1"]
+    Undelta --> Recovered["Recovered chunk"]
 ```
 
-The manifest appears before the chunks and declares streams, recipes and
-extension IDs. Each chunk selects a declared recipe. Encoding runs that
-recipe forward; decoding runs it backward. A terminal commit closes the stream
-and binds the complete representation without requiring a seekable carrier.
-
-The [anatomy guide](docs/anatomy.md) walks through the relationships. Exact
-headers and offsets live in the [format specification](docs/format.md).
-
-## Is an OBST container always a file?
-
-No. The byte stream is the format. A `.obst` file is one possible carrier.
-The same bytes may live in memory, flash, a database BLOB, an object store or
-anything else that can move binary data without becoming creative about it.
-
-The [reader is single-pass](docs/toolchain/reading.md#structural-reading) and does
-not require seeking, so bytes may arrive through stdin, a socket or an HTTP
-body before somebody stores them in a place they will eventually call
-cloud-native. The carrier changes. The container does not.
-
-The plugin's [file handling](plugins/defaults/docs/files/README.md)
-is an adapter around the core, not a secret filesystem model hiding inside it.
-
-## What happens if a decoder is missing?
-
-The container remains [structurally inspectable](docs/toolchain/inspection.md). The
-manifest declares the available recipes and stages before the first payload
-chunk arrives. Which stages are actually required depends on the recipes
-referenced by the chunks.
-
-An unknown stage does not make the framing invalid, but chunks that actually
-use it cannot be decoded locally. OBST does not download missing decoders
-automatically. That particular supply-chain adventure remains opt-in.
-
-## What if mommy and daddy have different encoders?
-
-Different encoders are fine. The receiver only needs decoders for the stages
-the sender actually uses. OBST can expose that mismatch through the manifest,
-but it does not negotiate a shared capability set before the sender starts.
-
-A constrained device can still write bounded chunks with a cheap,
-memory-conscious recipe, and a stronger machine can consume and later repack
-the same logical data. The sensor does not need to know that a server with
-considerably more electricity will judge its compression choices.
-
-Capability negotiation does not exist yet. The planned runtime extension lets
-a receiver advertise supported decoders, profiles and limits before a sender
-builds an ordinary OBST stream. It is tracked in the
-[roadmap](ROADMAP.md#later-directions).
-
-## What does `0.2-apple` mean?
-
-The wire format is [`OBST 0.2-apple`](docs/format.md#version-identity).
-
-The numeric major and minor are stored in the container and manifest headers.
-`apple` is the stable human-readable codename for major version `0`, so every
-`0.x` revision remains `apple`.
-
-> [!NOTE]
-> **Reserved semantics:** After the first compatibility freeze, an incompatible
-> format major receives a new number and a new codename.
-
-Stage and stream-type versions are independent. A new container major does not
-silently redefine `obst.delta8@1`.
-
-## How weird does this get?
-
-### Does the format choose the recipe?
-
-No. Recipe search belongs to the encoder, not the wire format. A tuner may try
-several candidates and store only the winner. The decoder sees the chosen
-recipe, not the search history or the encoder's emotional journey.
-
-The reference implementation does not include production tuning. That work
-needs typed candidates, exact round trips, resource budgets and a packaging
-lifecycle. The [design notes](docs/design.md#the-encoder-may-be-clever) explain
-the manifest-first constraint.
-
-### Can OBST contain another OBST container?
-
-An OBST stream is bytes. Those bytes may themselves be another complete OBST
-container:
+The invariant is byte-exact:
 
 ```text
-OBST(OBST(OBST(...)))
+decode(encode(logical_bytes)) == logical_bytes
 ```
 
-This is [valid composition](docs/design.md#recursion-is-composition), not an
-instruction to recurse automatically. Recursive tools need explicit selection
-plus depth and size limits.
+A Recipe may contain no Stages. That is the canonical identity
+representation: stored bytes equal logical bytes and no Stage decoder is
+required.
 
-May God have mercy on your stack.
+The manifest appears before the chunks, so a reader can inspect streams,
+Recipes and Extension contracts before it sees any payload. Each chunk names
+the Recipe it actually uses. Unknown Stages do not make the framing corrupt,
+but affected chunks cannot be recovered locally.
 
-### Is OBST an archive format?
+The [anatomy guide](docs/anatomy.md) explains these relationships. Exact bytes,
+field sizes and validity rules belong exclusively to the
+[format specification](docs/format.md).
 
-The core is not. The CLI can pack explicit files as independent
-[`obst.file@1`](plugins/defaults/docs/contracts/streams/file.md) streams and restore their
-basenames and exact bytes. The [portable file adapter](plugins/defaults/docs/files/README.md)
-belongs to extensions and tools around the byte-stream container.
+## Can I extend it?
 
-In German, an `Obstkorb` is a fruit basket. A cold-storage profile therefore
-has an obvious and largely, unfortunately, unavoidable name: `OBSTkorb`.
+Yes. `obst.bytes@1` is the one core stream contract. The shipped zlib, Delta8
+and portable-file capabilities are ordinary Extensions from the separately
+installed `obst-defaults` plugin. Third-party Extensions use the same registry
+and provider contracts. There is no first-party VIP entrance.
+
+Only Stage and stream-profile IDs enter container bytes. Carriers, packagers
+and plugins are host-selected toolchain capabilities. Container bytes can
+never install, enable or select executable code.
+
+The encoder may be simple or absurdly sophisticated. It may use one fixed
+Recipe or benchmark hundreds of candidates and consult the alignment of the
+planets and stars. The container stores the winner, not the encoder's emotional
+journey.
+
+Start with the [Extension guide](docs/toolchain/extensions.md) for capability
+boundaries and the [plugin guide](docs/toolchain/plugins.md) for installation,
+activation and the trusted-code boundary.
+
+## Status
+
+OBST is experimental and under active development. The v0.2 conformance
+vectors pin the current `0.2-apple` draft, but compatibility has not frozen.
+Intentional pre-freeze wire changes regenerate the vectors and samples.
+
+The reference runtime reads, writes and inspects bounded chunked containers.
+The explicitly activated `obst-defaults` plugin supplies Delta8, zlib and
+portable-file tooling without a privileged loading path.
+
+What is still missing matters: preserved cross-language recovery, constrained
+memory results, longer-running fuzzing, production tuning and real workload
+benchmarks. The [roadmap](ROADMAP.md) tracks those decisions without pretending
+the format is already battle tested.
+
+## Documentation
+
+The [documentation index](docs/README.md) routes readers by task. The shortest
+paths are:
+
+| Need                               | Start here                                         |
+| ---------------------------------- | -------------------------------------------------- |
+| Understand the container           | [Anatomy](docs/anatomy.md)                         |
+| Implement or validate OBST bytes   | [Format specification](docs/format.md)             |
+| Use the Python reference toolchain | [Toolchain guide](docs/toolchain/README.md)        |
+| Use the CLI                        | [CLI guide](docs/toolchain/cli.md)                 |
+| Write an Extension or plugin       | [Extension guide](docs/toolchain/extensions.md)    |
+| Understand design decisions        | [Design notes](docs/design.md)                     |
+| Run or publish conformance cases   | [Conformance guide](docs/toolchain/conformance.md) |
+| Contribute code or documentation   | [Contributing guide](CONTRIBUTING.md)              |
+| Report a security issue            | [Security policy](SECURITY.md)                     |
 
 ## Development
 
-The reference implementation targets Python 3.14. Its `src`, `tests` and
-`scripts` trees are checked with strict typing.
+The reference implementation targets Python 3.14. Its runtime, defaults plugin
+and Adaptive-Zlib example are checked with strict typing and separate tests.
 
 ```bash
 python -m venv .venv
@@ -414,39 +266,11 @@ obst plugins enable obst-defaults
 python scripts/quality.py
 ```
 
-The quality command runs Ruff, formatting checks, isort, mypy strict and
-Pyright strict for the runtime. It also runs the runtime, `obst-defaults` and
-Adaptive-Zlib test suites. Safe mechanical fixes are available through:
-
-```bash
-python scripts/quality.py --fix
-```
-
-[GitHub Actions](.github/workflows/quality.yml) runs the same quality command
-on Linux and Windows for pushes and pull requests.
-
-## Documentation
-
-Start with the [documentation index](docs/README.md). It routes format authors,
-application developers, extension authors and CLI users to the authoritative
-page instead of making this README impersonate a small book. For the shortest
-paths, see the [anatomy](docs/anatomy.md), [format specification](docs/format.md),
-[CLI guide](docs/toolchain/cli.md), [toolchain guide](docs/toolchain/README.md) and
-[roadmap](ROADMAP.md).
-
-## Status
-
-OBST is experimental and under active development. The v0.2 vectors pin the
-current draft, but compatibility has not frozen and intentional pre-freeze wire
-changes regenerate them.
-
-The runtime reads and writes chunked containers and inspects missing
-capabilities. The explicitly activated `obst-defaults` plugin supplies Delta8,
-zlib and portable-file tooling without a privileged loading path.
-
-The reference implementation and first-party tooling are open source under the
-[Mozilla Public License 2.0](LICENSES/MPL-2.0.txt). Normative format and
-Extension contracts use [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt).
+The quality command runs Ruff, formatting, isort, mypy strict, Pyright strict,
+REUSE and all 3 distribution-owned test suites. GitHub Actions runs the same
+gate on Linux and Windows. Contributions follow the
+[contributing guide](CONTRIBUTING.md); security reports follow the private
+process in the [security policy](SECURITY.md).
 
 ## How this happened
 
@@ -495,28 +319,17 @@ another excuse to keep turning random things into fruit. Thank you! :D
 
 ## License
 
-This is a multi-license repository. The SPDX metadata in each file, or its
-matching `REUSE.toml` annotation, is authoritative.
+This is a multi-license repository. File-level SPDX metadata and `REUSE.toml`
+are authoritative.
 
-| Material                                                   | License                                                       |
-| ---------------------------------------------------------- | ------------------------------------------------------------- |
-| OBST format specification and normative contracts          | [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt)                     |
-| Reference implementation, tooling and general project docs | [MPL 2.0](LICENSES/MPL-2.0.txt)                               |
-| Unsplash sample images and containers that embed them      | [Unsplash License](LICENSES/LicenseRef-Unsplash.txt)          |
-| Files with an explicit SPDX identifier                     | The identifier or `REUSE.toml` annotation governing that file |
+| Material                                                   | License                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| OBST format specification and normative contracts          | [CC BY 4.0](LICENSES/CC-BY-4.0.txt)                  |
+| Reference implementation, tooling and general project docs | [MPL 2.0](LICENSES/MPL-2.0.txt)                      |
+| Unsplash sample images and containers that embed them      | [Unsplash License](LICENSES/LicenseRef-Unsplash.txt) |
 
-CC BY-ND permits redistribution of the canonical specification with
-attribution but not publication of altered versions under that license. MPL
-2.0 applies file-level copyleft to the covered toolchain files, while
-independently written Extensions may use another license.
-
-Neither license grants rights to the OBST name or branding. The
-[name-use policy](TRADEMARKS.md) permits truthful compatibility statements and
+The [name-use policy](TRADEMARKS.md) permits truthful compatibility claims and
 reserves official project identity. Citation metadata lives in
-[`CITATION.cff`](CITATION.cff).
-
-An independent Extension is not forced to publish its decoder merely because
-it interoperates with OBST. Wire-visible Extensions proposed for first-party
-distribution must document their decoding contract publicly. An encoder may
-remain proprietary; recovering the bytes must not require guessing what it
-did.
+[`CITATION.cff`](CITATION.cff). Independently written Extensions may use
+another license, but first-party wire-visible contracts must document how to
+recover their logical bytes.
