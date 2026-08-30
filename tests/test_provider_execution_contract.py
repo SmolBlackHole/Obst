@@ -319,7 +319,7 @@ def test_decode_does_not_bind_provider_for_unused_recipe() -> None:
     unused_recipe = Recipe(1, (StageSpec(_UNUSED_STAGE_ID),))
     manifest = Manifest(
         recipes=(used_recipe, unused_recipe),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     writer = ContainerWriter(target, manifest, accounting=_accounting())

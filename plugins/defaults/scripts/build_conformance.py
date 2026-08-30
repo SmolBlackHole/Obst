@@ -74,7 +74,6 @@ def _container_recovery_case() -> ContainerRecoveryCase:
             Stream(
                 0,
                 file_extension.extension_id,
-                0,
                 file_extension.encode_file_name("conformance.bin"),
             ),
         ),

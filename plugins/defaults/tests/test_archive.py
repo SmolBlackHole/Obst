@@ -161,8 +161,8 @@ def test_file_archiver_materializes_mixed_profile_ids(tmp_path: Path) -> None:
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
         streams=(
-            Stream(0, standard.extension_id, 0, standard.encode_file_name("a.txt")),
-            Stream(1, alternate.extension_id, 0, b"alt:b.rar"),
+            Stream(0, standard.extension_id, standard.encode_file_name("a.txt")),
+            Stream(1, alternate.extension_id, b"alt:b.rar"),
         ),
     )
     archive = tmp_path / "mixed.obst"
@@ -626,7 +626,7 @@ def _write_profile_container(
 ) -> None:
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
-        streams=(Stream(0, stream_type, 0, metadata),),
+        streams=(Stream(0, stream_type, metadata),),
     )
     with path.open("wb") as target:
         writer = ContainerWriter(target, manifest, accounting=_accounting())

@@ -202,7 +202,7 @@ def test_file_archiver_uses_the_callers_profile_and_recipe_policy(
         (source,) = sources
         assert source.descriptor.stream_type == source_profile.extension_id
         assert source.descriptor.metadata == b"source:payload.bin"
-        assert source.descriptor.default_recipe is recipe
+        assert source.descriptor.recipe is recipe
         assert tuple(source.iter_chunks()) == (b"pay", b"loa", b"d")
 
 

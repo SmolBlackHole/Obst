@@ -24,7 +24,7 @@ from obst.core.inspection import (
     RecipeChunkUsage,
 )
 
-INSPECTION_JSON_SCHEMA_VERSION = 6
+INSPECTION_JSON_SCHEMA_VERSION = 7
 
 _ASCII_APPLE = """                     ███████
                    ██    ██
@@ -304,7 +304,6 @@ def render_inspection_json(inspection: ContainerInspection) -> str:
                 "type": stream.declaration.stream_type,
                 "metadata_hex": stream.declaration.metadata.hex(),
                 "metadata_interpretation": _interpretation_document(stream.metadata),
-                "default_recipe": stream.declaration.default_recipe_id,
                 "chunks": stream.chunk_count,
                 "original_size": stream.logical_size,
                 "encoded_payload_size": stream.encoded_payload_size,

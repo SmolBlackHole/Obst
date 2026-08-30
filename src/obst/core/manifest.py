@@ -165,7 +165,6 @@ def _iter_body_parts(
         yield stream_declaration.pack(
             stream.stream_id,
             extension_indexes[stream.stream_type],
-            stream.default_recipe_id,
             len(stream.metadata),
         )
         yield stream.metadata
@@ -504,7 +503,7 @@ def _manifest_encoding_context(
 
 
 def _decode_stream(cursor: Cursor, extension_ids: tuple[str, ...]) -> Stream:
-    stream_id, type_index, recipe_id, metadata_size = cursor.unpack(
+    stream_id, type_index, metadata_size = cursor.unpack(
         stream_declaration,
         field="stream declaration",
     )
@@ -513,7 +512,6 @@ def _decode_stream(cursor: Cursor, extension_ids: tuple[str, ...]) -> Stream:
         return Stream(
             stream_id=stream_id,
             stream_type=_extension_at(extension_ids, type_index),
-            default_recipe_id=recipe_id,
             metadata=metadata,
         )
     except ValueError as exc:

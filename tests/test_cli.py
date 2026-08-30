@@ -49,7 +49,7 @@ def _install_empty_manager(
 def _write_structural_container(path: Path) -> None:
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec("org.example/missing@1"),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     with path.open("wb") as target:
         ContainerWriter(target, manifest, accounting=_accounting()).finish()

@@ -66,7 +66,7 @@ recipe = RecipeSpec(
 descriptor = LogicalStreamDescriptor(
     stream_type=BYTES_STREAM_TYPE,
     metadata=b"",
-    default_recipe=recipe,
+    recipe=recipe,
 )
 source = LogicalStreamSource.from_bytes(
     descriptor,

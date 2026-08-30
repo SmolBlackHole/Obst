@@ -94,7 +94,7 @@ class AdaptivePackCommand:
         )
         manifest = Manifest(
             recipes=(recipe,),
-            streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+            streams=(Stream(0, BYTES_STREAM_TYPE),),
             extensions=tuple(
                 _declared_extension(registry, stage.stage_id) for stage in recipe.stages
             ),

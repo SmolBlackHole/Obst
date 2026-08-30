@@ -126,12 +126,11 @@ def test_fixed_packager_preserves_stream_identity_and_logical_bytes() -> None:
         bytes(range(64)) * 4,
     )
     assert tuple(
-        (stream.stream_type, stream.metadata, stream.default_recipe_id)
-        for stream in result.manifest.streams
+        (stream.stream_type, stream.metadata) for stream in result.manifest.streams
     ) == (
-        (BYTES_STREAM_TYPE, b"first", 0),
-        (BYTES_STREAM_TYPE, b"empty", 0),
-        (_CUSTOM_STREAM_TYPE, b"records-v1", 1),
+        (BYTES_STREAM_TYPE, b"first"),
+        (BYTES_STREAM_TYPE, b"empty"),
+        (_CUSTOM_STREAM_TYPE, b"records-v1"),
     )
     assert [recipe.recipe_id for recipe in result.manifest.recipes] == [0, 1]
     assert result.encoded_size == len(target.getvalue())

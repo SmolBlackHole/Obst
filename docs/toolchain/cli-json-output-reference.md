@@ -82,7 +82,7 @@ This avoids copying the same 17 resource records 4 times.
             "summary": "Open binary container for chunked data and reversible pipelines"
         }
     ],
-    "schema_version": 6
+    "schema_version": 7
 }
 ```
 
@@ -263,14 +263,14 @@ The trust warning remains on stderr. Stdout contains only the JSON document:
 > obst inspect <TEMP>\readme.obst --json
 {
     "chunks": 1,
-    "container_size": 8239,
-    "container_to_original_ratio": 0.42294661190965094,
-    "encoded_payload_size": 7794,
+    "container_size": 6362,
+    "container_to_original_ratio": 0.4266648782777815,
+    "encoded_payload_size": 5921,
     "format": {
         "codename": "apple",
         "label": "0.2-apple",
         "major": 0,
-        "minor": 1,
+        "minor": 2,
         "name": "OBST"
     },
     "integrity": "valid",
@@ -285,7 +285,7 @@ The trust warning remains on stderr. Stdout contains only the JSON document:
     "logical_recovery": "not_attempted",
     "missing_declared_stages": [],
     "missing_required_stages": [],
-    "original_size": 19480,
+    "original_size": 14911,
     "recipe_details": [
         {
             "chunks": 1,
@@ -309,20 +309,20 @@ The trust warning remains on stderr. Stdout contains only the JSON document:
     "required_decoders_available": true,
     "resource_footprint": {
         "chunk_count": 1,
-        "container_size": 8239,
+        "container_size": 6362,
         "extension_count": 2,
-        "logical_size": 19480,
-        "manifest_size": 285,
-        "max_encoded_chunk_size": 7794,
-        "max_logical_chunk_size": 19480,
-        "max_materialized_stream_size": 19480,
+        "logical_size": 14911,
+        "manifest_size": 281,
+        "max_encoded_chunk_size": 5921,
+        "max_logical_chunk_size": 14911,
+        "max_materialized_stream_size": 14911,
         "max_stages_per_recipe": 1,
         "recipe_count": 1,
         "stage_executions": 1,
         "stream_count": 1,
         "total_stage_count": 1
     },
-    "schema_version": 6,
+    "schema_version": 7,
     "stage_details": [
         {
             "declared_recipe_ids": [
@@ -349,8 +349,7 @@ The trust warning remains on stderr. Stdout contains only the JSON document:
     "stream_details": [
         {
             "chunks": 1,
-            "default_recipe": 0,
-            "encoded_payload_size": 7794,
+            "encoded_payload_size": 5921,
             "id": 0,
             "metadata_hex": "524541444d452e6d64",
             "metadata_interpretation": {
@@ -360,7 +359,7 @@ The trust warning remains on stderr. Stdout contains only the JSON document:
                 },
                 "label": "README.md"
             },
-            "original_size": 19480,
+            "original_size": 14911,
             "recipe_usage": [
                 {
                     "chunks": 1,

@@ -56,9 +56,7 @@ def _inspect(
     sequences = {stream.stream_id: 0 for stream in manifest.streams}
     for stream_id, payload, recipe_id in chunks:
         selected_recipe_id = (
-            manifest.stream(stream_id).default_recipe_id
-            if recipe_id is None
-            else recipe_id
+            manifest.recipes[0].recipe_id if recipe_id is None else recipe_id
         )
         writer.write_chunk(
             encode_chunk_once(
@@ -92,7 +90,7 @@ def _inspect(
 def _identity_inspection() -> ContainerInspection:
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     return _inspect(manifest, ((0, b"x" * 64, None),))
 
@@ -325,7 +323,7 @@ def test_human_renderer_pluralizes_stream_and_recipe_chunk_counts(
 ) -> None:
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
 
     output = render_inspection_human(_inspect(manifest, chunks))
@@ -339,7 +337,7 @@ def test_json_renderer_exposes_complete_structural_inspection() -> None:
 
     document = json.loads(render_inspection_json(inspection))
 
-    assert document["schema_version"] == INSPECTION_JSON_SCHEMA_VERSION == 6
+    assert document["schema_version"] == INSPECTION_JSON_SCHEMA_VERSION == 7
     assert document["format"] == {
         "codename": format_version.codename,
         "label": format_version.label,
@@ -372,7 +370,6 @@ def test_json_renderer_exposes_complete_structural_inspection() -> None:
     assert document["stream_details"] == [
         {
             "chunks": 1,
-            "default_recipe": 0,
             "encoded_payload_size": 64,
             "id": 0,
             "metadata_hex": "",
@@ -396,7 +393,7 @@ def test_explicit_interpreters_add_meaning_without_replacing_raw_bytes() -> None
     metadata = file_extension.encode_file_name("apple.txt")
     manifest = Manifest(
         recipes=(Recipe(7, (StageSpec(ZlibExtension.extension_id, b"\x09"),)),),
-        streams=(Stream(2, file_extension.extension_id, 7, metadata),),
+        streams=(Stream(2, file_extension.extension_id, metadata),),
     )
     inspection = _inspect(
         manifest,
@@ -427,7 +424,7 @@ def test_interpretation_error_does_not_hide_raw_metadata() -> None:
     file_extension = FileExtension()
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
-        streams=(Stream(0, file_extension.extension_id, 0, b"\xff"),),
+        streams=(Stream(0, file_extension.extension_id, b"\xff"),),
     )
     inspection = _inspect(manifest, (), with_interpreters=True)
 

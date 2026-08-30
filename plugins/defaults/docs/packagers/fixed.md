@@ -51,8 +51,8 @@ operation = provider.prepare_package(
 ```
 
 `sources` must be a non-empty tuple of distinct `LogicalStreamSource` objects.
-Each source is single-use and carries its own stream descriptor, default recipe
-and maximum logical chunk size.
+Each source is single-use and carries its own stream descriptor, selected
+Recipe and maximum logical chunk size.
 
 ## Manifest construction
 

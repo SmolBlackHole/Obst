@@ -90,9 +90,9 @@ class _FixedPackageOperation:
             raise PackagingError("a logical stream source cannot be declared twice")
         for source in sources:
             _preflight_source(source, self._request.accounting)
-        manifest = _fixed_manifest(sources, self._request.registry)
+        plan = _fixed_package_plan(sources, self._request.registry)
+        manifest = plan.manifest
         validate_manifest_resources(manifest, accounting=self._request.accounting)
-        recipes_by_id = {recipe.recipe_id: recipe for recipe in manifest.recipes}
         encoder = ChunkEncoder(
             self._request.registry,
             accounting=self._request.accounting,
@@ -104,10 +104,14 @@ class _FixedPackageOperation:
             accounting=self._request.accounting,
         )
         packaged_streams: list[PackagedStream] = []
-        for stream, source in zip(manifest.streams, sources, strict=True):
+        for stream, source, recipe in zip(
+            manifest.streams,
+            sources,
+            plan.stream_recipes,
+            strict=True,
+        ):
             chunk_count = 0
             logical_size = 0
-            recipe = recipes_by_id[stream.default_recipe_id]
             for sequence, logical_chunk in enumerate(source.iter_chunks()):
                 writer.preflight_chunk(len(logical_chunk))
                 writer.write_chunk(
@@ -130,25 +134,32 @@ class _FixedPackageOperation:
         )
 
 
-def _fixed_manifest(
+@dataclass(frozen=True, slots=True)
+class _FixedPackagePlan:
+    manifest: Manifest
+    stream_recipes: tuple[Recipe, ...]
+
+
+def _fixed_package_plan(
     sources: tuple[LogicalStreamSource, ...],
     registry: ExtensionRegistry,
-) -> Manifest:
+) -> _FixedPackagePlan:
     recipe_ids: dict[RecipeSpec, int] = {}
     recipes: list[Recipe] = []
     streams: list[Stream] = []
+    stream_recipes: list[Recipe] = []
     for stream_id, source in enumerate(sources):
         descriptor = source.descriptor
-        recipe_id = recipe_ids.get(descriptor.default_recipe)
+        recipe_id = recipe_ids.get(descriptor.recipe)
         if recipe_id is None:
             recipe_id = len(recipe_ids)
-            recipe_ids[descriptor.default_recipe] = recipe_id
-            recipes.append(Recipe(recipe_id, descriptor.default_recipe.stages))
+            recipe_ids[descriptor.recipe] = recipe_id
+            recipes.append(Recipe(recipe_id, descriptor.recipe.stages))
+        stream_recipes.append(recipes[recipe_id])
         streams.append(
             Stream(
                 stream_id=stream_id,
                 stream_type=descriptor.stream_type,
-                default_recipe_id=recipe_id,
                 metadata=descriptor.metadata,
             )
         )
@@ -168,10 +179,13 @@ def _fixed_manifest(
         )
         for extension_id in sorted(referenced_ids)
     )
-    return Manifest(
-        recipes=tuple(recipes),
-        streams=tuple(streams),
-        extensions=extensions,
+    return _FixedPackagePlan(
+        Manifest(
+            recipes=tuple(recipes),
+            streams=tuple(streams),
+            extensions=extensions,
+        ),
+        tuple(stream_recipes),
     )
 
 

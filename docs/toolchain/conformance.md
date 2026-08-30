@@ -82,9 +82,9 @@ The checked-in `samples/apple.obst` exercises the current terminal commit:
 
 | Property          | Value                           |
 | ----------------- | ------------------------------- |
-| Container size    | 266,889 bytes                   |
-| Container SHA-256 | `7affd252...62b0aa11ea`         |
-| Manifest size     | 310 bytes                       |
+| Container size    | 266,885 bytes                   |
+| Container SHA-256 | `386e53fc...bca480be`           |
+| Manifest size     | 306 bytes                       |
 | Extensions        | 2: `obst.file@1`, `obst.zlib@1` |
 | Recipes           | 1: `obst.zlib@1`                |
 | Streams           | 1: `obst.file@1`                |

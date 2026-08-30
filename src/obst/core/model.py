@@ -118,14 +118,12 @@ class Stream:
 
     stream_id: int
     stream_type: str
-    default_recipe_id: int
     metadata: bytes = b""
 
     def __post_init__(self) -> None:
         _require_bytes("stream metadata", self.metadata)
         uint32.require("stream_id", self.stream_id)
         validate_extension_id(self.stream_type)
-        uint32.require("default_recipe_id", self.default_recipe_id)
         uint32.require("stream metadata size", len(self.metadata))
 
 
@@ -141,8 +139,6 @@ class Manifest:
         _require_tuple("manifest recipes", self.recipes, Recipe)
         _require_tuple("manifest streams", self.streams, Stream)
         _require_tuple("manifest extensions", self.extensions, ExtensionDeclaration)
-        if not self.recipes:
-            raise ValueError("a manifest must declare at least one recipe")
         if not self.streams:
             raise ValueError("a manifest must declare at least one stream")
         recipe_ids = {recipe.recipe_id for recipe in self.recipes}
@@ -152,13 +148,6 @@ class Manifest:
         stream_ids = {stream.stream_id for stream in self.streams}
         if len(stream_ids) != len(self.streams):
             raise ValueError("stream ids must be unique")
-        for stream in self.streams:
-            if stream.default_recipe_id not in recipe_ids:
-                raise ValueError(
-                    f"stream {stream.stream_id} references unknown default recipe "
-                    f"{stream.default_recipe_id}"
-                )
-
         stream_type_ids = {stream.stream_type for stream in self.streams}
         stage_ids = {
             stage.stage_id for recipe in self.recipes for stage in recipe.stages

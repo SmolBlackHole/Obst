@@ -168,7 +168,7 @@ def identity_stage_manifest(
 ) -> Manifest:
     return Manifest(
         recipes=(Recipe(0, (StageSpec(stage_id),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
 
 
@@ -191,7 +191,7 @@ def write_container(
                 payload[offset : offset + chunk_size],
                 stream_id=0,
                 sequence=sequence,
-                recipe=manifest.recipe(manifest.stream(0).default_recipe_id),
+                recipe=manifest.recipe(0),
             )
         )
     writer.finish()
@@ -201,7 +201,7 @@ def write_container(
 def test_zero_stage_container_round_trip_needs_no_stage_registry() -> None:
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     registry = ExtensionRegistry(())
     encoded = write_container(manifest, b"identity", registry=registry)
@@ -232,16 +232,13 @@ def _encode_for_manifest(
     stream_id: int,
     sequence: int,
     data: bytes,
-    recipe_id: int | None = None,
+    recipe_id: int = 0,
 ) -> Chunk:
-    selected_recipe_id = (
-        manifest.stream(stream_id).default_recipe_id if recipe_id is None else recipe_id
-    )
     return encode_chunk_once(
         data,
         stream_id=stream_id,
         sequence=sequence,
-        recipe=manifest.recipe(selected_recipe_id),
+        recipe=manifest.recipe(recipe_id),
         registry=registry,
         accounting=_accounting(),
     )
@@ -251,8 +248,8 @@ def test_container_reader_enforces_manifest_count_limits() -> None:
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
         streams=(
-            Stream(0, BYTES_STREAM_TYPE, 0),
-            Stream(1, BYTES_STREAM_TYPE, 0),
+            Stream(0, BYTES_STREAM_TYPE),
+            Stream(1, BYTES_STREAM_TYPE),
         ),
     )
     encoded = write_container(manifest, b"payload")
@@ -623,7 +620,7 @@ def test_unknown_stage_keeps_container_inspectable() -> None:
 def test_bytes_stream_is_a_core_contract_without_registry_state() -> None:
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0, b"preserve even if nonconforming"),),
+        streams=(Stream(0, BYTES_STREAM_TYPE, b"preserve even if nonconforming"),),
     )
     target = io.BytesIO()
     ContainerWriter(target, manifest, accounting=_accounting()).finish()
@@ -688,7 +685,7 @@ def test_manifest_preflight_validates_all_recipe_parameters_before_encoding() ->
     target = io.BytesIO()
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(ZlibExtension.extension_id),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
 
     with pytest.raises(PipelineError, match="compression-level"):
@@ -993,8 +990,8 @@ def test_materialize_stream_skips_unselected_chunks_without_decode_budget() -> N
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
         streams=(
-            Stream(0, BYTES_STREAM_TYPE, 0),
-            Stream(1, BYTES_STREAM_TYPE, 0),
+            Stream(0, BYTES_STREAM_TYPE),
+            Stream(1, BYTES_STREAM_TYPE),
         ),
     )
     registry = _stage_registry()
@@ -1057,7 +1054,7 @@ def test_chunk_recipe_override_uses_the_selected_recipe() -> None:
             Recipe(0, (StageSpec(IdentityExtension.extension_id),)),
             Recipe(1, (StageSpec(ZlibExtension.extension_id, b"\x09"),)),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     registry = _stage_registry()
@@ -1632,12 +1629,12 @@ def test_value_objects_reject_mutable_bytes_and_collections() -> None:
         tuple[Recipe, ...],
         [Recipe(0, (StageSpec(IdentityExtension.extension_id),))],
     )
-    mutable_streams = cast(tuple[Stream, ...], [Stream(0, BYTES_STREAM_TYPE, 0)])
+    mutable_streams = cast(tuple[Stream, ...], [Stream(0, BYTES_STREAM_TYPE)])
 
     with pytest.raises(TypeError, match="stage parameters must be bytes"):
         StageSpec(IdentityExtension.extension_id, mutable_bytes)
     with pytest.raises(TypeError, match="stream metadata must be bytes"):
-        Stream(0, BYTES_STREAM_TYPE, 0, mutable_bytes)
+        Stream(0, BYTES_STREAM_TYPE, mutable_bytes)
     with pytest.raises(TypeError, match="encoded payload must be bytes"):
         Chunk(
             0,
@@ -1654,7 +1651,7 @@ def test_value_objects_reject_mutable_bytes_and_collections() -> None:
     with pytest.raises(TypeError, match="recipe stages must be a tuple"):
         Recipe(0, mutable_stages)
     with pytest.raises(TypeError, match="manifest recipes must be a tuple"):
-        Manifest(mutable_recipes, (Stream(0, BYTES_STREAM_TYPE, 0),))
+        Manifest(mutable_recipes, (Stream(0, BYTES_STREAM_TYPE),))
     with pytest.raises(TypeError, match="manifest streams must be a tuple"):
         Manifest(
             (Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),

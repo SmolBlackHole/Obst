@@ -52,7 +52,7 @@ def _inspect_stage_parameters(
 ) -> InspectionInterpretation | None:
     manifest = Manifest(
         recipes=(Recipe(0, (stage,)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     ContainerWriter(target, manifest, accounting=_accounting()).finish()

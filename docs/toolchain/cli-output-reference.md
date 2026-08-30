@@ -259,24 +259,24 @@ The example container below was created from the repository `README.md` by the
                                   Streams                       1
      ████████████████████████     Recipes                       1
      ████████████████████████     Chunks                        1
-                                  Container size                8.0 KiB
-     ████████████████████████     Original size                 19.0 KiB (committed)
-      ███████████████████████     Compression                   57.7% smaller (42.3% of original)
+                                  Container size                6.2 KiB
+     ████████████████████████     Original size                 14.6 KiB (committed)
+      ███████████████████████     Compression                   57.3% smaller (42.7% of original)
                                   Integrity                     valid (terminal commit and encoded CRCs)
         ███████████████████       Required decoders available   yes
           ██████████████          Logical recovery              not attempted
 
 Streams
   [0] README.md
-      obst.file@1 | 1 chunk | original 19.0 KiB | encoded payload 7.6 KiB
+      obst.file@1 | 1 chunk | original 14.6 KiB | encoded payload 5.8 KiB
       Recipe usage: yes (1 total; recipe 0: 1)
 
 Recipes
   [0] obst.zlib@1(compression_level=9) | 1 chunk
 
 Resource footprint
-  Manifest 285 B | largest chunk 19.0 KiB logical / 7.6 KiB encoded
-  Stage executions 1 | largest stream 19.0 KiB if materialized
+  Manifest 281 B | largest chunk 14.6 KiB logical / 5.8 KiB encoded
+  Stage executions 1 | largest stream 14.6 KiB if materialized
 
 Stage capabilities
   obst.zlib@1 (zlib): decoder available

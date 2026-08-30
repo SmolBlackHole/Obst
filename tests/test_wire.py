@@ -97,7 +97,7 @@ def test_unsigned_integer_rejects_value_above_maximum(
         (extension_declaration, "<HH"),
         (recipe_declaration, "<IHH"),
         (stage_declaration, "<II"),
-        (stream_declaration, "<IIII"),
+        (stream_declaration, "<III"),
     ),
 )
 def test_canonical_layout_matches_frozen_struct_format(

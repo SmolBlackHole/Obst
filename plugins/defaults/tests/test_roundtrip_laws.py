@@ -351,7 +351,6 @@ def test_container_logical_dataset_reverse_law(
             Stream(
                 stream_id,
                 _LOGICAL_STREAM_TYPE,
-                recipe_id,
                 metadata,
             )
             for stream_id, (_, metadata, recipe_id) in enumerate(streams)
@@ -373,7 +372,7 @@ def test_container_logical_dataset_reverse_law(
         for stream_id, chunks in enumerate(chunks_by_stream):
             if sequence < len(chunks):
                 logical_chunk = chunks[sequence]
-                recipe_id = manifest.stream(stream_id).default_recipe_id
+                recipe_id = streams[stream_id][2]
                 writer.write_chunk(
                     encode_chunk_once(
                         logical_chunk,
@@ -444,7 +443,7 @@ def test_obst_in_obst_is_opaque_until_explicit_reverse_traversal(
 def _write_identity_container(payload: bytes, *, chunk_size: int) -> bytes:
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     registry = _stage_registry()

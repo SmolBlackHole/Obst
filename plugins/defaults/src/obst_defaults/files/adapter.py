@@ -151,7 +151,7 @@ class FileArchiver:
                             source_profile,
                             name,
                         ),
-                        default_recipe=recipe,
+                        recipe=recipe,
                     ),
                 )
             )

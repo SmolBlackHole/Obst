@@ -494,7 +494,7 @@ class TerminalCommit:
 extension_declaration = little_endian(uint16, uint16)
 recipe_declaration = little_endian(uint32, uint16, uint16)
 stage_declaration = little_endian(uint32, uint32)
-stream_declaration = little_endian(uint32, uint32, uint32, uint32)
+stream_declaration = little_endian(uint32, uint32, uint32)
 
 
 def _require_record_size(data: Buffer, expected: int, structure: str) -> None:

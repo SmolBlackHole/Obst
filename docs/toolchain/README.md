@@ -148,7 +148,7 @@ identity = IdentityExtension()
 registry = ExtensionRegistry((identity,))
 manifest = Manifest(
     recipes=(Recipe(0, (StageSpec(identity.extension_id),)),),
-    streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+    streams=(Stream(0, BYTES_STREAM_TYPE),),
 )
 
 target = BytesIO()

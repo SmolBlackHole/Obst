@@ -288,11 +288,11 @@ callback-free because it renders no interpreted fields.
 
 ### Machine-readable inspection
 
-`--json` emits schema version 6. It writes JSON only, without the ASCII apple.
+`--json` emits schema version 7. It writes JSON only, without the ASCII apple.
 
 | Field                         | Meaning                                                                   |
 | ----------------------------- | ------------------------------------------------------------------------- |
-| `schema_version`              | Inspection JSON schema, `6`                                               |
+| `schema_version`              | Inspection JSON schema, `7`                                               |
 | `format`                      | Format name, major, minor, codename and display label                     |
 | `streams`, `recipes`          | Manifest declaration counts                                               |
 | `chunks`                      | Chunks observed and verified against the terminal commitment              |

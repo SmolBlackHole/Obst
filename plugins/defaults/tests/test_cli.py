@@ -229,7 +229,7 @@ def _manifest(
     )
     return Manifest(
         recipes=(Recipe(0, () if stage_id is None else (StageSpec(stage_id),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
         extensions=extensions,
     )
 
@@ -283,7 +283,7 @@ def _zlib_dictionary_container(payload: bytes) -> bytes:
                 (StageSpec(ZlibDictionaryExtension.extension_id, parameters),),
             ),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     writer = ContainerWriter(target, manifest, accounting=_accounting())
@@ -1266,7 +1266,7 @@ def test_require_decodable_ignores_missing_stages_from_unused_recipes(
             Recipe(0, ()),
             Recipe(1, (StageSpec(_ExplodingDecodeExtension.extension_id),)),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     writer = ContainerWriter(target, manifest, accounting=_accounting())

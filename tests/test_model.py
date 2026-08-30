@@ -35,7 +35,7 @@ from obst.core.errors import (
     UnsupportedVersionError,
 )
 from obst.core.manifest import decode_manifest, encode_manifest
-from obst.core.wire import ManifestHeader, uint32
+from obst.core.wire import ManifestHeader, stream_declaration, uint32
 from obst.resources import ResourcePolicy
 from tests.support_extensions import IdentityExtension
 from tests.support_resources import accounting as _accounting
@@ -139,7 +139,7 @@ def _manifest_offsets(
     stream_offsets: dict[int, int] = {}
     for stream in sorted(manifest.streams, key=lambda item: item.stream_id):
         stream_offsets[stream.stream_id] = offset
-        offset += 16 + len(stream.metadata)
+        offset += stream_declaration.size + len(stream.metadata)
 
     return extension_offsets, recipe_offsets, stream_offsets
 
@@ -159,8 +159,8 @@ _MUTATION_MANIFEST = Manifest(
         Recipe(7, (StageSpec(_MUTATION_STAGE_ID),)),
     ),
     streams=(
-        Stream(2, _MUTATION_STREAM_TYPE, 1),
-        Stream(8, _MUTATION_STREAM_TYPE, 7),
+        Stream(2, _MUTATION_STREAM_TYPE),
+        Stream(8, _MUTATION_STREAM_TYPE),
     ),
 )
 _EXTENSION_OFFSETS, _RECIPE_OFFSETS, _STREAM_OFFSETS = _manifest_offsets(
@@ -208,7 +208,6 @@ def _manifests(draw: st.DrawFn) -> Manifest:
         Stream(
             stream_id,
             draw(st.sampled_from(_PROPERTY_STREAM_TYPES)),
-            draw(st.sampled_from(recipe_ids)),
             draw(st.binary(max_size=16)),
         )
         for stream_id in stream_ids
@@ -281,24 +280,16 @@ def test_manifest_rejects_duplicate_recipe_and_stream_ids() -> None:
     with pytest.raises(ValueError, match="recipe ids must be unique"):
         Manifest(
             recipes=(identity_stage_recipe(0), identity_stage_recipe(0)),
-            streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+            streams=(Stream(0, BYTES_STREAM_TYPE),),
         )
 
     with pytest.raises(ValueError, match="stream ids must be unique"):
         Manifest(
             recipes=(identity_stage_recipe(0),),
             streams=(
-                Stream(0, BYTES_STREAM_TYPE, 0),
-                Stream(0, BYTES_STREAM_TYPE, 0),
+                Stream(0, BYTES_STREAM_TYPE),
+                Stream(0, BYTES_STREAM_TYPE),
             ),
-        )
-
-
-def test_manifest_rejects_unknown_default_recipe() -> None:
-    with pytest.raises(ValueError, match="references unknown default recipe"):
-        Manifest(
-            recipes=(identity_stage_recipe(0),),
-            streams=(Stream(0, BYTES_STREAM_TYPE, 7),),
         )
 
 
@@ -306,8 +297,8 @@ def test_manifest_encoding_is_canonical_by_id() -> None:
     manifest = Manifest(
         recipes=(identity_stage_recipe(7), identity_stage_recipe(1)),
         streams=(
-            Stream(8, _METADATA_STREAM_TYPE, 7, b"eight"),
-            Stream(2, _METADATA_STREAM_TYPE, 1, b"two"),
+            Stream(8, _METADATA_STREAM_TYPE, b"eight"),
+            Stream(2, _METADATA_STREAM_TYPE, b"two"),
         ),
     )
 
@@ -324,7 +315,7 @@ def test_manifest_encoding_is_canonical_by_id() -> None:
 def test_zero_stage_recipe_round_trips_without_a_stage_declaration() -> None:
     manifest = Manifest(
         recipes=(Recipe(0, ()),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
 
     encoded = _encode_manifest(manifest)
@@ -339,6 +330,21 @@ def test_zero_stage_recipe_round_trips_without_a_stage_declaration() -> None:
     assert decoded.recipes[0].stages == ()
     assert decoded.extension_ids() == (BYTES_STREAM_TYPE,)
     assert decoded.stage_ids() == ()
+
+
+def test_manifest_without_recipes_round_trips_for_empty_streams() -> None:
+    manifest = Manifest(recipes=(), streams=(Stream(0, BYTES_STREAM_TYPE),))
+
+    encoded = _encode_manifest(manifest)
+    decoded = decode_manifest(
+        encoded,
+        recipe_count=0,
+        stream_count=1,
+        accounting=_accounting(),
+    )
+
+    assert decoded == manifest
+    assert decoded.recipes == ()
 
 
 @pytest.mark.parametrize(
@@ -424,14 +430,6 @@ def test_zero_stage_recipe_round_trips_without_a_stage_declaration() -> None:
         ),
         pytest.param(
             _ManifestMutation(
-                replacements=((_STREAM_OFFSETS[2] + 8, _uint32(99)),),
-                error_type=InvalidContainerError,
-                message="references unknown default recipe",
-            ),
-            id="unknown-default-recipe",
-        ),
-        pytest.param(
-            _ManifestMutation(
                 replacements=((_FIRST_RECIPE_STAGE_OFFSET + 4, _uint32(0xFFFFFFFF)),),
                 error_type=TruncatedContainerError,
                 message="stage parameters",
@@ -440,7 +438,7 @@ def test_zero_stage_recipe_round_trips_without_a_stage_declaration() -> None:
         ),
         pytest.param(
             _ManifestMutation(
-                replacements=((_STREAM_OFFSETS[2] + 12, _uint32(0xFFFFFFFF)),),
+                replacements=((_STREAM_OFFSETS[2] + 8, _uint32(0xFFFFFFFF)),),
                 error_type=TruncatedContainerError,
                 message="stream metadata",
             ),
@@ -560,7 +558,7 @@ def test_manifest_round_trips_declared_extension_specification_urls() -> None:
     specification_url = "https://example.org/specs/identity-v1"
     manifest = Manifest(
         recipes=(identity_stage_recipe(0),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
         extensions=(
             ExtensionDeclaration(IdentityExtension.extension_id, specification_url),
         ),
@@ -585,7 +583,7 @@ def test_manifest_rejects_unreferenced_extension_declarations() -> None:
     with pytest.raises(ValueError, match="extension declaration is not referenced"):
         Manifest(
             recipes=(identity_stage_recipe(0),),
-            streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+            streams=(Stream(0, BYTES_STREAM_TYPE),),
             extensions=(ExtensionDeclaration("org.example/unused@1"),),
         )
 
@@ -599,7 +597,7 @@ def test_manifest_rejects_one_extension_id_in_stage_and_stream_roles() -> None:
     ):
         Manifest(
             recipes=(Recipe(0, (StageSpec(shared_id),)),),
-            streams=(Stream(0, shared_id, 0),),
+            streams=(Stream(0, shared_id),),
         )
 
 
@@ -643,8 +641,8 @@ def test_manifest_decoding_enforces_configured_count_limits(
     manifest = Manifest(
         recipes=(identity_stage_recipe(0), identity_stage_recipe(1)),
         streams=(
-            Stream(0, BYTES_STREAM_TYPE, 0),
-            Stream(1, BYTES_STREAM_TYPE, 1),
+            Stream(0, BYTES_STREAM_TYPE),
+            Stream(1, BYTES_STREAM_TYPE),
         ),
     )
 
@@ -661,8 +659,8 @@ def test_manifest_decoding_accepts_configured_count_boundaries() -> None:
     manifest = Manifest(
         recipes=(identity_stage_recipe(0), identity_stage_recipe(1)),
         streams=(
-            Stream(0, BYTES_STREAM_TYPE, 0),
-            Stream(1, BYTES_STREAM_TYPE, 1),
+            Stream(0, BYTES_STREAM_TYPE),
+            Stream(1, BYTES_STREAM_TYPE),
         ),
     )
 
@@ -692,7 +690,7 @@ def test_manifest_enforces_per_recipe_stage_limit_in_both_directions() -> None:
                 ),
             ),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     encoded = _encode_manifest(manifest)
     policy = _policy((CoreResource.STAGES_PER_RECIPE, 1))

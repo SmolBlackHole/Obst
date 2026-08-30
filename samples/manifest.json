@@ -15,8 +15,8 @@
 	},
 	"nested_archive": {
 		"path": "all-fruit.obst",
-		"size": 3562036,
-		"sha256": "20a71fd53e84abfae8c9c4e976f761a2cc59b72c2771c5bc9a30532b2899a780",
+		"size": 3562026,
+		"sha256": "9d9d659cd9c843603fcdc1ae9bc6b3803e93dd2105b828741d0d13d8c0c5c460",
 		"members": [
 			"apple.obst",
 			"pineapple.obst",
@@ -34,8 +34,8 @@
 			"source_url": "https://unsplash.com/photos/red-apple-fruit-gDPaDDy6_WE",
 			"container": {
 				"path": "apple.obst",
-				"size": 266889,
-				"sha256": "4cadda6661175e17a4c234347706e90c178ac7812e6704382a06ef1be8cd7e19",
+				"size": 266885,
+				"sha256": "386e53fc702fb2d1ebb606ddc500b5b7b8ad43a32f039df40f602604bca480be",
 				"chunk_count": 6
 			}
 		},
@@ -49,8 +49,8 @@
 			"source_url": "https://unsplash.com/photos/ripe-pineapple-fruit-nAOZCYcLND8",
 			"container": {
 				"path": "pineapple.obst",
-				"size": 837637,
-				"sha256": "c9dae71da14381604bca426a15785301fe7961e29efc857f4814fabd84a5b5df",
+				"size": 837633,
+				"sha256": "5e550d81dd0ed2af1228c78884ee81b5f5c04e9e0d7a24a2f885f2d7ec72ac85",
 				"chunk_count": 14
 			}
 		},
@@ -64,8 +64,8 @@
 			"source_url": "https://unsplash.com/photos/assorted-fruits-zeFy-oCUhV8",
 			"container": {
 				"path": "fruit-bowl.obst",
-				"size": 2452411,
-				"sha256": "6aff3b5388d9e533d4e64561013cd5c417a56e23176918295a8e5ddbaaf77b6b",
+				"size": 2452407,
+				"sha256": "0c59ba0be28100e73327db50142a0e1b5e410885c684faf098ddf70c61ed4c62",
 				"chunk_count": 38
 			}
 		},

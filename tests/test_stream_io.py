@@ -39,7 +39,7 @@ def _stage_registry() -> ExtensionRegistry:
 def _identity_stage_manifest() -> Manifest:
     return Manifest(
         recipes=(Recipe(0, (StageSpec(IdentityExtension.extension_id),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
 
 

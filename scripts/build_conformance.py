@@ -237,7 +237,7 @@ def _identity_stage_manifest(
 ) -> Manifest:
     return Manifest(
         recipes=(Recipe(recipe_id, (StageSpec(_IdentityStage.extension_id),)),),
-        streams=(Stream(stream_id, BYTES_STREAM_TYPE, recipe_id),),
+        streams=(Stream(stream_id, BYTES_STREAM_TYPE),),
     )
 
 
@@ -248,7 +248,7 @@ def _zero_stage_manifest(
 ) -> Manifest:
     return Manifest(
         recipes=(Recipe(recipe_id, ()),),
-        streams=(Stream(stream_id, BYTES_STREAM_TYPE, recipe_id),),
+        streams=(Stream(stream_id, BYTES_STREAM_TYPE),),
     )
 
 
@@ -256,6 +256,13 @@ def _identity_container(payload: bytes = b"hello") -> bytes:
     manifest = _zero_stage_manifest()
     chunks = () if not payload else ((0, 0, 0, payload),)
     return _write_container(manifest, chunks)
+
+
+def _no_recipe_container() -> bytes:
+    return _write_container(
+        Manifest(recipes=(), streams=(Stream(0, BYTES_STREAM_TYPE),)),
+        (),
+    )
 
 
 def _empty_identity_chunk_container() -> bytes:
@@ -287,7 +294,7 @@ def _empty_zlib_chunk_container() -> bytes:
                 ),
             ),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     return _write_container(manifest, ((0, 0, 0, b""),))
 
@@ -311,7 +318,6 @@ def _delta8_zlib_container() -> bytes:
             Stream(
                 0,
                 BYTES_STREAM_TYPE,
-                0,
                 metadata=b"delta8-zlib-vector",
             ),
         ),
@@ -331,8 +337,8 @@ def _multi_stream_container() -> bytes:
             Recipe(1, (StageSpec(_DeltaStage.extension_id),)),
         ),
         streams=(
-            Stream(0, BYTES_STREAM_TYPE, 0, metadata=b"left"),
-            Stream(1, BYTES_STREAM_TYPE, 1, metadata=b"right"),
+            Stream(0, BYTES_STREAM_TYPE, metadata=b"left"),
+            Stream(1, BYTES_STREAM_TYPE, metadata=b"right"),
         ),
     )
     return _write_container(
@@ -353,8 +359,8 @@ def _matrix_manifest() -> Manifest:
             Recipe(7, (StageSpec(_MATRIX_STAGE_ID),)),
         ),
         streams=(
-            Stream(2, _MATRIX_STREAM_TYPE, 1, b"two"),
-            Stream(8, _MATRIX_STREAM_TYPE, 7, b"eight"),
+            Stream(2, _MATRIX_STREAM_TYPE, b"two"),
+            Stream(8, _MATRIX_STREAM_TYPE, b"eight"),
         ),
     )
 
@@ -366,7 +372,7 @@ def _sparse_ids_container() -> bytes:
 def _specification_url_manifest() -> Manifest:
     return Manifest(
         recipes=(Recipe(0, (StageSpec(_IdentityStage.extension_id),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
         extensions=(
             ExtensionDeclaration(_IdentityStage.extension_id, _SPECIFICATION_URL),
         ),
@@ -394,7 +400,7 @@ def _unused_unknown_stage_container() -> bytes:
             Recipe(0, (StageSpec(_IdentityStage.extension_id),)),
             Recipe(1, (StageSpec("org.example/missing@1"),)),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     return _write_container(manifest, ((0, 0, 0, b"known"),))
 
@@ -724,6 +730,14 @@ def _valid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
             "valid",
             _identity_container(b""),
             ("empty-stream", "zero-chunks"),
+            (),
+            _success_expectation((0, b"")),
+        ),
+        _vector(
+            "empty-stream-without-recipes",
+            "valid",
+            _no_recipe_container(),
+            ("empty-stream", "zero-chunks", "zero-recipes"),
             (),
             _success_expectation((0, b"")),
         ),
@@ -1180,21 +1194,7 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         extension_rule,
     )
 
-    recipes_start = matrix_offsets.extensions_end - ManifestHeader.size
     streams_start = matrix_offsets.streams_start - ManifestHeader.size
-    zero_recipes_body = matrix_body[:recipes_start] + matrix_body[streams_start:]
-    reject(
-        "zero-recipes",
-        _replace_manifest(
-            matrix,
-            _manifest_with_body(encoded_matrix_manifest, zero_recipes_body),
-            recipe_count=0,
-            stream_count=2,
-        ),
-        ("manifest", "zero-recipes"),
-        "invalid_structure",
-        manifest_rule,
-    )
     zero_streams_body = matrix_body[:streams_start]
     reject(
         "zero-streams",
@@ -1281,17 +1281,10 @@ def _invalid_definitions(raw: bytes) -> tuple[VectorDefinition, ...]:
         stream_rule,
     )
     reject(
-        "unknown-default-recipe",
-        _mutate_manifest_body(matrix, (stream_2 + 8, struct.pack("<I", 99))),
-        ("stream", "unknown-default-recipe"),
-        "invalid_structure",
-        stream_rule,
-    )
-    reject(
         "truncated-stream-metadata",
         _mutate_manifest_body(
             matrix,
-            (stream_2 + 12, struct.pack("<I", uint32.maximum)),
+            (stream_2 + 8, struct.pack("<I", uint32.maximum)),
         ),
         ("stream", "metadata", "truncation"),
         "truncated",

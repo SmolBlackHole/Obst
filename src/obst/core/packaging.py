@@ -35,11 +35,11 @@ class RecipeSpec:
 
 @dataclass(frozen=True, slots=True)
 class LogicalStreamDescriptor:
-    """Logical stream meaning and its fixed default recipe."""
+    """Logical stream meaning and the fixed Recipe selected by its producer."""
 
     stream_type: str
     metadata: bytes
-    default_recipe: RecipeSpec
+    recipe: RecipeSpec
 
     def __post_init__(self) -> None:
         validate_extension_id(self.stream_type)

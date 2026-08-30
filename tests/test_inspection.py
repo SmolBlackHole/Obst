@@ -101,8 +101,8 @@ def test_inspection_retains_actual_usage_by_stream_recipe_and_stage() -> None:
             Recipe(1, (StageSpec(ZLIB_STAGE_ID, b"\x06"),)),
         ),
         streams=(
-            Stream(0, BYTES_STREAM_TYPE, 0),
-            Stream(1, BYTES_STREAM_TYPE, 1),
+            Stream(0, BYTES_STREAM_TYPE),
+            Stream(1, BYTES_STREAM_TYPE),
         ),
     )
     target = io.BytesIO()
@@ -186,7 +186,7 @@ def test_unused_unknown_stage_is_declared_but_not_required() -> None:
             Recipe(0, (StageSpec(IDENTITY_STAGE_ID),)),
             Recipe(1, (StageSpec(_CUSTOM_STAGE_ID),)),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     complete_writer_registry = ExtensionRegistry(
         (IdentityExtension(), _IdentityEncoderStage())
@@ -226,7 +226,7 @@ def test_unused_unknown_stage_is_declared_but_not_required() -> None:
 def test_inspection_observes_decoder_capability_without_executing_it() -> None:
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(_CUSTOM_STAGE_ID),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     writer_registry = ExtensionRegistry((_IdentityEncoderStage(),))
     target = io.BytesIO()
@@ -281,7 +281,7 @@ def test_inspection_uses_the_registry_snapshot_from_operation_start() -> None:
     registry = builder.build()
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(_CUSTOM_STAGE_ID),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     ContainerWriter(target, manifest, accounting=_accounting()).finish()
@@ -353,7 +353,7 @@ def test_interpretation_policy_is_an_explicit_extension_allowlist() -> None:
     registry = ExtensionRegistry((stage_interpreter, profile_interpreter))
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(_CUSTOM_STAGE_ID),)),),
-        streams=(Stream(0, _PROFILE_ID, 0, b"opaque"),),
+        streams=(Stream(0, _PROFILE_ID, b"opaque"),),
     )
     target = io.BytesIO()
     ContainerWriter(target, manifest, accounting=_accounting()).finish()
@@ -421,7 +421,7 @@ def test_interpreter_member_access_uses_the_extension_error_boundary(
     registry = ExtensionRegistry((extension,))
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(_CUSTOM_STAGE_ID),)),),
-        streams=(Stream(0, _PROFILE_ID, 0, b"opaque"),),
+        streams=(Stream(0, _PROFILE_ID, b"opaque"),),
     )
     target = io.BytesIO()
     ContainerWriter(target, manifest, accounting=_accounting()).finish()
@@ -441,7 +441,7 @@ def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> Non
     stream_type = "org.example/opaque-records@1"
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(IDENTITY_STAGE_ID),)),),
-        streams=(Stream(0, stream_type, 0, b"application-owned metadata"),),
+        streams=(Stream(0, stream_type, b"application-owned metadata"),),
     )
     registry = ExtensionRegistry((IdentityExtension(),))
     target = io.BytesIO()
@@ -478,7 +478,7 @@ def test_recoverable_payload_does_not_imply_understood_stream_semantics() -> Non
 def test_empty_stream_has_zero_chunk_resource_footprint() -> None:
     manifest = Manifest(
         recipes=(Recipe(0, (StageSpec(IDENTITY_STAGE_ID),)),),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     target = io.BytesIO()
     ContainerWriter(target, manifest, accounting=_accounting()).finish()
@@ -506,7 +506,7 @@ def test_resource_footprint_multiplies_chunks_by_recipe_stages() -> None:
                 ),
             ),
         ),
-        streams=(Stream(0, BYTES_STREAM_TYPE, 0),),
+        streams=(Stream(0, BYTES_STREAM_TYPE),),
     )
     registry = ExtensionRegistry((IdentityExtension(), ZlibExtension()))
     target = io.BytesIO()

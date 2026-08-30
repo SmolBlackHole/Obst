@@ -73,7 +73,7 @@ OBST 0.2 header                              # [1] opens the representation
 MANF                                         # [2] declares everything used below
   extension[0] = obst.bytes@1
   recipe[0] = identity
-  stream[0] = type extension[0], recipe[0]
+  stream[0] = type extension[0]
 CHNK stream=0 sequence=0 recipe=0            # [3] stores one encoded chunk
 CMIT                                         # [4] binds all preceding bytes
 ```
@@ -174,8 +174,9 @@ sizes must fit their `u32` fields, so the body can contain at most
 
 The body contains every extension entry, every Recipe entry and every stream
 entry, in that order. Recipe and stream counts come from the container header.
-At least one Recipe and one stream are required. Padding and trailing bytes are
-not allowed.
+At least one stream is required. Zero Recipes are valid, but then no chunk can
+exist because every chunk references a declared Recipe. Padding and trailing
+bytes are not allowed.
 
 A reader applies its local manifest-size and entry-count limits before reading
 the complete manifest or constructing its object graph. The manifest header
@@ -270,13 +271,11 @@ Streams have unique IDs and are sorted by `stream_id`. Each entry is:
 | -------: | ----- | --------------------------- |
 |        4 | u32   | stream ID                   |
 |        4 | u32   | stream-type extension index |
-|        4 | u32   | default recipe ID           |
 |        4 | u32   | metadata size               |
 | variable | bytes | opaque stream-type metadata |
 
-Every default Recipe ID references a declared Recipe. It does not constrain
-later chunks: each chunk's own Recipe ID is authoritative and may name any
-declared Recipe.
+Stream entries do not select a Recipe. Each chunk's Recipe ID is authoritative
+and references any Recipe declared in the same manifest.
 
 The declared stream type alone interprets the logical payload and metadata.
 OBST core assigns no timestamp, channel, sample, unit or shape semantics.

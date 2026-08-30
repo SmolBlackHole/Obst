@@ -28,19 +28,19 @@ and validity rules.
 
 ## The pieces at a glance
 
-| Term                                                        | Meaning                                                                                  |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [Container](#the-outer-shape)                               | One complete OBST byte stream: header, manifest, chunks and terminal commit.             |
-| [Container header](format.md#container-header)              | The opening record that identifies the format version.                                   |
-| [Manifest](format.md#manifest)                              | The declarations that chunks may reference: Extension IDs, Recipes and logical streams.  |
-| [Extension declaration](format.md#extension-table)          | One versioned stream-profile or Stage ID, plus an optional specification URL.            |
-| [Stream](#streams-own-logical-identity)                     | One ordered logical byte sequence with a stream-profile ID, metadata and default Recipe. |
-| [Stream profile](toolchain/extension-api/profiles.md)       | A versioned contract for the meaning of one stream's recovered bytes and metadata.       |
-| [Stage](toolchain/extension-api/stages.md)                  | One versioned, reversible byte-to-byte operation applied to an individual chunk.         |
-| [Recipe](#recipes-describe-reversible-representation)       | An ordered list of Stages and their parameter bytes.                                     |
-| [Chunk](#chunks-make-the-stream-bounded)                    | One independently framed part of a stream, stored through one Recipe.                    |
-| [Terminal commit](#the-terminal-commit-proves-completeness) | The closing record that proves the container is complete.                                |
-| [Carrier](toolchain/extension-api/carriers.md)              | Runtime tooling that connects a complete OBST byte stream to a source or destination.    |
+| Term                                                        | Meaning                                                                                 |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Container](#the-outer-shape)                               | One complete OBST byte stream: header, manifest, chunks and terminal commit.            |
+| [Container header](format.md#container-header)              | The opening record that identifies the format version.                                  |
+| [Manifest](format.md#manifest)                              | The declarations that chunks may reference: Extension IDs, Recipes and logical streams. |
+| [Extension declaration](format.md#extension-table)          | One versioned stream-profile or Stage ID, plus an optional specification URL.           |
+| [Stream](#streams-own-logical-identity)                     | One ordered logical byte sequence with a stream-profile ID and metadata.                |
+| [Stream profile](toolchain/extension-api/profiles.md)       | A versioned contract for the meaning of one stream's recovered bytes and metadata.      |
+| [Stage](toolchain/extension-api/stages.md)                  | One versioned, reversible byte-to-byte operation applied to an individual chunk.        |
+| [Recipe](#recipes-describe-reversible-representation)       | An ordered list of Stages and their parameter bytes.                                    |
+| [Chunk](#chunks-make-the-stream-bounded)                    | One independently framed part of a stream, stored through one Recipe.                   |
+| [Terminal commit](#the-terminal-commit-proves-completeness) | The closing record that proves the container is complete.                               |
+| [Carrier](toolchain/extension-api/carriers.md)              | Runtime tooling that connects a complete OBST byte stream to a source or destination.   |
 
 The container names contracts, not classes or installed packages. A local
 implementation may provide those contracts, but its loading and composition
@@ -78,16 +78,14 @@ flowchart LR
     Extensions["Extension declarations"] --> Profile["Stream-profile ID"]
     Extensions --> Stage["Stage ID"]
     Streams["Stream declarations"] --> Profile
-    Streams --> DefaultRecipe["Default Recipe"]
     Recipes["Recipe declarations"] --> Stage
     Chunk["Chunk"] --> Streams
     Chunk --> Recipes
 ```
 
-A stream declaration names its profile and default Recipe. A Recipe names its
-Stages. Every chunk then names the stream and Recipe it actually uses. The
-chunk's Recipe ID is authoritative, so one stream may use different Recipes
-for different chunks.
+A stream declaration names its profile and metadata. A Recipe names its
+Stages. Every chunk names both the stream and Recipe it actually uses, so one
+stream may use different Recipes for different chunks.
 
 An Extension declaration may point to its public specification. The URL helps
 readers find the contract. It never installs code or activates a plugin.
@@ -95,8 +93,7 @@ readers find the contract. It never installs code or activates a plugin.
 ## Streams own logical identity
 
 A stream is an ordered sequence of logical bytes. Its declaration gives it a
-container-local numeric ID, a stable stream-profile ID, opaque metadata and a
-default Recipe.
+container-local numeric ID, a stable stream-profile ID and opaque metadata.
 
 The built-in `obst.bytes@1` profile means opaque logical bytes with empty
 metadata. Other profiles may define filenames, timestamps, table schemas or
