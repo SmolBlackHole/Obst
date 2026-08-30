@@ -82,8 +82,8 @@ Python providers.
 | --------------------------------------------------------------- | ------------------------------------- |
 | [Writing and maintaining docs](writing-and-maintaining-docs.md) | Authority, structure and review rules |
 | [Roadmap](../ROADMAP.md)                                        | Unfinished work and delivery order    |
-| [Contributing](../CONTRIBUTING.md)                               | Setup, ownership and pull requests    |
-| [Security](../SECURITY.md)                                       | Reporting and plugin trust boundary   |
+| [Contributing](../CONTRIBUTING.md)                              | Setup, ownership and pull requests    |
+| [Security](../SECURITY.md)                                      | Reporting and plugin trust boundary   |
 
 ## Status markers
 
