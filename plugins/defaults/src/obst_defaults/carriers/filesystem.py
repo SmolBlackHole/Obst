@@ -121,7 +121,8 @@ class FilesystemReaderSession:
             CarrierLifecycleState.OPEN,
             operation="close",
         )
-        assert self._file is not None
+        if self._file is None:
+            raise RuntimeError("filesystem reader lifecycle invariant violated")
         try:
             self._file.close()
         except OSError as exc:
@@ -180,8 +181,8 @@ class FilesystemPublisherSession:
             CarrierLifecycleState.OPEN,
             operation="commit",
         )
-        assert self._file is not None
-        assert self._temporary_path is not None
+        if self._file is None or self._temporary_path is None:
+            raise RuntimeError("filesystem publisher lifecycle invariant violated")
         try:
             self._file.flush()
             os.fsync(self._file.fileno())
@@ -216,10 +217,12 @@ class FilesystemPublisherSession:
         try:
             self._cleanup_temporary()
         except OSError as exc:
-            assert self._temporary_path is not None
-            cleanup_issues = (
-                PublicationCleanupIssue(str(self._temporary_path), str(exc)),
-            )
+            temporary_path = self._temporary_path
+            if temporary_path is None:
+                raise RuntimeError(
+                    "filesystem cleanup lifecycle invariant violated"
+                ) from exc
+            cleanup_issues = (PublicationCleanupIssue(str(temporary_path), str(exc)),)
         return PublicationReceipt(self.target, cleanup_issues)
 
     def abort(self) -> None:

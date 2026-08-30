@@ -27,7 +27,9 @@ dev = [
     "reuse[charset-normalizer]>=5.0",
     "ruff>=0.9",
     "setuptools>=77",
+    "vulture>=2.16",
 ]
+security = ["pip-audit>=2.10.1"]
 
 [project.scripts]
 obst = "obst.cli.main:main"
@@ -59,7 +61,15 @@ line-length = 88
 src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "B", "UP", "RUF"]
+select = ["E4", "E7", "E9", "F", "B", "UP", "RUF", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/documentation_graph.py" = ["S603"]
+"scripts/quality.py" = ["S603"]
+"tests/**/*.py" = ["S101"]
+"tests/test_distribution_installation.py" = ["S603"]
+"tests/test_documentation.py" = ["S102", "S603"]
+"tests/test_package_boundaries.py" = ["S603"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -69,6 +79,12 @@ profile = "black"
 line_length = 88
 py_version = 314
 src_paths = ["src", "tests", "scripts"]
+
+[tool.vulture]
+paths = ["src", "tests", "scripts"]
+ignore_names = ["request"]
+min_confidence = 100
+sort_by_size = true
 
 [tool.mypy]
 python_version = "3.14"

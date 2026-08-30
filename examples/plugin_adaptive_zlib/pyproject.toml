@@ -26,6 +26,7 @@ dev = [
     "pytest-timeout>=2.3",
     "ruff>=0.9",
     "setuptools>=77",
+    "vulture>=2.16",
 ]
 
 [project.urls]
@@ -59,7 +60,14 @@ line-length = 88
 src = ["src", "tests", "scripts", "compare_samples.py"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "B", "UP", "RUF"]
+select = ["E4", "E7", "E9", "F", "B", "UP", "RUF", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/quality.py" = ["S603"]
+"tests/**/*.py" = ["S101"]
+"tests/test_conformance.py" = ["S603"]
+"tests/test_distribution.py" = ["S603"]
+"tests/test_plugin.py" = ["S603"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -69,6 +77,11 @@ profile = "black"
 line_length = 88
 py_version = 314
 src_paths = ["src", "tests", "scripts", "compare_samples.py"]
+
+[tool.vulture]
+paths = ["src", "tests", "scripts", "compare_samples.py"]
+min_confidence = 100
+sort_by_size = true
 
 [tool.mypy]
 python_version = "3.14"

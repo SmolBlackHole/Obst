@@ -67,7 +67,7 @@ def validate_specification_url(specification_url: object) -> None:
 
 def _validate_wire_specification_url(specification_url: object) -> None:
     validate_specification_url(specification_url)
-    assert isinstance(specification_url, str)
+    specification_url = cast(str, specification_url)
     if len(specification_url.encode("ascii")) > uint16.maximum:
         raise ValueError("specification_url cannot exceed 65535 bytes")
 

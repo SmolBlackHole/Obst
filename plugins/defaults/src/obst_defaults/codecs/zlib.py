@@ -259,15 +259,19 @@ class _BoundZlibDecoder:
         *,
         max_output_size: int | None,
     ) -> bytes:
+        dictionary = self.dictionary
         if self.requires_dictionary:
-            assert self.dictionary is not None
-            self._validate_dictionary_header(data)
+            if dictionary is None:
+                raise ProviderRejectedError(
+                    f"{self.stage_id} requires dictionary parameters"
+                )
+            self._validate_dictionary_header(data, dictionary)
         elif self._uses_preset_dictionary(data):
             raise ProviderRejectedError(f"{self.stage_id} forbids preset dictionaries")
         decoder = (
             stdlib_zlib.decompressobj()
-            if self.dictionary is None
-            else stdlib_zlib.decompressobj(zdict=self.dictionary)
+            if dictionary is None
+            else stdlib_zlib.decompressobj(zdict=dictionary)
         )
         try:
             if max_output_size is None:
@@ -313,8 +317,7 @@ class _BoundZlibDecoder:
     def _uses_preset_dictionary(cls, data: bytes) -> bool:
         return cls._has_valid_zlib_header(data) and data[1] & _FDICT_FLAG != 0
 
-    def _validate_dictionary_header(self, data: bytes) -> None:
-        assert self.dictionary is not None
+    def _validate_dictionary_header(self, data: bytes, dictionary: bytes) -> None:
         if not self._has_valid_zlib_header(data):
             raise ProviderRejectedError("invalid zlib payload: invalid header")
         if not self._uses_preset_dictionary(data):
@@ -326,7 +329,7 @@ class _BoundZlibDecoder:
                 "invalid zlib payload: truncated dictionary identifier"
             )
         declared = int.from_bytes(data[2:6], "big")
-        expected = stdlib_zlib.adler32(self.dictionary) & 0xFFFFFFFF
+        expected = stdlib_zlib.adler32(dictionary) & 0xFFFFFFFF
         if declared != expected:
             raise ProviderRejectedError(
                 f"{self.stage_id} dictionary identifier does not match its parameters"

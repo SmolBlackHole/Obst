@@ -223,7 +223,7 @@ def test_file_sources_read_from_the_handle_opened_during_planning(
         chunk_size=4,
     ) as sources:
 
-        def refuse_reopen(*args: object, **kwargs: object) -> int:
+        def refuse_reopen(*args: object, **_kwargs: object) -> int:
             raise AssertionError("file source was reopened")
 
         monkeypatch.setattr("obst_defaults.files.adapter.os.open", refuse_reopen)

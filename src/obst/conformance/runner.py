@@ -210,9 +210,10 @@ def _check_case(
         _check_stream_metadata_rejection(registry, case)
     elif type(case) is ContainerStructureCase:
         _check_container_structure(case, accounting=accounting)
-    else:
-        assert type(case) is ContainerRecoveryCase
+    elif type(case) is ContainerRecoveryCase:
         _check_container_recovery(registry, case, accounting=accounting)
+    else:
+        raise ConformanceError(f"unsupported conformance case {type(case).__name__}")
 
 
 def _check_stage_known_answer(

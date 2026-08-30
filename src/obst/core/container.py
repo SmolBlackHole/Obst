@@ -327,7 +327,6 @@ class ContainerReader:
                     chunk.encoded_size,
                     structure="chunk payload",
                 )
-                assert payload is not None
                 if zlib.crc32(payload) != chunk.payload_crc32:
                     raise CorruptContainerError("chunk payload checksum mismatch")
                 parsed = Chunk(
@@ -351,7 +350,6 @@ class ContainerReader:
         header = read_exact(
             self._source, ContainerHeader.size, structure="container header"
         )
-        assert header is not None
         parsed = ContainerHeader.decode(header)
         self.accounting.record(
             CoreResource.MANIFEST_BYTES,
@@ -372,7 +370,6 @@ class ContainerReader:
             ManifestHeader.size,
             structure="manifest header",
         )
-        assert manifest_header_bytes is not None
         manifest_header = ManifestHeader.decode(manifest_header_bytes)
         validate_manifest_header(
             manifest_header,
@@ -385,7 +382,6 @@ class ContainerReader:
             manifest_header.body_size,
             structure="manifest body",
         )
-        assert manifest_body is not None
         manifest = decode_manifest_parts(
             manifest_header,
             manifest_body,

@@ -117,7 +117,8 @@ def encode_manifest(
         body_crc32=zlib.crc32(body_bytes),
     ).encode()
     encoded = header + body_bytes
-    assert len(encoded) == expected_size
+    if len(encoded) != expected_size:
+        raise RuntimeError("manifest encoder produced an unexpected size")
     return encoded
 
 

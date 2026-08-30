@@ -10,7 +10,7 @@ import struct
 import zlib
 from collections.abc import Buffer
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from obst.core.errors import (
     CorruptContainerError,
@@ -70,8 +70,7 @@ class UnsignedInteger:
     def unpack(self, data: Buffer) -> int:
         """Decode one exact-width value."""
         value = self._layout.unpack(data)[0]
-        assert isinstance(value, int)
-        return value
+        return cast(int, value)
 
 
 @dataclass(frozen=True, slots=True)

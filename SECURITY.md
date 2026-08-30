@@ -46,6 +46,13 @@ fails, for example when a disabled plugin loads or container bytes expand the
 active trust set. The full model is documented under
 [Plugin trust boundary](docs/toolchain/plugins.md#trust-boundary).
 
+## Repository defenses
+
+Repository maintainers should keep GitHub secret scanning and push protection
+enabled. CI also scans repository changes, installed Python dependencies and
+the Python codebase. These checks reduce risk; they do not make selected plugin
+code safe to execute.
+
 ## Integrity is not authenticity
 
 Container CRCs, hashes and the terminal commit detect corruption and bind the

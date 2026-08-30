@@ -103,7 +103,8 @@ class MemoryReaderSession:
             CarrierLifecycleState.OPEN,
             operation="close",
         )
-        assert self._buffer is not None
+        if self._buffer is None:
+            raise RuntimeError("memory reader lifecycle invariant violated")
         self._buffer.close()
         self._buffer = None
         self._state = CarrierLifecycleState.CLOSED
@@ -133,7 +134,8 @@ class MemoryPublisherSession:
             CarrierLifecycleState.OPEN,
             operation="commit",
         )
-        assert self._buffer is not None
+        if self._buffer is None:
+            raise RuntimeError("memory publisher lifecycle invariant violated")
         try:
             data = self._buffer.getvalue()
             self._buffer.close()

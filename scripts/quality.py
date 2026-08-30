@@ -73,6 +73,7 @@ def main() -> None:
     run_isort(("--check-only", *TARGETS))
     run_module(("mypy",))
     run_module(("pyright",))
+    run_module(("vulture",))
     run_module(("reuse", "lint"))
     run_module(("pytest", "-m", "not distribution"))
     for workspace in WORKSPACE_TESTS:

@@ -10,7 +10,7 @@ import struct
 from collections.abc import Buffer
 from dataclasses import dataclass
 from io import Reader, Writer
-from typing import cast
+from typing import Literal, cast, overload
 
 from obst.core.errors import (
     BinaryIOContractError,
@@ -60,6 +60,26 @@ def write_all(target: BinaryWriter, data: bytes) -> None:
         result = cast(object, target.write(view[offset:]))
         written = validate_write_result(result, offered=offered)
         offset += written
+
+
+@overload
+def read_exact(
+    source: BinaryReader,
+    size: int,
+    *,
+    structure: str,
+    allow_clean_eof: Literal[False] = False,
+) -> bytes: ...
+
+
+@overload
+def read_exact(
+    source: BinaryReader,
+    size: int,
+    *,
+    structure: str,
+    allow_clean_eof: Literal[True],
+) -> bytes | None: ...
 
 
 def read_exact(

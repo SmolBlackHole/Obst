@@ -426,7 +426,8 @@ def _chunk_offsets(encoded: bytes) -> tuple[int, ...]:
         offsets.append(offset)
         chunk = ChunkHeader.decode(encoded[offset : offset + ChunkHeader.size])
         offset += ChunkHeader.size + chunk.encoded_size
-    assert offset == terminal_offset
+    if offset != terminal_offset:
+        raise RuntimeError("container scan did not end at the terminal record")
     return tuple(offsets)
 
 
@@ -614,7 +615,8 @@ def _dual_role_extension_container(encoded: bytes) -> bytes:
 
 def _used_unknown_stage_container(raw: bytes) -> bytes:
     offsets = _manifest_offsets(_identity_stage_manifest())
-    assert len(_UNKNOWN_STAGE_ID) == len(_IdentityStage.extension_id)
+    if len(_UNKNOWN_STAGE_ID) != len(_IdentityStage.extension_id):
+        raise RuntimeError("unknown-stage fixture must preserve the manifest size")
     return _mutate_manifest_body(
         raw,
         (
@@ -1600,8 +1602,10 @@ def _definitions() -> tuple[VectorDefinition, ...]:
     definitions = _valid_definitions(raw) + _invalid_definitions(raw)
     ids = [definition.vector_id for definition in definitions]
     paths = [definition.path for definition in definitions]
-    assert len(ids) == len(set(ids))
-    assert len(paths) == len(set(paths))
+    if len(ids) != len(set(ids)):
+        raise RuntimeError("conformance vector IDs must be unique")
+    if len(paths) != len(set(paths)):
+        raise RuntimeError("conformance vector paths must be unique")
     return definitions
 
 

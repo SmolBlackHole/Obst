@@ -652,7 +652,12 @@ def test_windows_origin_detection_is_conservative_on_probe_failure(
     monkeypatch: pytest.MonkeyPatch,
     failure: OSError,
 ) -> None:
-    def fail_open(path: Path, mode: str = "r", *args: object, **kwargs: object) -> None:
+    def fail_open(
+        path: Path,
+        _mode: str = "r",
+        *args: object,
+        **_kwargs: object,
+    ) -> None:
         raise failure
 
     monkeypatch.setattr("obst_defaults.commands.sys.platform", "win32")
@@ -1358,7 +1363,7 @@ def test_cli_maps_resource_refusal_to_dedicated_error(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
 ) -> None:
-    def refuse(*args: object, **kwargs: object) -> None:
+    def refuse(*args: object, **_kwargs: object) -> None:
         raise ResourceLimitError(
             resource=CoreResource.CHUNKS,
             scope="container",

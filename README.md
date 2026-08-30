@@ -266,9 +266,10 @@ obst plugins enable obst-defaults
 python scripts/quality.py
 ```
 
-The quality command runs Ruff, formatting, isort, mypy strict, Pyright strict,
-REUSE and all 3 distribution-owned test suites. GitHub Actions runs the same
-gate on Linux and Windows. Contributions follow the
+The quality command runs Ruff security linting, formatting, isort, mypy strict,
+Pyright strict, Vulture, REUSE and all 3 distribution-owned test suites. GitHub
+Actions runs the same gate on Linux and Windows. A separate security workflow
+runs Gitleaks, pip-audit and CodeQL. Contributions follow the
 [contributing guide](CONTRIBUTING.md); security reports follow the private
 process in the [security policy](SECURITY.md).
 

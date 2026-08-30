@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 SmolBlackHole
+#
+# SPDX-License-Identifier: MPL-2.0
+
+version: 2
+updates:
+    - package-ecosystem: uv
+      directory: /
+      schedule:
+          interval: weekly
+      groups:
+          runtime-python-dependencies:
+              patterns: ["*"]
+
+    - package-ecosystem: pip
+      directory: /plugins/defaults
+      schedule:
+          interval: weekly
+      groups:
+          defaults-python-dependencies:
+              patterns: ["*"]
+
+    - package-ecosystem: pip
+      directory: /examples/plugin_adaptive_zlib
+      schedule:
+          interval: weekly
+      groups:
+          adaptive-python-dependencies:
+              patterns: ["*"]
+
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+      groups:
+          github-actions:
+              patterns: ["*"]

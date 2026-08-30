@@ -51,6 +51,7 @@ def main() -> None:
     _isort(("--check-only", *TARGETS))
     _module(("mypy",))
     _module(("pyright",))
+    _module(("vulture",))
     _module(("pytest", "-m", "not distribution"))
 
 

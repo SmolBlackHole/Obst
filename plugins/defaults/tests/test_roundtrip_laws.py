@@ -179,7 +179,7 @@ def test_zlib_bound_executors_do_not_reparse_parameters(
     encoder = extension.bind_encoder(parameters)
     decoder = extension.bind_decoder(parameters)
 
-    def fail_if_reparsed(*args: object, **kwargs: object) -> Never:
+    def fail_if_reparsed(*args: object, **_kwargs: object) -> Never:
         raise AssertionError("bound executor reparsed its parameters")
 
     monkeypatch.setattr(type(extension), "decode_parameters", fail_if_reparsed)
@@ -353,7 +353,7 @@ def test_container_logical_dataset_reverse_law(
                 _LOGICAL_STREAM_TYPE,
                 metadata,
             )
-            for stream_id, (_, metadata, recipe_id) in enumerate(streams)
+            for stream_id, (_, metadata, _) in enumerate(streams)
         ),
     )
     chunks_by_stream = tuple(

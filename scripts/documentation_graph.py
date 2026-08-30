@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 from collections import deque
 from dataclasses import dataclass
@@ -67,9 +68,12 @@ class DocumentationGraph:
 
 def discover_markdown_pages(root: Path) -> tuple[Path, ...]:
     """Discover tracked and non-ignored project Markdown pages."""
+    git = shutil.which("git")
+    if git is None:
+        raise RuntimeError("git is required to discover documentation pages")
     completed = subprocess.run(
         (
-            "git",
+            git,
             "ls-files",
             "--cached",
             "--others",

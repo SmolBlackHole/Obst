@@ -220,7 +220,8 @@ def _load_case(record: JsonObject) -> PortableConformanceCase:
             outcome,
             missing_required_stages,
         )
-    assert kind is ConformanceCaseKind.CONTAINER_RECOVERY
+    if kind is not ConformanceCaseKind.CONTAINER_RECOVERY:
+        raise ValueError(f"case {case_id} has an unsupported kind")
     _require_keys(
         record,
         {"id", "kind", "container", "required_extensions", "streams"},
@@ -297,8 +298,7 @@ def _dump_case(case: PortableConformanceCase) -> JsonObject:
             outcome=case.outcome.value,
             missing_required_stages=case.missing_required_stages,
         )
-    else:
-        assert type(case) is ContainerRecoveryCase
+    elif type(case) is ContainerRecoveryCase:
         record.update(
             container=_store_bytes(case.container),
             required_extensions=case.required_extensions,
@@ -310,6 +310,8 @@ def _dump_case(case: PortableConformanceCase) -> JsonObject:
                 for stream in case.streams
             ),
         )
+    else:
+        raise TypeError(f"unsupported conformance case {type(case).__name__}")
     return record
 
 

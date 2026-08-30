@@ -234,7 +234,8 @@ class _BoundAdaptiveZlibEncoder:
                 candidate = bytes((mode, dictionary_index)) + payload
                 if best is None or self._rank(candidate) < self._rank(best):
                     best = candidate
-        assert best is not None
+        if best is None:
+            raise ProviderRejectedError("adaptive zlib produced no encoding candidate")
         require_stage_output_size(
             self.stage_id,
             len(best),
