@@ -109,7 +109,9 @@ Python providers.
 
 ## Status markers
 
-Unmarked prose describes implemented behavior.
+Behavior descriptions refer to implemented behavior unless marked otherwise.
+Explicit design goals and application constructions, such as the Horrors,
+describe intent or possible composition, not shipped applications.
 
 > [!NOTE]
 > **Future semantics:** The described behavior does not exist. Every such note

@@ -80,8 +80,9 @@ empty and its Stage execution count is zero.
 
 ## Resource footprint
 
-`ContainerInspection.summary` contains container size, total declared logical
-bytes and top-level stream, recipe and chunk counts.
+`ContainerInspection.summary` contains container size, declared logical bytes,
+encoded payload size and chunk count. Stream and Recipe counts are exposed as
+`ContainerInspection.stream_count` and `ContainerInspection.recipe_count`.
 
 `ContainerInspection.resources` is a `ContainerResourceFootprint` containing
 the remaining exact facts derived during the same structural pass:
@@ -160,31 +161,12 @@ including an existing `ExtensionContractError`, is wrapped in a new
 
 ### Interpreter diagnostics and failures
 
-Three outcomes are intentionally different:
-
-| Interpreter situation                                        | Inspection result                                                     |
-| ------------------------------------------------------------ | --------------------------------------------------------------------- |
-| no interpretation policy                                     | no callback runs; raw bytes and capability facts remain available     |
-| callback returns `InspectionInterpretation(error="invalid")` | structural inspection succeeds and retains the extension's diagnostic |
-| callback raises or returns the wrong type                    | interpreted inspection fails with `ExtensionContractError`            |
-
 An interpreter-reported `error` means "these opaque bytes have no local
 presentation", not "the OBST container is structurally invalid". A raised
 exception instead means the host-authorized extension code failed its runtime
 contract.
 
-Use callback-free inspection when semantic metadata does not need local
-presentation:
-
-```python
-inspection = inspect_container(
-    ContainerReader(BytesIO(container_bytes), accounting=accounting),
-    registry=registry,
-)
-```
-
-Passing a registry alone never opts its interpreters in. The [extension
-registry](internals/registry.md#keep-the-trust-boundary-explicit) owns the trust decision;
+The [extension registry](internals/registry.md#keep-the-trust-boundary-explicit) owns the trust decision;
 the [runtime error reference](errors.md) owns failure classification.
 
 The command-line presentation and JSON schema are documented in the

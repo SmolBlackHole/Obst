@@ -54,10 +54,6 @@ mechanism is not part of the container.
 
 Every OBST container has the same top-level order:
 
-```text
-container header | manifest | chunk | chunk | ... | terminal commit
-```
-
 ```mermaid
 flowchart LR
     Header["Container header"] --> Manifest["Manifest"]

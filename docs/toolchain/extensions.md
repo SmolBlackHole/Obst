@@ -65,15 +65,15 @@ provider_distribution.* installable provider implementations
 > directly or explicitly activates and loads exactly the plugins it trusts.
 
 Applications may use the public [plugin manager](plugins.md) to inspect
-installed `obst.extensions`, `obst.commands` and `obst.conformance` metadata,
+installed Extension, command, resource and conformance contributions,
 persist an enabled set and build an operation-local runtime. Discovery and
 activation are inert; only explicit runtime loading imports code, and returned
 Extension objects still enter this same registry path.
 
-Every plugin that publishes `obst.extensions` also publishes a matching static
-`obst.conformance` suite. Command-only plugins do not need one. This makes the
-portable evidence travel with the provider distribution instead of giving
-first-party contracts a separate test path.
+A plugin can publish a portable suite alongside its providers. Without one it
+can run, but cannot be tested through `PluginManager.test()`. The
+[conformance contribution rules](plugins.md#conformance-contribution) distinguish
+wire-contract coverage from ordinary runtime tests.
 
 The names describe different layers:
 
@@ -104,7 +104,7 @@ def compose_runtime(extensions: Iterable[Extension]) -> ExtensionRegistry:
     return ExtensionRegistry(extensions)
 ```
 
-There is no assembly wrapper, registration decorator or first-party shortcut.
+There is no assembly wrapper or registration decorator.
 The object itself implements the structural protocols for the capabilities it
 offers. `ExtensionDescriptor` contains local descriptive metadata and does not
 repeat the ID. The registry is immutable once composed, and one provider per
@@ -124,5 +124,4 @@ in encoding and decoding.
 
 The separately installed
 [`obst-defaults` documentation](../../plugins/defaults/docs/README.md) is one
-concrete provider book. Its first-party ownership grants no special registry or
-plugin-loading path.
+concrete provider book.

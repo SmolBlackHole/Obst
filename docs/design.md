@@ -69,10 +69,10 @@ Only identities required to understand container bytes enter the manifest:
 | Carrier                         | Container input, output and publication  | None                       |
 | Archiver or application adapter | Mapping domain inputs to logical streams | Only selected stream types |
 
-Codecs and transforms are descriptions of a Stage, not separate core APIs. A
-decoder needs the chosen Stage and stream contracts. It does not need to know
-which Packager selected them, which adapter supplied the logical bytes or
-which Carrier moved the completed container.
+Codecs and transforms are descriptions of a Stage, not separate core APIs.
+Byte recovery needs the used Stage contracts; interpreting the recovered bytes
+needs the stream profile. Neither requires knowing which Packager, adapter or
+Carrier produced the container.
 
 ## Manifest-first, chunked operation
 
@@ -111,15 +111,9 @@ distinction between structure, decoder availability and recovery.
 
 ## Recipes and contract identity
 
-A Recipe lists versioned Stages in encoding order. Decoding applies their
-inverse operations in reverse order:
-
-```text
-logical bytes -> transform -> codec -> encoded bytes
-logical bytes <- inverse   <- decode <- encoded bytes
-```
-
-An Extension ID names a language-neutral contract, not an implementation class
+The [Recipe model](anatomy.md#recipes-describe-reversible-representation)
+separates a pipeline from its implementation. An Extension ID names a
+language-neutral contract, not an implementation class
 or package. That contract owns parameter bytes, representation, inverse
 behavior, invalid inputs and resource rules. Incompatible behavior receives a
 new ID version.
@@ -156,10 +150,10 @@ The decoder executes the Recipe stored with a chunk. It does not need the
 search history or the policy that selected it.
 
 An encoder may use one fixed Recipe, a heuristic or a bounded candidate search.
-It may optimize size, memory, encode time, decode time or flash usage. Every
-candidate still needs an exact round trip, resource bounds and deterministic
-selection. The identity Recipe remains correct when no transformation earns
-its cost.
+It may optimize size, memory, encode time, decode time or flash usage. Candidates
+must remain reversible and fit the operation's resource bounds. Deterministic
+selection makes a search reproducible; it is encoder policy, not a wire rule.
+The identity Recipe remains correct when no transformation earns its cost.
 
 ```text
 identity Recipe | codec | transform -> codec
@@ -172,8 +166,9 @@ identity Recipe | codec | transform -> codec
 ```
 
 Rejected candidates are diagnostics, not container data. Cleverness may also
-live inside one Stage when its selected representation is fully described by
-that Stage's parameters.
+live inside one Stage whose contract records the selected representation in
+its parameters or payload, as the [Adaptive-Zlib example](../examples/plugin_adaptive_zlib/README.md)
+demonstrates.
 
 ## Structure discovery through transforms
 

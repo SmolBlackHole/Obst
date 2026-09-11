@@ -54,10 +54,13 @@ a carrier, install a plugin or expand the operation's trust set.
 ## Reader lifecycle
 
 ```python
+from obst.core import ContainerReader, inspect_container
+
 reader_session = provider.bind_reader(request)
 source = reader_session.open()
 try:
-    inspection = inspect_container(source)
+    reader = ContainerReader(source, accounting=accounting)
+    inspection = inspect_container(reader, registry=registry)
 finally:
     reader_session.close()
 ```

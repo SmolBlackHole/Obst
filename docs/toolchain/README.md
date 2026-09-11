@@ -71,8 +71,8 @@ select a distribution, enable a plugin or expand the host's trust set. The
 
 ## Write and recover bytes in memory
 
-This complete example uses only the public runtime contracts, one local
-identity Stage and 2 in-memory binary endpoints:
+This round trip uses an empty identity Recipe and 2 in-memory endpoints.
+No Stage provider or plugin is needed:
 
 > [!WARNING]
 > **Executable documentation:** The following Python block runs during tests
@@ -80,80 +80,26 @@ identity Stage and 2 in-memory binary endpoints:
 
 ```python
 from io import BytesIO
-from typing import Self
 
 from obst.core import (
     BYTES_STREAM_TYPE,
     DEFAULT_RESOURCE_POLICY,
     ContainerReader,
     ContainerWriter,
-    ExtensionDescriptor,
-    ExtensionKind,
     ExtensionRegistry,
     Manifest,
     Recipe,
     ResourceAccounting,
-    StageSpec,
     Stream,
     encode_chunk_once,
     materialize_stream,
-    require_no_parameters,
-    require_stage_output_size,
 )
 
 
-class IdentityExtension:
-    extension_id = "org.example/identity@1"
-    kind = ExtensionKind.STAGE
-    descriptor = ExtensionDescriptor(
-        display_name="Identity",
-        summary="Return one chunk unchanged.",
-        specification_url="https://example.org/obst/identity-v1",
-    )
-
-    def bind_encoder(self, parameters: bytes, /) -> Self:
-        require_no_parameters(self.extension_id, parameters)
-        return self
-
-    def bind_decoder(self, parameters: bytes, /) -> Self:
-        require_no_parameters(self.extension_id, parameters)
-        return self
-
-    def encode(
-        self,
-        data: bytes,
-        /,
-        *,
-        max_output_size: int | None,
-    ) -> bytes:
-        require_stage_output_size(
-            self.extension_id,
-            len(data),
-            max_output_size=max_output_size,
-            operation="encode",
-        )
-        return data
-
-    def decode(
-        self,
-        data: bytes,
-        /,
-        *,
-        max_output_size: int | None,
-    ) -> bytes:
-        require_stage_output_size(
-            self.extension_id,
-            len(data),
-            max_output_size=max_output_size,
-            operation="decode",
-        )
-        return data
-
 payload = b"OBST is bytes before it becomes fruit."
-identity = IdentityExtension()
-registry = ExtensionRegistry((identity,))
+registry = ExtensionRegistry(())
 manifest = Manifest(
-    recipes=(Recipe(0, (StageSpec(identity.extension_id),)),),
+    recipes=(Recipe(0, ()),),
     streams=(Stream(0, BYTES_STREAM_TYPE),),
 )
 
@@ -178,6 +124,8 @@ assert materialize_stream(reader, stream_id=0, registry=registry) == payload
 
 The same core operations accept any compatible binary reader or writer. Files,
 object stores and transactional publication remain adapter concerns.
+To implement a byte operation yourself, continue with the executable
+[Stage-provider example](extension-api/stages.md#provider-protocols).
 
 ## Operation boundaries
 
