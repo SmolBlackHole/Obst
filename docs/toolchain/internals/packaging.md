@@ -135,8 +135,8 @@ boundary.
 
 ## Resource policy
 
-Core sources, recipe execution and container writing accept the public
-`ResourceAccounting`. A Packager decides how its request exposes that
-operation state. No private mutable budget object crosses extension boundaries.
+Sources declare their chunk bound. Packagers pass the public
+`ResourceAccounting` to Recipe execution and container writing; a Packager
+decides how its request exposes that state. Sources themselves take no accountant.
 
 The [resource guide](../resources.md) documents defaults and structured refusal.

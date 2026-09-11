@@ -49,14 +49,18 @@ size.
 
 ## Package the sources
 
+An empty file produces a stream declaration with no chunks.
+
 Packaging keeps every owner visible. The archiver and Packager use the same
 immutable registry:
 
 ```python
+from obst.core import DEFAULT_RESOURCE_POLICY, ResourceAccounting
 from obst_defaults.carriers import publish_package
 from obst_defaults.carriers.memory import MemoryPublishRequest
 from obst_defaults.packagers import FixedPackageRequest
 
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
 with archiver.open_sources(
     (Path("apple.jpg"), Path("measurements.bin")),
     source_profile_id=files.extension_id,
@@ -65,7 +69,7 @@ with archiver.open_sources(
     operation = registry.require_packager_provider(
         fixed.extension_id
     ).prepare_package(
-        FixedPackageRequest(registry=registry, sources=sources)
+        FixedPackageRequest(registry=registry, sources=sources, accounting=accounting)
     )
     publisher = registry.require_carrier_publisher_provider(
         memory.extension_id

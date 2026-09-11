@@ -302,7 +302,7 @@ for plugin in manager.catalog():
 ```
 
 `PluginStatus` also exposes distribution name and version, package Summary,
-Documentation URL and its extension, command and conformance factory
+Documentation URL and its Extension, command, resource and conformance factory
 references when installed. Those values are inert provenance for a host
 decision. A plugin has no specification URL, because each returned Extension
 owns its own contract and descriptor.
@@ -332,14 +332,14 @@ roaming or XDG configuration location. Corrupt state raises `PluginStateError`
 and is never reset silently.
 
 `enable()` and `disable()` update only that file. They do not import code.
-Only a plugin with an Extension or command contribution can be enabled, because
+Only a plugin with an Extension, command or resource contribution can be enabled, because
 a conformance-only plugin has no runtime contribution to activate. Trying to
 enable one raises `PluginActivationError`; it remains available to explicit
 `test()` calls.
-`runtime()` imports Extension factories for the persistently enabled set plus
-explicit one-shot additions, validates their tuple results and builds one
-immutable registry for the caller's operation. It returns a `PluginRuntime`
-containing the selected names and that registry. `commands()` separately loads
+`runtime()` loads Extension and resource contributions for the persistently
+enabled set plus explicit one-shot additions. It returns a `PluginRuntime`
+containing the selected names, an immutable registry and the resource catalog.
+`commands()` separately loads
 and captures commands from the persistently enabled set only. This separation
 lets `--plugin NAME` add capabilities without executing a command factory whose
 parser cannot appear in that invocation. Adapter code uses the registry's

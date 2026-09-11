@@ -82,7 +82,7 @@ This avoids copying the same 17 resource records 4 times.
             "summary": "Open binary container for chunked data and reversible pipelines"
         }
     ],
-    "schema_version": 7
+    "schema_version": 6
 }
 ```
 

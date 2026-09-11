@@ -140,12 +140,13 @@ Its canonical parameter bytes are:
 | Offset | Type             | Meaning                                     |
 | -----: | ---------------- | ------------------------------------------- |
 |      0 | `u8`             | zlib compression level, `0..9`              |
-|      1 | `u8` bit mask    | declared shuffle widths 2, 4, 8 and 16      |
+|      1 | `u8` bit mask    | widths 2, 4, 8, 16 use bits `0x01`, `0x02`, `0x04`, `0x08` |
 |      2 | `u8`             | dictionary count, `0..8`                    |
 |      3 | repeated entries | `u16` big-endian size followed by the bytes |
 
-Width 1 and dictionary index 0 are always implicit candidates. Each declared
-dictionary contains 1 to 32,768 bytes. Duplicate dictionaries, trailing
+Width 1 and dictionary index 0 (no dictionary) are implicit candidates.
+Dictionary indexes 1 through N follow parameter-entry order. Each dictionary
+contains 1 to 32,768 bytes. Duplicate dictionaries, truncated entries, trailing
 parameter bytes and unknown mask bits are invalid.
 
 ### Chunk payload
@@ -154,14 +155,23 @@ The encoded Stage payload is:
 
 | Offset | Type    | Meaning                                                |
 | -----: | ------- | ------------------------------------------------------ |
-|      0 | `u8`    | layout: raw, shuffle2, shuffle4, shuffle8 or shuffle16 |
+|      0 | `u8`    | mode `0..4` selects width `1, 2, 4, 8, 16`, respectively |
 |      1 | `u8`    | dictionary index, 0 means no dictionary                |
 |      2 | `bytes` | one complete zlib-wrapped DEFLATE stream               |
 
 The selected layout and dictionary must be declared by the Stage parameters.
-The dictionary identifier in a preset-dictionary zlib header must match the
-selected dictionary's Adler-32 value. Trailing zlib data, unknown modes and
-invalid framing are rejected.
+Dictionary index 0 requires FDICT clear in the zlib header; a positive index
+requires FDICT set and DICTID equal to the selected dictionary's Adler-32.
+Truncated headers, trailing zlib data, unknown modes and invalid framing are rejected.
+
+After decompression, let `n` be the byte count, `w` the selected width and
+`k = floor(n / w)`. The inverse shuffle assigns
+`logical[i*w + j] = decompressed[j*k + i]` for `0 <= i < k` and `0 <= j < w`.
+Bytes from offset `k*w` onward are copied unchanged. Each chunk resets codec
+state; dictionaries come solely from the parameters. Empty logical input is
+valid and still requires the 2-byte selection header and a complete zlib stream.
+Shuffling preserves length; zlib may expand data. The reference implementation
+enforces the caller's output ceiling during decompression and on encoded output.
 
 ### Encoder freedom
 

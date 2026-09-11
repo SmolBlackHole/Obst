@@ -330,7 +330,7 @@ are authoritative.
 
 | Material                                                   | License                                              |
 | ---------------------------------------------------------- | ---------------------------------------------------- |
-| OBST format specification and normative contracts          | [CC BY 4.0](LICENSES/CC-BY-4.0.txt)                  |
+| OBST format specification, Anatomy, Design and normative contracts | [CC BY 4.0](LICENSES/CC-BY-4.0.txt)                  |
 | Reference implementation, tooling and general project docs | [MPL 2.0](LICENSES/MPL-2.0.txt)                      |
 | Unsplash sample images and containers that embed them      | [Unsplash License](LICENSES/LicenseRef-Unsplash.txt) |
 

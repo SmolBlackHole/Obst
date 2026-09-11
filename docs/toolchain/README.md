@@ -58,8 +58,8 @@ The reference project separates runtime code from replaceable providers:
 | `obst`          | `obst`, the transport-neutral runtime, plugin manager, CLI and inspection |
 | `obst-defaults` | First-party Extensions and the file-oriented `pack` and `unpack` commands |
 
-`obst-defaults` publishes ordinary `obst.extensions`, `obst.commands` and
-`obst.conformance` entry points. The `obst` distribution neither imports it
+`obst-defaults` publishes ordinary `obst.extensions`, `obst.commands`,
+`obst.resources` and `obst.conformance` entry points. The `obst` distribution neither imports it
 directly nor depends on it. Installation exposes inert metadata; an explicit
 host decision admits plugin code into an operation.
 

@@ -39,14 +39,15 @@ does not record that `obst.fixed@1` was used.
 ## Prepare an operation
 
 ```python
-from obst.core import ExtensionRegistry
+from obst.core import DEFAULT_RESOURCE_POLICY, ExtensionRegistry, ResourceAccounting
 from obst_defaults.packagers import FixedPackageRequest, FixedPackagerExtension
 
 fixed = FixedPackagerExtension()
 registry = ExtensionRegistry((*stage_and_profile_extensions, fixed))
 provider = registry.require_packager_provider(fixed.extension_id)
+accounting = ResourceAccounting(DEFAULT_RESOURCE_POLICY)
 operation = provider.prepare_package(
-    FixedPackageRequest(registry=registry, sources=logical_sources)
+    FixedPackageRequest(registry=registry, sources=logical_sources, accounting=accounting)
 )
 ```
 

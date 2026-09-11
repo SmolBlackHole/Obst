@@ -244,8 +244,9 @@ obst.fixed@1
 
 ## Container inspection
 
-The example container below was created from the repository `README.md` by the
-`pack` command shown later on this page:
+This snapshot shows a container packed from an earlier repository `README.md`.
+Sizes depend on the input revision; the packing snapshot later on this page
+uses different input bytes:
 
 ```console
 > obst inspect <TEMP>\readme.obst
@@ -374,7 +375,9 @@ obst.file@1
 ### Create a profile
 
 `create` prints the complete resolved profile. A new profile initially
-inherits every available default:
+inherits every available default shown under [List and show profiles](#list-and-show-profiles).
+Its resource tables add a `Source` column containing `default` for every row.
+Header excerpt:
 
 ```console
 > obst limits create local
@@ -385,38 +388,13 @@ Resource limit profile
   Available       yes
   Summary         Local custom resource profile.
 
-Resources
-
-Core
-  Resource                     Default    Maximum  Source
-  -------------------------  ---------  ---------  -------
-  chunks                       262,144    262,144  default
-  container_bytes             16.0 GiB   16.0 GiB  default
-  encoded_chunk_bytes         64.0 MiB   64.0 MiB  default
-  extensions                     4,096      4,096  default
-  intermediate_bytes          64.0 MiB   64.0 MiB  default
-  logical_bytes               16.0 GiB   16.0 GiB  default
-  logical_chunk_bytes         64.0 MiB   64.0 MiB  default
-  manifest_bytes              16.0 MiB   16.0 MiB  default
-  materialized_stream_bytes   64.0 MiB   64.0 MiB  default
-  recipes                        4,096      4,096  default
-  stage_executions           1,048,576  1,048,576  default
-  stages_per_recipe                 64         64  default
-  streams                       65,536     65,536  default
-  total_stages                  65,536     65,536  default
-
-obst.file@1
-  Resource               Default   Maximum  Source
-  --------------------  --------  --------  -------
-  archive_member_bytes   4.0 GiB   4.0 GiB  default
-  archive_members          4,096     4,096  default
-  archive_total_bytes   16.0 GiB  16.0 GiB  default
 ```
 
 ### Set a ceiling
 
 `set` prints the profile after applying the override. Here the manifest ceiling
-changes from `16.0 MiB` to `8.0 MiB`:
+changes from `16.0 MiB` to `8.0 MiB`. This excerpt omits unchanged resource
+rows; all other maxima and their `default` sources remain unchanged:
 
 ```console
 > obst limits set local manifest_bytes 8388608
@@ -426,33 +404,12 @@ Resource limit profile
   Active          no
   Available       yes
   Summary         Local custom resource profile.
-
 Resources
 
 Core
   Resource                     Default    Maximum  Source
   -------------------------  ---------  ---------  -------
-  chunks                       262,144    262,144  default
-  container_bytes             16.0 GiB   16.0 GiB  default
-  encoded_chunk_bytes         64.0 MiB   64.0 MiB  default
-  extensions                     4,096      4,096  default
-  intermediate_bytes          64.0 MiB   64.0 MiB  default
-  logical_bytes               16.0 GiB   16.0 GiB  default
-  logical_chunk_bytes         64.0 MiB   64.0 MiB  default
   manifest_bytes              16.0 MiB    8.0 MiB  local
-  materialized_stream_bytes   64.0 MiB   64.0 MiB  default
-  recipes                        4,096      4,096  default
-  stage_executions           1,048,576  1,048,576  default
-  stages_per_recipe                 64         64  default
-  streams                       65,536     65,536  default
-  total_stages                  65,536     65,536  default
-
-obst.file@1
-  Resource               Default   Maximum  Source
-  --------------------  --------  --------  -------
-  archive_member_bytes   4.0 GiB   4.0 GiB  default
-  archive_members          4,096     4,096  default
-  archive_total_bytes   16.0 GiB  16.0 GiB  default
 ```
 
 Extension-owned resources use their complete namespaced ID. Applying
@@ -464,7 +421,8 @@ Extension-owned resources use their complete namespaced ID. Applying
 
 ### Select and delete a profile
 
-`use` prints the selected resolved profile:
+`use` prints the same resolved profile as `set`, with `Active` changed to
+`yes`. Its resources are unchanged. Header excerpt:
 
 ```console
 > obst limits use local
@@ -474,73 +432,13 @@ Resource limit profile
   Active          yes
   Available       yes
   Summary         Local custom resource profile.
-
-Resources
-
-Core
-  Resource                     Default    Maximum  Source
-  -------------------------  ---------  ---------  -------
-  chunks                       262,144    262,144  default
-  container_bytes             16.0 GiB   16.0 GiB  default
-  encoded_chunk_bytes         64.0 MiB   64.0 MiB  default
-  extensions                     4,096      4,096  default
-  intermediate_bytes          64.0 MiB   64.0 MiB  default
-  logical_bytes               16.0 GiB   16.0 GiB  default
-  logical_chunk_bytes         64.0 MiB   64.0 MiB  default
-  manifest_bytes              16.0 MiB    8.0 MiB  local
-  materialized_stream_bytes   64.0 MiB   64.0 MiB  default
-  recipes                        4,096      4,096  default
-  stage_executions           1,048,576  1,048,576  default
-  stages_per_recipe                 64         64  default
-  streams                       65,536     65,536  default
-  total_stages                  65,536     65,536  default
-
-obst.file@1
-  Resource               Default   Maximum  Source
-  --------------------  --------  --------  -------
-  archive_member_bytes   4.0 GiB   4.0 GiB  default
-  archive_members          4,096     4,096  default
-  archive_total_bytes   16.0 GiB  16.0 GiB  default
 ```
 
-After returning to `default`, the inactive custom profile can be deleted:
+`obst limits use default` prints the complete default profile shown under
+[List and show profiles](#list-and-show-profiles). Once it is selected, the
+inactive custom profile can be deleted:
 
 ```console
-> obst limits use default
-Resource limit profile
-  Profile         default
-  Source          default
-  Active          yes
-  Available       yes
-  Summary         Built-in resource ceilings contributed by the active runtime.
-
-Resources
-
-Core
-  Resource                     Default    Maximum
-  -------------------------  ---------  ---------
-  chunks                       262,144    262,144
-  container_bytes             16.0 GiB   16.0 GiB
-  encoded_chunk_bytes         64.0 MiB   64.0 MiB
-  extensions                     4,096      4,096
-  intermediate_bytes          64.0 MiB   64.0 MiB
-  logical_bytes               16.0 GiB   16.0 GiB
-  logical_chunk_bytes         64.0 MiB   64.0 MiB
-  manifest_bytes              16.0 MiB   16.0 MiB
-  materialized_stream_bytes   64.0 MiB   64.0 MiB
-  recipes                        4,096      4,096
-  stage_executions           1,048,576  1,048,576
-  stages_per_recipe                 64         64
-  streams                       65,536     65,536
-  total_stages                  65,536     65,536
-
-obst.file@1
-  Resource               Default   Maximum
-  --------------------  --------  --------
-  archive_member_bytes   4.0 GiB   4.0 GiB
-  archive_members          4,096     4,096
-  archive_total_bytes   16.0 GiB  16.0 GiB
-
 > obst limits delete local
 Deleted limit profile local
 ```

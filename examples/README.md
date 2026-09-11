@@ -44,7 +44,7 @@ Round trip byte-identical: True
 
 ## What the walkthrough demonstrates
 
-[`api_walkthrough.py`](api_walkthrough.py) follows one complete in-memory flow:
+[`api_walkthrough.py`](../plugins/defaults/examples/api_walkthrough.py) follows one complete in-memory flow:
 
 ```text
 explicit extension registry

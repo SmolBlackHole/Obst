@@ -56,7 +56,7 @@ A useful pull request explains:
 - known limitations, skipped checks or follow-up work.
 
 Preserve existing SPDX metadata and the license assigned to the file. Format
-specifications and normative contracts use CC BY 4.0. Software and general
+specifications, Anatomy, Design and normative contracts use CC BY 4.0. Software and general
 project documentation use MPL 2.0.
 
 Report vulnerabilities through the private process in

@@ -100,5 +100,5 @@ binding semantics rather than weakening `0.2-apple` retroactively.
 - Signatures, deduplication, directory-tree profiles and global archive
   transforms remain unassigned ideas until a concrete threat model or measured
   use case requires them.
-- Dead-code and security scanning may add Vulture, Bandit and Semgrep once each
+- Further security scanning may add Bandit and Semgrep once each
   tool has a reviewed baseline and an explicit place in the quality gate.
