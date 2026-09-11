@@ -14,7 +14,7 @@ readme = "README.md"
 license = "MPL-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.14"
-dependencies = ["obst==0.2.0"]
+dependencies = ["obst==0.13"]
 
 [project.optional-dependencies]
 dev = [
