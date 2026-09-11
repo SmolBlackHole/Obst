@@ -15,6 +15,9 @@ bytes live in the [binary format](format.md), Python behavior in the
 The central rule is simple: applications own meaning, OBST owns reversible
 representation and framing, and callers own storage or transport. The
 [container anatomy](anatomy.md) introduces the pieces connected by that rule.
+Read this page for the reasons and tradeoffs; jump to the
+[Extension guide](toolchain/extensions.md) when you already know which boundary
+you want to implement.
 
 ## Table of contents
 
@@ -25,6 +28,7 @@ representation and framing, and callers own storage or transport. The
 	- [Manifest-first, chunked operation](#manifest-first-chunked-operation)
 	- [Stream semantics are not container semantics](#stream-semantics-are-not-container-semantics)
 	- [Recipes and contract identity](#recipes-and-contract-identity)
+	- [Federation and compatibility](#federation-and-compatibility)
 	- [The encoder may be clever](#the-encoder-may-be-clever)
 	- [Structure discovery through transforms](#structure-discovery-through-transforms)
 	- [Numeric representation and scale](#numeric-representation-and-scale)
@@ -123,6 +127,28 @@ new ID version.
 Finding a decoder permits an attempt; it does not prove the provider correct.
 OBST verifies recovered chunks against their declared logical size and hash.
 Provider-owned conformance suites test the broader contract claim.
+
+## Federation and compatibility
+
+The shared wire format does not need to understand each domain that uses it.
+Publishers can evolve stream profiles and Stages independently, while tools
+continue to parse the common framing. This lets the ecosystem grow without
+adding a core record type for every new application.
+
+The [Extension identity rules](format.md#extension-table) give each publisher
+control of its own contract namespace and require a new version for
+incompatible behavior. That separates wire evolution from domain evolution;
+it does not make all implementations mutually capable. Applications still
+choose a shared contract set, and implementations must honor those contracts.
+
+First-party contracts carry the same obligation as third-party ones. Keeping
+historical specifications, decoders and migration knowledge usable belongs to
+their publishers and consumers. The reference toolchain is one implementation,
+not the definition of every contract in the federation.
+
+The [conformance guide](toolchain/conformance.md) explains the evidence a
+publisher can provide. [Data archaeology kits](eldritch_horrors.md#data-archaeology-kits)
+show how an archive can carry that evidence alongside its payload.
 
 ## The encoder may be clever
 
@@ -225,3 +251,9 @@ OBST aims to be:
 OBST does not replace specialized semantic formats. PNG understands images,
 Parquet understands columnar analytics and video codecs understand video. OBST
 provides generic framing and reversible representation where that is useful.
+
+Continue with [Eldritch horrors](eldritch_horrors.md) to explore application
+constructions. To build one, choose a boundary in the
+[Extension guide](toolchain/extensions.md); for an independent implementation,
+start with the [wire specification](format.md) and its
+[portable conformance corpus](toolchain/conformance.md#format-corpus).

@@ -11,14 +11,17 @@ OBST and its Python toolchain answer different questions. The format documents
 define valid container bytes. The toolchain documents explain how this
 repository reads, writes, inspects and extends those bytes.
 
-Start with the [project README](../README.md) for the short introduction. Use
-this page when you already know what you want to build or verify.
+Start with the [project README](../README.md) for the introduction and a first
+CLI experiment. Then choose a path below. You can use existing tooling, write
+one capability or implement the wire format without working through every
+other part of the ecosystem.
 
 ## Table of contents
 
 - [OBST documentation](#obst-documentation)
 	- [Table of contents](#table-of-contents)
 	- [Choose a starting point](#choose-a-starting-point)
+	- [Read it as a book](#read-it-as-a-book)
 	- [The OBST format](#the-obst-format)
 	- [The Python toolchain](#the-python-toolchain)
 	- [Project documentation](#project-documentation)
@@ -26,18 +29,35 @@ this page when you already know what you want to build or verify.
 
 ## Choose a starting point
 
-| Goal                             | Start here                                   |
-| -------------------------------- | -------------------------------------------- |
-| Understand the container         | [Container anatomy](anatomy.md)              |
-| Implement OBST independently     | [Normative format](format.md)                |
-| Understand a format decision     | [Design notes](design.md)                    |
-| Use the Python API               | [Python toolchain](toolchain/README.md)      |
-| Build an Extension or plugin     | [Extension system](toolchain/extensions.md)  |
-| Use the command line             | [CLI guide](toolchain/cli.md)                |
-| Run interoperability checks      | [Conformance](toolchain/conformance.md)      |
-| Understand a failure             | [Runtime errors](toolchain/errors.md)        |
-| Package or extract regular files | [`obst-defaults`](../plugins/defaults/docs/) |
-| See unfinished work              | [Roadmap](../ROADMAP.md)                     |
+| I want to ... | Start here | Continue when needed |
+| ------------- | ---------- | -------------------- |
+| Understand OBST | [Anatomy](anatomy.md) | [Design](design.md) explains the boundaries |
+| Explore possible applications | [Eldritch horrors](eldritch_horrors.md) | Each construction links to its mechanism or example |
+| Pack files or inspect containers | [CLI](toolchain/cli.md) and [defaults](../plugins/defaults/docs/README.md) | [Output reference](toolchain/cli-output-reference.md) and [errors](toolchain/errors.md) |
+| Integrate OBST into Python | [Toolchain introduction](toolchain/README.md) | [Reading](toolchain/reading.md) and [writing](toolchain/writing.md) |
+| Define a stream profile or Stage | [Contract identity and ownership](design.md#recipes-and-contract-identity) | [Extension interfaces](toolchain/extensions.md), [examples](../examples/README.md) and [conformance](toolchain/conformance.md) |
+| Connect storage or choose encoding policy | [Carriers](toolchain/extension-api/carriers.md) or [Packagers](toolchain/extension-api/packagers.md) | [Resources](toolchain/resources.md) and [plugin distribution](toolchain/plugins.md) |
+| Implement a reader or writer independently | [Wire specification](format.md) | Required [Extension contracts](contracts/README.md) and [portable format corpus](toolchain/conformance.md#format-corpus) |
+| Look up an exact rule | [Wire specification](format.md), [contracts](contracts/README.md) or [Python guides](toolchain/README.md#choose-a-guide) | Read the authority for that layer directly |
+| Assess unfinished work | [Roadmap](../ROADMAP.md) | [What remains unproven](toolchain/conformance.md#what-remains-unproven) |
+
+Independent implementations do not need the Python plugin manager. A Carrier
+author does not need to implement a Stage. File users can start with the CLI.
+The paths meet where they share a contract, not at a mandatory setup sequence.
+
+## Read it as a book
+
+For a guided introduction, follow this sequence:
+
+1. [Project README](../README.md): what OBST is, a first experiment and whether it fits.
+2. [Anatomy](anatomy.md): follow logical bytes into a container and back out.
+3. [Design](design.md): why meaning, representation and runtime policy have separate owners.
+4. [Eldritch horrors](eldritch_horrors.md): build larger constructions from those rules.
+5. Choose a working path: [use the Python toolchain](toolchain/README.md),
+   [provide a capability](toolchain/extensions.md), or [implement the wire contract](format.md).
+
+The catalogs below are the reference shelves. They remain directly accessible;
+reading the introductory chapters is optional when you already know your task.
 
 ## The OBST format
 
@@ -49,6 +69,7 @@ plugin activation, local resource profiles or a particular Carrier.
 | [Format](format.md)     | Normative records, validity rules and `obst.bytes@1`     |
 | [Anatomy](anatomy.md)   | Non-normative walkthrough of streams, Recipes and chunks |
 | [Design](design.md)     | Rationale behind format boundaries and non-goals         |
+| [Eldritch horrors](eldritch_horrors.md) | Application patterns built from the existing boundaries |
 | [Contracts](contracts/) | Independently versioned, wire-visible contract catalog   |
 
 `format.md` is the sole authority for whether a byte stream conforms to OBST.
@@ -83,6 +104,7 @@ Python providers.
 | [Writing and maintaining docs](writing-and-maintaining-docs.md) | Authority, structure and review rules |
 | [Roadmap](../ROADMAP.md)                                        | Unfinished work and delivery order    |
 | [Contributing](../CONTRIBUTING.md)                              | Setup, ownership and pull requests    |
+| [How this happened](../README.md#how-this-happened)              | Shelly measurements, recursive fruit and the name |
 | [Security](../SECURITY.md)                                      | Reporting and plugin trust boundary   |
 
 ## Status markers

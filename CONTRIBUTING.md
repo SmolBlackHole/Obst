@@ -23,8 +23,10 @@ obst plugins enable obst-defaults
 python scripts/quality.py
 ```
 
-The quality command checks formatting, linting, strict typing, REUSE license
-metadata and the test suites owned by all 3 distributions.
+The quality command runs Ruff security linting, formatting, isort, mypy strict,
+Pyright strict, Vulture, REUSE and the test suites owned by all 3 distributions.
+GitHub Actions runs the same gate on Linux and Windows. A separate security
+workflow runs Gitleaks, pip-audit and CodeQL.
 
 ## Keep ownership explicit
 

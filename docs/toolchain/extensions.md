@@ -14,6 +14,13 @@ representation, select packaging policy or connect a host endpoint are
 extensions. First-party and third-party implementations use the same public
 boundaries.
 
+Choose the boundary that matches your task in the table below. You do not need
+to implement all of them or package a plugin to compose explicitly supplied
+providers. For a wire-visible profile or Stage, first define its language-neutral
+[contract and identity](../design.md#recipes-and-contract-identity), then use the
+Python interface and publish [conformance cases](conformance.md#plugin-extension-suites).
+For a Carrier or Packager, start directly with its runtime interface.
+
 | Boundary        | Owns                                             | Wire-visible ID | Guide                                        |
 | --------------- | ------------------------------------------------ | --------------- | -------------------------------------------- |
 | Stage           | Reversible processing of chunk bytes             | Yes             | [Stages](extension-api/stages.md)            |

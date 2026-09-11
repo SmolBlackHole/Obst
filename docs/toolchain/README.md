@@ -11,6 +11,12 @@ The OBST toolchain is the reference Python ecosystem around the
 [OBST format](../format.md). It reads, writes, inspects, packages and decodes
 OBST byte streams without becoming part of the format contract.
 
+You can enter through the [CLI](cli.md), the in-memory example below, or a
+specific [capability interface](extensions.md). These are independent starting
+points. For the conceptual path, read [Anatomy](../anatomy.md) and
+[Design](../design.md); for another implementation language, use the
+[wire specification](../format.md) and [portable conformance cases](conformance.md#portable-suites).
+
 `obst.core` owns transport-neutral operations and reversible execution. Other
 toolchain modules own plugins, presentation and host-selected adapters. None of
 them defines whether arbitrary bytes are a valid OBST container.
@@ -213,6 +219,10 @@ lifecycle.
 | Understand immutable capability lookup          | [Extension registry](internals/registry.md) |
 | Understand Python scalar and record layouts     | [Wire mapping](internals/wire.md)           |
 | Use the command line                            | [CLI](cli.md)                               |
+| Define application meaning for a stream          | [Stream profiles](extension-api/profiles.md) |
+| Implement a reversible byte operation            | [Stages](extension-api/stages.md)           |
+| Connect storage or transport                     | [Carriers](extension-api/carriers.md)       |
+| Choose chunking and representation policy        | [Packagers](extension-api/packagers.md)     |
 | Handle runtime failures                         | [Error reference](errors.md)                |
 | Run portable conformance suites                 | [Conformance](conformance.md)               |
 | Explore runnable programs and a complete plugin | [Examples](../../examples/README.md)        |

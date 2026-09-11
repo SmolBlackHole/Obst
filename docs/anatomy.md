@@ -12,6 +12,10 @@ container bytes. This page introduces the parts inside that boundary and shows
 how they fit together. The [binary format](format.md) owns exact fields, sizes
 and validity rules.
 
+Read this after the [project introduction](../README.md) if you want to follow
+the bytes. For commands you can use immediately, start with the
+[CLI guide](toolchain/cli.md) instead.
+
 ## Table of contents
 
 - [The anatomy of an OBST container](#the-anatomy-of-an-obst-container)
@@ -181,19 +185,22 @@ documented under [reading](toolchain/reading.md) and
 
 ## Unknown does not mean invalid
 
-OBST separates three questions:
+OBST separates four questions:
 
 1. Is the container structurally valid?
 2. Are the required Stage decoders available locally?
-3. Does the application understand each stream profile?
+3. Do the recovered logical bytes pass size and hash verification?
+4. Does the application understand each stream profile?
 
 A container that uses `org.example/something-strange@2` may pass structural
 inspection even when no decoder for that Stage is available. If all Stages are
 available but a stream profile is unknown, an implementation may still recover
 the logical bytes without understanding their application meaning.
 
-This distinction keeps framing, byte recovery and application semantics from
-collapsing into one all-or-nothing result.
+An available decoder permits a recovery attempt; it does not establish that
+the result is correct. The [validity and recovery rules](format.md#validity-availability-and-recovery)
+define those checks. This distinction keeps framing, byte recovery and
+application semantics from collapsing into one all-or-nothing result.
 
 ## Where the bytes go
 
@@ -213,7 +220,8 @@ A filesystem path, database key, HTTP request or object-store credential is a
 carrier concern. An OBST reader or writer receives binary endpoints, not those
 host-specific details.
 
-Continue with the [binary format](format.md) for exact bytes, the
-[toolchain guide](toolchain/) for Python operations, or the
-[Extension system](toolchain/extensions.md) for provider contracts and
-composition.
+Continue the conceptual path with [Design](design.md), which explains why these
+boundaries exist, then [Eldritch horrors](eldritch_horrors.md) for constructions
+they permit. To start implementing, go directly to the [binary format](format.md)
+for exact bytes, the [toolchain guide](toolchain/) for Python operations, or the
+[Extension system](toolchain/extensions.md) for provider contracts.
