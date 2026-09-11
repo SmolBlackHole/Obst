@@ -17,15 +17,15 @@ requires-python = ">=3.14"
 [project.optional-dependencies]
 dev = [
     "build>=1.2",
-    "hypothesis>=6.165",
-    "isort>=5.13",
+    "hypothesis>=6.167.1",
+    "isort>=9.0.1",
     "mypy>=1.14",
     "pyright>=1.1.411",
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "pytest-timeout>=2.3",
-    "reuse[charset-normalizer]>=5.0",
-    "ruff>=0.9",
+    "reuse[charset-normalizer]>=6.2.0",
+    "ruff>=0.16.6",
     "setuptools>=77",
     "vulture>=2.16",
 ]
