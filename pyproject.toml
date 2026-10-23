@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=84.2.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,17 +16,17 @@ requires-python = ">=3.14"
 
 [project.optional-dependencies]
 dev = [
-    "build>=1.2",
-    "hypothesis>=6.165",
-    "isort>=5.13",
-    "mypy>=1.14",
-    "pyright>=1.1.411",
+    "build>=1.6.1",
+    "hypothesis>=6.170.5",
+    "isort>=9.0.2",
+    "mypy>=2.4.0",
+    "pyright>=1.1.414",
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "pytest-timeout>=2.3",
-    "reuse[charset-normalizer]>=5.0",
-    "ruff>=0.9",
-    "setuptools>=77",
+    "reuse[charset-normalizer]>=6.2.0",
+    "ruff>=0.17.1",
+    "setuptools>=84.2.0",
     "vulture>=2.16",
 ]
 security = ["pip-audit>=2.10.1"]
